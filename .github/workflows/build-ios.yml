@@ -1,0 +1,88 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches:
+      - feature/react-native-expo
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Compilar Zora.ipa (macOS Runner)
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode 16.2
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '^16.1'
+
+      - name: Verify Xcode Version
+        run: xcodebuild -version
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Expo Prebuild iOS & CocoaPods
+        run: |
+          npx expo prebuild --platform ios --clean
+          cd ios
+          pod install
+
+      - name: Compilar con Xcode (Unsigned para Sideloadly)
+        run: |
+          cd ios
+          WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -n 1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "No .xcworkspace found, searching for .xcodeproj..."
+            PROJECT=$(ls -d *.xcodeproj 2>/dev/null | head -n 1)
+            xcodebuild -project "$PROJECT" \
+              -configuration Release \
+              -sdk iphoneos \
+              -destination 'generic/platform=iOS' \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              -derivedDataPath build \
+              build
+          else
+            SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
+            echo "Building with workspace: $WORKSPACE and scheme: $SCHEME_NAME"
+            xcodebuild -workspace "$WORKSPACE" \
+              -scheme "$SCHEME_NAME" \
+              -configuration Release \
+              -sdk iphoneos \
+              -destination 'generic/platform=iOS' \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              -derivedDataPath build \
+              build
+          fi
+
+      - name: Empaquetar archivo Zora.ipa
+        run: |
+          APP_PATH=$(find ios/build/Build/Products -name "*.app" -type d | head -n 1)
+          echo "Found app at: $APP_PATH"
+          mkdir -p build_output/Payload
+          cp -R "$APP_PATH" build_output/Payload/
+          cd build_output
+          zip -qr ../Zora.ipa Payload
+          cd ..
+          ls -la Zora.ipa
+
+      - name: Subir Zora.ipa a GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zora-IPA
+          path: Zora.ipa
+          retention-days: 14

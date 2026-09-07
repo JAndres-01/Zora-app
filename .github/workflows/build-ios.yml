@@ -73,8 +73,8 @@ jobs:
               echo "❌ ERROR EN XCODEBUILD. Ultimas 150 lineas del log:"
               tail -n 150 xcodebuild.log
               echo "❌ Errores detectados:"
-              grep -E "(error:|fatal error:|\*\* BUILD FAILED \*\*)" xcodebuild.log | head -n 60
-              grep -E "(error:|fatal error:)" xcodebuild.log | head -n 25 | while IFS= read -r line; do
+              grep -E "(error:|fatal error:|failed with a nonzero exit code|command not found|\*\* BUILD FAILED \*\*)" xcodebuild.log | head -n 60
+              grep -E "(error:|fatal error:|failed with a nonzero exit code|command not found)" xcodebuild.log | head -n 25 | while IFS= read -r line; do
                 echo "::error title=XcodeBuild::$line"
               done
               tail -n 20 xcodebuild.log | while IFS= read -r line; do

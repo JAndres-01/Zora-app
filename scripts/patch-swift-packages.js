@@ -253,8 +253,12 @@ if (fs.existsSync(hostObjectCallbacksHeader)) {
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
 if (fs.existsSync(buildXcframeworkScript)) {
   let scriptContent = fs.readFileSync(buildXcframeworkScript, 'utf8')
+  scriptContent = scriptContent.replace(/^\s*-disableAutomaticPackageResolution\s*\\?\r?\n/gm, '')
+  scriptContent = scriptContent.replace(/^\s*-quiet\s*\\?\r?\n/gm, '')
   scriptContent = scriptContent.replace(/-disableAutomaticPackageResolution\s*\\?/g, '')
   scriptContent = scriptContent.replace(/-quiet\s*\\?/g, '')
+  // Clean up any empty lines between backslash continuations so bash commands are not prematurely terminated
+  scriptContent = scriptContent.replace(/\\\r?\n(\s*\r?\n)+/g, '\\\n')
   fs.writeFileSync(buildXcframeworkScript, scriptContent, 'utf8')
   console.log('[patch-swift-packages] Successfully patched build-xcframework.sh')
 }

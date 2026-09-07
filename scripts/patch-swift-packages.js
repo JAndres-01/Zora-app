@@ -171,4 +171,18 @@ if (fs.existsSync(macrosPackagePath)) {
   console.log('[patch-swift-packages] Successfully patched expo-modules-macros-plugin Package.swift')
 }
 
+const schedulerHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'RuntimeScheduler.h')
+if (fs.existsSync(schedulerHeader)) {
+  let headerContent = fs.readFileSync(schedulerHeader, 'utf8')
+  if (!headerContent.includes('#ifndef SWIFT_RETURNS_RETAINED')) {
+    headerContent = headerContent.replace(
+      '#include <swift/bridging>',
+      '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED\n#endif'
+    )
+    fs.writeFileSync(schedulerHeader, headerContent, 'utf8')
+    console.log('[patch-swift-packages] Successfully added SWIFT_RETURNS_RETAINED fallback to RuntimeScheduler.h')
+  }
+}
+
+
 

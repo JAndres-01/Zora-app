@@ -11,7 +11,7 @@ import {
 import { BlurView } from 'expo-blur'
 import type { Schedule, Task } from '@/types/personal'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
-import { User, MapPin, CheckSquare, Plus } from 'lucide-react-native'
+import { User, MapPin, CheckSquare } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { getActiveAcademicWeek, isTaskForAcademicDay } from '@/lib/academicDateUtils'
 import { DAYS_WITH_SHORT } from '@/constants/dates'
@@ -171,12 +171,6 @@ const DayClassRow = memo(function DayClassRow({
             <View style={styles.freeSlotWrapper}>
               <View style={styles.freeSlotRow}>
                 <Text style={styles.freeTitle}>Hora Libre</Text>
-                {Boolean(onAssignSlot) && (
-                  <View style={styles.assignSlotPill}>
-                    <Plus size={11} color="#A1A1AA" />
-                    <Text style={styles.assignSlotPillText}>Asignar materia</Text>
-                  </View>
-                )}
               </View>
             </View>
           )}
@@ -524,22 +518,6 @@ const styles = StyleSheet.create({
   freeTitle: {
     color: '#52525B',
     fontSize: 14.5,
-    fontWeight: '600',
-  },
-  assignSlotPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
-  },
-  assignSlotPillText: {
-    color: '#A1A1AA',
-    fontSize: 11,
     fontWeight: '600',
   },
 })

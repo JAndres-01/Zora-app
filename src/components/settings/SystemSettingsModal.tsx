@@ -201,7 +201,7 @@ export function SystemSettingsModal({
             styles.settingsSheetContainer,
             {
               paddingBottom: Math.max(insets.bottom, 20) + 16,
-              transform: [{ translateY: slideAnim }, { translateY: panY }],
+              transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
         >

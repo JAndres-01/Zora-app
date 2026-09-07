@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo } from 'react'
+import { useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -7,11 +7,9 @@ import {
   Image,
   StyleSheet,
   Animated,
-  ActivityIndicator,
   Alert,
   Platform,
 } from 'react-native'
-import { WebView } from 'react-native-webview'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -21,7 +19,7 @@ import {
   Share2,
   RefreshCw,
   Trash2,
-  QrCode,
+  FileText,
 } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { DEFAULT_STUDENT_NAME } from '@/constants/defaults'
@@ -61,9 +59,6 @@ export function MinimalistCredentialModal({
     onClose,
   })
 
-  const [webViewReady, setWebViewReady] = useState(false)
-  const webViewRef = useRef<WebView>(null)
-
   // Normalizar ruta para mitigar cambios de UUID del sandbox en iOS
   const resolvedUrl = useMemo(() => {
     if (!credentialUrl) return null
@@ -77,29 +72,6 @@ export function MinimalistCredentialModal({
   }, [credentialUrl])
 
   const isImage = Boolean(resolvedUrl?.match(/\.(jpeg|jpg|png|webp|gif)/i))
-
-  useEffect(() => {
-    let isCurrent = true
-    let timer: ReturnType<typeof setTimeout> | undefined
-
-    if (visible) {
-      // Solo diferir el montado de WebView si la plataforma y el formato lo requieren (iOS PDF)
-      if (!isImage && Platform.OS === 'ios') {
-        timer = setTimeout(() => {
-          if (isCurrent) {
-            setWebViewReady(true)
-          }
-        }, 250)
-      }
-    } else {
-      setWebViewReady(false)
-    }
-
-    return () => {
-      isCurrent = false
-      if (timer) clearTimeout(timer)
-    }
-  }, [visible, isImage])
 
   const handleClose = () => {
     handleSmoothClose()
@@ -121,7 +93,7 @@ export function MinimalistCredentialModal({
       }
     } catch (err: unknown) {
       logger.error('[MinimalistCredentialModal] Error al compartir:', err)
-      Alert.alert('Error', 'No se pudo compartir el archivo.')
+      Alert.alert('Error', 'No se pudo abrir el archivo.')
     }
   }
 
@@ -161,8 +133,6 @@ export function MinimalistCredentialModal({
     onChangeCredential()
   }
 
-  if (!modalVisible) return null
-
   return (
     <Modal
       visible={modalVisible}
@@ -172,7 +142,7 @@ export function MinimalistCredentialModal({
       statusBarTranslucent={true}
     >
       <View style={styles.modalRoot}>
-        {/* Backdrop con desenfoque simulado */}
+        {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         </Animated.View>
@@ -184,10 +154,7 @@ export function MinimalistCredentialModal({
             {
               paddingTop: Math.max(insets.top, 14),
               paddingBottom: Math.max(insets.bottom, 14),
-              transform: [
-                { translateY: slideAnim },
-                { translateY: panY },
-              ],
+              transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
         >
@@ -223,7 +190,7 @@ export function MinimalistCredentialModal({
             </View>
           </View>
 
-          {/* Visor de Credencial con Soporte Nativo para PDF e Imagen */}
+          {/* Visor de Credencial */}
           <View style={styles.viewerWrapper}>
             {!resolvedUrl ? (
               <View style={styles.errorOverlay}>
@@ -238,68 +205,30 @@ export function MinimalistCredentialModal({
                   resizeMode="contain"
                 />
               </View>
-            ) : Platform.OS === 'android' ? (
-              /* En Android, WebView no renderiza PDFs locales y produce crasheos o errores. Se ofrece visor nativo seguro. */
-              <View style={styles.errorOverlay}>
-                <View style={styles.androidPdfCard}>
-                  <View style={styles.androidPdfIconBadge}>
-                    <IdCard size={32} color="#FFFFFF" strokeWidth={2} />
-                  </View>
-                  <Text style={styles.errorTitle}>Credencial Digital Vinculada</Text>
-                  <Text style={styles.androidPdfFileName} numberOfLines={1}>
-                    {credentialName || 'Credencial_Digital.pdf'}
-                  </Text>
-                  <Text style={styles.errorSub}>
-                    En Android, los documentos PDF se visualizan directamente en tu aplicación predeterminada del sistema (Google Drive, Adobe Reader o visor nativo).
-                  </Text>
-                  <Pressable onPress={handleShare} style={styles.shareFallbackBtn}>
-                    <Share2 size={15} color="#09090B" />
-                    <Text style={styles.shareFallbackBtnText}>Abrir en Visor del Sistema</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : !webViewReady ? (
-              <View style={styles.loaderOverlay}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={styles.loaderText}>Cargando credencial digital...</Text>
-              </View>
             ) : (
-              <WebView
-                ref={webViewRef}
-                source={{ uri: resolvedUrl }}
-                style={styles.webView}
-                originWhitelist={['*']}
-                allowFileAccess={true}
-                allowFileAccessFromFileURLs={true}
-                allowUniversalAccessFromFileURLs={true}
-                bounces={false}
-                onContentProcessDidTerminate={() => {
-                  logger.warn('[CredentialModal] WebContent process terminated, recargando...')
-                  webViewRef.current?.reload()
-                }}
-                onError={(e) => {
-                  logger.warn('[CredentialModal] Error en visor:', e.nativeEvent)
-                }}
-                renderError={() => (
-                  <View style={styles.errorOverlay}>
-                    <QrCode size={36} color="#71717A" />
-                    <Text style={styles.errorTitle}>Credencial Digital Lista</Text>
-                    <Text style={styles.errorSub}>
-                      Toca el botón de compartir abajo para abrirla en tu visor preferido.
-                    </Text>
-                    <Pressable onPress={handleShare} style={styles.shareFallbackBtn}>
-                      <Share2 size={15} color="#09090B" />
-                      <Text style={styles.shareFallbackBtnText}>Abrir en Visor Externo</Text>
-                    </Pressable>
-                  </View>
-                )}
-              />
+              /* Visor nativo seguro para PDF (evita crasheos de WebView en móvil) */
+              <View style={styles.pdfCardContainer}>
+                <View style={styles.pdfIconBadge}>
+                  <FileText size={36} color="#FFFFFF" strokeWidth={2} />
+                </View>
+                <Text style={styles.pdfCardTitle}>Documento PDF Vinculado</Text>
+                <Text style={styles.pdfFileName} numberOfLines={2}>
+                  {credentialName || 'Credencial_Digital.pdf'}
+                </Text>
+                <Text style={styles.pdfCardSub}>
+                  Visualiza o imprime tu credencial con el visor nativo seguro del sistema.
+                </Text>
+                <Pressable onPress={handleShare} style={styles.openNativeBtn}>
+                  <Share2 size={16} color="#09090B" strokeWidth={2.2} />
+                  <Text style={styles.openNativeBtnText}>Abrir en Visor del Sistema</Text>
+                </Pressable>
+              </View>
             )}
           </View>
 
           {/* Barra de Acciones Inferior */}
           <View style={styles.actionBar}>
-            {/* Botón Cambiar PDF */}
+            {/* Botón Cambiar */}
             <Pressable
               onPress={handleChange}
               style={({ pressed }) => [
@@ -309,7 +238,7 @@ export function MinimalistCredentialModal({
               ]}
             >
               <RefreshCw size={15} color="#FFFFFF" strokeWidth={2.2} />
-              <Text style={styles.changeBtnText}>Cambiar PDF</Text>
+              <Text style={styles.changeBtnText}>Cambiar {isImage ? 'Imagen' : 'PDF'}</Text>
             </Pressable>
 
             {/* Botón Compartir / Exportar */}
@@ -451,22 +380,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  webView: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  loaderOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#09090B',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  loaderText: {
-    color: '#A1A1AA',
-    fontSize: 12.5,
-    fontWeight: '500',
-  },
   errorOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#09090B',
@@ -475,12 +388,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 8,
   },
-  androidPdfCard: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    maxWidth: 340,
+  errorTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 4,
   },
-  androidPdfIconBadge: {
+  pdfCardContainer: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  pdfIconBadge: {
     width: 68,
     height: 68,
     borderRadius: 22,
@@ -491,7 +411,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  androidPdfFileName: {
+  pdfCardTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  pdfFileName: {
     color: '#FAFAFA',
     fontSize: 13.5,
     fontWeight: '600',
@@ -499,31 +425,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  errorTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  errorSub: {
+  pdfCardSub: {
     color: '#71717A',
-    fontSize: 12,
+    fontSize: 12.5,
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: 18,
+    maxWidth: 280,
+    marginBottom: 16,
   },
-  shareFallbackBtn: {
+  openNativeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
-    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
-  shareFallbackBtnText: {
+  openNativeBtnText: {
     color: '#09090B',
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
   },
   imageViewerContainer: {

@@ -315,8 +315,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         {
           transform: [
             { scale: scaleAnim },
-            { translateY: rowSlideAnim },
-            { translateY: liftAnim },
+            { translateY: Animated.add(rowSlideAnim, liftAnim) },
           ],
           opacity: rowFadeAnim,
         },

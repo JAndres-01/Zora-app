@@ -124,7 +124,7 @@ export function EditProfileModal({
             styles.sheetContainer,
             {
               paddingBottom: Math.max(insets.bottom, 20) + 16,
-              transform: [{ translateY: slideAnim }, { translateY: keyboardTranslateY }],
+              transform: [{ translateY: Animated.add(slideAnim, keyboardTranslateY) }],
             },
           ]}
         >

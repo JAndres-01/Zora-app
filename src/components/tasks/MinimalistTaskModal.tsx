@@ -563,9 +563,7 @@ export function MinimalistTaskModal({
             {
               paddingBottom: Math.max(insets.bottom, 16) + 8,
               transform: [
-                { translateY: slideAnim },
-                { translateY: panY },
-                { translateY: keyboardTranslateY },
+                { translateY: Animated.add(Animated.add(slideAnim, panY), keyboardTranslateY) },
               ],
             },
           ]}

@@ -128,7 +128,7 @@ export function MinimalistVitalStats() {
           {/* Valor Central en el Anillo */}
           <View style={styles.ringCenterTextWrapper}>
             <Text style={styles.ringPercentageText}>{stats.completionRate}%</Text>
-            <Text style={styles.ringSubtext}>Éxito</Text>
+            <Text style={styles.ringSubtext}>Completado</Text>
           </View>
         </View>
 
@@ -143,13 +143,13 @@ export function MinimalistVitalStats() {
             <Text style={styles.metricValueText}>{stats.completedTasksCount}</Text>
           </View>
 
-          {/* Fila 2: Puntualidad */}
+          {/* Fila 2: Pendientes */}
           <View style={styles.metricRow}>
             <View style={styles.metricLeftCol}>
-              <View style={[styles.metricDot, { backgroundColor: '#38BDF8' }]} />
-              <Text style={styles.metricLabelText}>Puntualidad</Text>
+              <View style={[styles.metricDot, { backgroundColor: '#F59E0B' }]} />
+              <Text style={styles.metricLabelText}>Pendientes</Text>
             </View>
-            <Text style={styles.metricValueText}>{stats.punctualityRate}%</Text>
+            <Text style={styles.metricValueText}>{stats.pendingTasksCount}</Text>
           </View>
 
           {/* Fila 3: Materias */}

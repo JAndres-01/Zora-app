@@ -72,6 +72,10 @@ describe('academicDateUtils', () => {
     expect(stats.completedTasksCount).toBe(1)
     expect(stats.pendingTasksCount).toBe(2)
     expect(stats.completionRate).toBe(33)
+
+    const emptyStats = calculateAcademicVitalStats([], [])
+    expect(emptyStats.totalTasksCount).toBe(0)
+    expect(emptyStats.completionRate).toBe(0)
   })
 
   test('identifica si una tarea pertenece a un día académico específico', () => {

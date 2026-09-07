@@ -52,6 +52,11 @@ jobs:
           xcodebuild -resolvePackageDependencies -workspace "$WORKSPACE" -scheme "$SCHEME_NAME" || true
           
           echo "Building with workspace: $WORKSPACE and scheme: $SCHEME_NAME"
+          echo "Sanitizing swiftinterfaces in Pods..."
+          find Pods -name "*.private.swiftinterface" -delete 2>/dev/null || true
+          find Pods -name "*.package.swiftinterface" -delete 2>/dev/null || true
+          find Pods -name "*.swiftinterface" -exec sed -i '' -e 's/:[[:space:]]*@_Concurrency\.MainActor[[:space:]]*/: /g' {} + 2>/dev/null || true
+          find Pods -name "*.swiftinterface" -exec sed -i '' -e 's/:[[:space:]]*@MainActor[[:space:]]*/: /g' {} + 2>/dev/null || true
           set -o pipefail
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "$SCHEME_NAME" \

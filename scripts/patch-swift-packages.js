@@ -260,15 +260,14 @@ function cleanAndPatchSwiftinterfaces(dir) {
     } else if (entry.name.endsWith('.private.swiftinterface') || entry.name.endsWith('.package.swiftinterface')) {
       try {
         fs.unlinkSync(fullPath)
-        console.log(`[patch-swift-packages] Deleted private interface: ${entry.name}`)
+        console.log(`[patch-swift-packages] Deleted private/package interface: ${entry.name}`)
       } catch (e) {}
     } else if (entry.name.endsWith('.swiftinterface')) {
       let content = fs.readFileSync(fullPath, 'utf8')
       const orig = content
       // Remove actor attribute from protocol conformances (e.g. extension UIKit.UIView : @_Concurrency.MainActor AnyArgument)
       content = content.replace(/:\s*@_Concurrency\.MainActor\s+/g, ': ')
-      // Normalize any remaining @_Concurrency.MainActor to @MainActor
-      content = content.replace(/@_Concurrency\.MainActor/g, '@MainActor')
+      content = content.replace(/:\s*@MainActor\s+/g, ': ')
       if (content !== orig) {
         fs.writeFileSync(fullPath, content, 'utf8')
         console.log(`[patch-swift-packages] Patched swiftinterface: ${entry.name}`)
@@ -276,8 +275,111 @@ function cleanAndPatchSwiftinterfaces(dir) {
     }
   }
 }
+
+// 5.6. Patch replace-xcframework.js to sanitize swiftinterfaces automatically whenever XCFrameworks are extracted
+const replaceXcframeworkPath = path.join(process.cwd(), 'node_modules', 'expo-modules-autolinking', 'scripts', 'ios', 'replace-xcframework.js')
+if (fs.existsSync(replaceXcframeworkPath)) {
+  let rContent = fs.readFileSync(replaceXcframeworkPath, 'utf8')
+  if (!rContent.includes('function patchSwiftinterfacesInDir(')) {
+    const helperFunc = `
+function patchSwiftinterfacesInDir(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      patchSwiftinterfacesInDir(fullPath);
+    } else if (entry.name.endsWith('.private.swiftinterface') || entry.name.endsWith('.package.swiftinterface')) {
+      try {
+        fs.unlinkSync(fullPath);
+        console.log(\`\${LOG_PREFIX} Deleted private interface: \${entry.name}\`);
+      } catch (e) {}
+    } else if (entry.name.endsWith('.swiftinterface')) {
+      let c = fs.readFileSync(fullPath, 'utf8');
+      const o = c;
+      c = c.replace(/:\\s*@_Concurrency\\.MainActor\\s+/g, ': ');
+      c = c.replace(/:\\s*@MainActor\\s+/g, ': ');
+      if (c !== o) {
+        fs.writeFileSync(fullPath, c, 'utf8');
+        console.log(\`\${LOG_PREFIX} Patched swiftinterface: \${entry.name}\`);
+      }
+    }
+  }
+}
+`
+    rContent = rContent.replace("const LOG_PREFIX = '[Expo XCFramework]';", "const LOG_PREFIX = '[Expo XCFramework]';\n" + helperFunc)
+    rContent = rContent.replace("fs.writeFileSync(lastConfigFile, configLower);", "fs.writeFileSync(lastConfigFile, configLower);\n  patchSwiftinterfacesInDir(xcframeworksDir);")
+    rContent = rContent.replace("if (lastConfig === configLower) {", "if (lastConfig === configLower) {\n    patchSwiftinterfacesInDir(xcframeworksDir);")
+    fs.writeFileSync(replaceXcframeworkPath, rContent, 'utf8')
+    console.log('[patch-swift-packages] Successfully patched replace-xcframework.js with auto swiftinterface sanitization')
+  }
+}
+
+// 5.7. Patch prebuilt xcframework tarballs in node_modules and ios/Pods
+function patchTarball(tarballPath) {
+  const tmpDir = path.join(process.cwd(), 'tmp_tar_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))
+  try {
+    fs.mkdirSync(tmpDir, { recursive: true })
+    const { execSync } = require('child_process')
+    execSync(`tar -xzf "${tarballPath}" -C "${tmpDir}"`)
+    let patchedAny = false
+    function walk(dir) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          walk(full)
+        } else if (entry.name.endsWith('.private.swiftinterface') || entry.name.endsWith('.package.swiftinterface')) {
+          try {
+            fs.unlinkSync(full)
+            patchedAny = true
+          } catch (e) {}
+        } else if (entry.name.endsWith('.swiftinterface')) {
+          let c = fs.readFileSync(full, 'utf8')
+          const orig = c
+          c = c.replace(/:\s*@_Concurrency\.MainActor\s+/g, ': ')
+          c = c.replace(/:\s*@MainActor\s+/g, ': ')
+          if (c !== orig) {
+            fs.writeFileSync(full, c, 'utf8')
+            patchedAny = true
+          }
+        }
+      }
+    }
+    walk(tmpDir)
+    if (patchedAny) {
+      const topItems = fs.readdirSync(tmpDir).join(' ')
+      execSync(`tar -czf "${tarballPath}" -C "${tmpDir}" ${topItems}`)
+      console.log(`[patch-swift-packages] Patched and repacked tarball: ${path.basename(tarballPath)}`)
+    }
+  } catch (e) {
+    console.warn(`[patch-swift-packages] Warning: Could not patch tarball ${tarballPath}: ${e.message}`)
+  } finally {
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    } catch (e) {}
+  }
+}
+
+function findAndPatchTarballs(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchTarballs(fullPath)
+      }
+    } else if (entry.name.endsWith('.tar.gz')) {
+      patchTarball(fullPath)
+    }
+  }
+}
+
+findAndPatchTarballs(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+findAndPatchTarballs(path.join(process.cwd(), 'node_modules', 'expo-file-system'))
+findAndPatchTarballs(path.join(process.cwd(), 'node_modules', 'expo-font'))
+findAndPatchTarballs(path.join(process.cwd(), 'ios', 'Pods'))
 cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'ios', 'Pods'))
 cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+
 
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')

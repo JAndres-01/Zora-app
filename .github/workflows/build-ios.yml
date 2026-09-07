@@ -74,8 +74,24 @@ jobs:
               tail -n 150 xcodebuild.log
               echo "❌ Errores detectados:"
               grep -E "(error:|fatal error:|\*\* BUILD FAILED \*\*)" xcodebuild.log | head -n 60
+              echo "### Errores en xcodebuild" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -E "(error:|fatal error:|\*\* BUILD FAILED \*\*)" xcodebuild.log | head -n 80 >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "### Ultimas lineas del log" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              tail -n 60 xcodebuild.log >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
               exit 1
             }
+
+      - name: Subir log de Xcode (siempre)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: ios/xcodebuild.log
+          retention-days: 7
 
       - name: Empaquetar archivo Zora.ipa
         run: |

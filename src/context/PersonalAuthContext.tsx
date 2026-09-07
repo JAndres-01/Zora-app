@@ -3,6 +3,8 @@ import { personalStorage } from '@/lib/personalStorage'
 import { cancelAllNotifications } from '@/lib/personalNotifications'
 import type { PersonalProfile } from '@/types/personal'
 import { DEFAULT_USER_ID, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
+import { supabase } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 interface PersonalProfileContextType {
   profile: PersonalProfile | null
@@ -29,14 +31,36 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateProfile = async (fullName: string) => {
+    const trimmed = fullName.trim() || DEFAULT_STUDENT_NAME
     const current = profile || (await personalStorage.getProfile())
     const updated: PersonalProfile = {
       ...current,
-      full_name: fullName.trim() || DEFAULT_STUDENT_NAME,
+      full_name: trimmed,
       updated_at: new Date().toISOString(),
     }
     await personalStorage.setProfile(updated)
     setProfile(updated)
+
+    // Sincronizar actualización de nombre en Supabase si hay sesión activa
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await Promise.allSettled([
+          supabase
+            .from('profiles')
+            .update({
+              full_name: trimmed,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id),
+          supabase.auth.updateUser({
+            data: { full_name: trimmed },
+          }),
+        ])
+      }
+    } catch (err) {
+      logger.warn('[PersonalAuth] Error al sincronizar nombre en Supabase:', err)
+    }
   }
 
   const updateCredential = async (credentialUrl: string | null, credentialName?: string | null) => {

@@ -63,7 +63,7 @@ interface ClassAuthContextType {
 const ClassAuthContext = createContext<ClassAuthContextType | undefined>(undefined)
 
 export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
-  const { updateProfile } = useProfile()
+  const { profile, updateProfile } = useProfile()
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
@@ -359,7 +359,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       const newClassTask = {
         id: generateId('class'),
         publisher_id: user.id,
-        publisher_name: user.user_metadata?.full_name || 'Admin',
+        publisher_name: profile?.full_name || user.user_metadata?.full_name || 'Admin',
         subject_name: taskData.subject_name.trim(),
         subject_code: taskData.subject_code?.trim() || null,
         title: taskData.title.trim(),

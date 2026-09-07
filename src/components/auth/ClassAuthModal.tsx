@@ -18,6 +18,7 @@ import { APPLE_EASING } from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { useClassAuth } from '@/context/ClassAuthContext'
+import { usePersonalAuth } from '@/context/PersonalAuthContext'
 
 export interface ClassAuthModalProps {
   visible: boolean
@@ -28,6 +29,7 @@ export interface ClassAuthModalProps {
 export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalProps) {
   const insets = useSafeAreaInsets()
   const { isConnected, user, isAdmin, signIn, signUp, signOut } = useClassAuth()
+  const { profile } = usePersonalAuth()
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
@@ -204,7 +206,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
                 <View style={styles.fieldItem}>
                   <Text style={styles.fieldLabel}>USUARIO</Text>
                   <Text style={styles.fieldValuePrimary}>
-                    {user?.user_metadata?.full_name || 'Estudiante'}
+                    {profile?.full_name || user?.user_metadata?.full_name || 'Estudiante'}
                   </Text>
                 </View>
 

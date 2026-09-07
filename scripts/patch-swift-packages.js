@@ -249,17 +249,35 @@ if (fs.existsSync(hostObjectCallbacksHeader)) {
   }
 }
 
-// 5.5. ExpoModulesCore.podspec - force build from source to avoid Swift 6.3.1 prebuilt binary mismatch
-const corePodspecPath = path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'ExpoModulesCore.podspec')
-if (fs.existsSync(corePodspecPath)) {
-  let corePodspec = fs.readFileSync(corePodspecPath, 'utf8')
-  corePodspec = corePodspec.replace(
-    /if \(!Expo::PackagesConfig\.instance\.try_link_with_prebuilt_xcframework\(s\)\)/g,
-    'if (true)'
-  )
-  fs.writeFileSync(corePodspecPath, corePodspec, 'utf8')
-  console.log('[patch-swift-packages] Successfully configured ExpoModulesCore to build from source')
+// 5.5. Clean and patch .swiftinterface files in Pods and node_modules
+function cleanAndPatchSwiftinterfaces(dir) {
+  if (!fs.existsSync(dir)) return
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      cleanAndPatchSwiftinterfaces(fullPath)
+    } else if (entry.name.endsWith('.private.swiftinterface') || entry.name.endsWith('.package.swiftinterface')) {
+      try {
+        fs.unlinkSync(fullPath)
+        console.log(`[patch-swift-packages] Deleted private interface: ${entry.name}`)
+      } catch (e) {}
+    } else if (entry.name.endsWith('.swiftinterface')) {
+      let content = fs.readFileSync(fullPath, 'utf8')
+      const orig = content
+      // Remove actor attribute from protocol conformances (e.g. extension UIKit.UIView : @_Concurrency.MainActor AnyArgument)
+      content = content.replace(/:\s*@_Concurrency\.MainActor\s+/g, ': ')
+      // Normalize any remaining @_Concurrency.MainActor to @MainActor
+      content = content.replace(/@_Concurrency\.MainActor/g, '@MainActor')
+      if (content !== orig) {
+        fs.writeFileSync(fullPath, content, 'utf8')
+        console.log(`[patch-swift-packages] Patched swiftinterface: ${entry.name}`)
+      }
+    }
+  }
 }
+cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'ios', 'Pods'))
+cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
 
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')

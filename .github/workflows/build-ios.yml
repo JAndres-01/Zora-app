@@ -38,6 +38,8 @@ jobs:
           node scripts/patch-swift-packages.js
           cd ios
           pod install --repo-update
+          cd ..
+          node scripts/patch-swift-packages.js
 
       - name: Compilar con Xcode (Unsigned para Sideloadly)
         run: |

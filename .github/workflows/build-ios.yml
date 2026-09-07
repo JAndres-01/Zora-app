@@ -32,18 +32,6 @@ jobs:
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           export NODE_BINARY=$(which node)
-          # Patch expo-notifications: remove iOS 26+ API that fails on Swift 6.1.x runner
-          SERIALIZER="node_modules/expo-notifications/ios/ExpoNotifications/Notifications/DateComponentsSerializer.swift"
-          if [ -f "$SERIALIZER" ]; then
-            python3 -c "
-import re, sys
-content = open('$SERIALIZER').read()
-patched = re.sub(r'\s*if #available\(iOS 26\.0,\s*\*\)\s*\{[^}]*\}', '', content)
-if patched != content:
-    open('$SERIALIZER', 'w').write(patched)
-    print('[ci] Removed iOS 26 isRepeatedDay block from DateComponentsSerializer.swift')
-"
-          fi
           node scripts/patch-swift-packages.js
           npx expo prebuild --platform ios --clean
           echo "export NODE_BINARY=$(which node)" > ios/.xcode.env.local

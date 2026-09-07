@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -37,7 +37,6 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -112,7 +111,7 @@ export default function AuthScreen() {
           return
         }
 
-        const { error } = await signUp(trimmedEmail, trimmedPass, trimmedName, selectedRole)
+        const { error } = await signUp(trimmedEmail, trimmedPass, trimmedName)
         if (error) {
           setErrorMessage(error.message || 'No se pudo crear la cuenta.')
           triggerHaptic('error')
@@ -282,61 +281,6 @@ export default function AuthScreen() {
               </View>
             </View>
 
-            {authMode === 'register' && (
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>ROL EN LA CLASE</Text>
-                <View style={styles.rolePickerRow}>
-                  <Pressable
-                    onPress={() => {
-                      triggerHaptic('light')
-                      setSelectedRole('student')
-                    }}
-                    style={[
-                      styles.roleCard,
-                      selectedRole === 'student' && styles.roleCardActive,
-                    ]}
-                  >
-                    <UserCheck
-                      size={18}
-                      color={selectedRole === 'student' ? '#FFFFFF' : '#71717A'}
-                    />
-                    <Text
-                      style={[
-                        styles.roleCardText,
-                        selectedRole === 'student' && styles.roleCardTextActive,
-                      ]}
-                    >
-                      Estudiante
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => {
-                      triggerHaptic('light')
-                      setSelectedRole('admin')
-                    }}
-                    style={[
-                      styles.roleCard,
-                      selectedRole === 'admin' && styles.roleCardActive,
-                    ]}
-                  >
-                    <ShieldCheck
-                      size={18}
-                      color={selectedRole === 'admin' ? '#FFFFFF' : '#71717A'}
-                    />
-                    <Text
-                      style={[
-                        styles.roleCardText,
-                        selectedRole === 'admin' && styles.roleCardTextActive,
-                      ]}
-                    >
-                      Delegado
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
             {/* Botón Principal */}
             <Pressable
               onPress={handleSubmit}
@@ -353,7 +297,7 @@ export default function AuthScreen() {
                 <>
                   <Check size={16} color="#09090B" strokeWidth={2.8} />
                   <Text style={styles.submitButtonText}>
-                    {authMode === 'login' ? 'Iniciar Sesión' : 'Registrarme en la Clase'}
+                    {authMode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
                   </Text>
                 </>
               )}
@@ -363,8 +307,8 @@ export default function AuthScreen() {
           {/* Subtítulo informativo */}
           <Text style={styles.footerNote}>
             {authMode === 'login'
-              ? 'Tus horarios y tareas se mantendrán sincronizados en tiempo real.'
-              : 'Al unirte como estudiante tendrás acceso inmediato al horario y tareas de clase.'}
+              ? 'Tus horarios y tareas se sincronizan automáticamente con tu clase.'
+              : 'Al crear tu cuenta tendrás acceso inmediato al horario y tareas de clase.'}
           </Text>
         </Animated.View>
       </ScrollView>

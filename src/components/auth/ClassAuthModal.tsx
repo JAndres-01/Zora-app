@@ -34,7 +34,6 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student')
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -120,7 +119,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
           triggerHaptic('warning')
           return
         }
-        const { error } = await signUp(trimmedEmail, trimmedPass, trimmedName, selectedRole)
+        const { error } = await signUp(trimmedEmail, trimmedPass, trimmedName)
         if (error) {
           setErrorMessage(error.message || 'Error al registrarte.')
           triggerHaptic('error')
@@ -241,15 +240,15 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
                   </View>
                   <View style={[styles.roleTag, isAdmin ? styles.roleTagAdmin : styles.roleTagStudent]}>
                     <Text style={[styles.roleTagText, isAdmin ? styles.roleTagAdminText : styles.roleTagStudentText]}>
-                      {isAdmin ? 'ADMIN' : 'ALUMNO'}
+                      {isAdmin ? 'ADMIN' : 'ESTUDIANTE'}
                     </Text>
                   </View>
                 </View>
 
                 <Text style={styles.roleExplanation}>
                   {isAdmin
-                    ? 'Tienes permisos para publicar tareas globales para toda la clase.'
-                    : 'Recibes y sincronizas automáticamente las tareas publicadas por tu profesor.'}
+                    ? 'Tienes permisos de Administrador para gestionar materias, horarios y tareas de la clase.'
+                    : 'Recibes y sincronizas automáticamente el horario y tareas publicadas por tu Administrador.'}
                 </Text>
               </View>
 
@@ -352,36 +351,6 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
                   secureTextEntry
                 />
               </View>
-
-              {authMode === 'register' && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>ROL EN LA CLASE</Text>
-                  <View style={styles.rolePickerRow}>
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('light')
-                        setSelectedRole('student')
-                      }}
-                      style={[styles.roleOption, selectedRole === 'student' && styles.roleOptionActive]}
-                    >
-                      <Text style={[styles.roleOptionText, selectedRole === 'student' && styles.roleOptionTextActive]}>
-                        Estudiante
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('light')
-                        setSelectedRole('admin')
-                      }}
-                      style={[styles.roleOption, selectedRole === 'admin' && styles.roleOptionActive]}
-                    >
-                      <Text style={[styles.roleOptionText, selectedRole === 'admin' && styles.roleOptionTextActive]}>
-                        Profesor / Admin
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
 
               <Pressable onPress={handleSubmit} disabled={loading} style={styles.submitBtn}>
                 {loading ? (

@@ -28,7 +28,7 @@ interface ClassAuthContextType {
   classSubjects: Subject[]
   classSchedules: Schedule[]
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: Error | null }>
+  signUp: (email: string, password: string, fullName: string, role?: UserRole) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   syncClassTasks: () => Promise<void>
   syncClassSchedule: () => Promise<void>
@@ -256,16 +256,17 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signUp = async (email: string, password: string, fullName: string, selectedRole: UserRole) => {
+  const signUp = async (email: string, password: string, fullName: string, selectedRole: UserRole = 'student') => {
     try {
       setIsLoading(true)
+      const userRole: UserRole = selectedRole === 'admin' ? 'admin' : 'student'
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           data: {
             full_name: fullName.trim(),
-            role: selectedRole,
+            role: userRole,
           },
         },
       })
@@ -280,7 +281,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
           id: data.user.id,
           full_name: fullName.trim(),
           email: email.trim(),
-          role: selectedRole,
+          role: userRole,
           updated_at: new Date().toISOString(),
         })
 
@@ -294,7 +295,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(data.session)
         setUser(data.user)
-        setRole(selectedRole)
+        setRole(userRole)
         await Promise.all([
           syncClassTasks(),
           syncClassSchedule(),
@@ -358,7 +359,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       const newClassTask = {
         id: generateId('class'),
         publisher_id: user.id,
-        publisher_name: user.user_metadata?.full_name || 'Profesor',
+        publisher_name: user.user_metadata?.full_name || 'Admin',
         subject_name: taskData.subject_name.trim(),
         subject_code: taskData.subject_code?.trim() || null,
         title: taskData.title.trim(),

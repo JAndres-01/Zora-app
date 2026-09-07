@@ -32,8 +32,10 @@ jobs:
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           export NODE_BINARY=$(which node)
+          node scripts/patch-swift-packages.js
           npx expo prebuild --platform ios --clean
           echo "export NODE_BINARY=$(which node)" > ios/.xcode.env.local
+          node scripts/patch-swift-packages.js
           cd ios
           pod install --repo-update
 

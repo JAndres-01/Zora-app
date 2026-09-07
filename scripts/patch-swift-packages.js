@@ -184,5 +184,16 @@ if (fs.existsSync(schedulerHeader)) {
   }
 }
 
+const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
+if (fs.existsSync(buildXcframeworkScript)) {
+  let scriptContent = fs.readFileSync(buildXcframeworkScript, 'utf8')
+  if (scriptContent.includes('-disableAutomaticPackageResolution')) {
+    scriptContent = scriptContent.replace(/-disableAutomaticPackageResolution\s*\\/g, '')
+    fs.writeFileSync(buildXcframeworkScript, scriptContent, 'utf8')
+    console.log('[patch-swift-packages] Successfully removed -disableAutomaticPackageResolution from build-xcframework.sh')
+  }
+}
+
+
 
 

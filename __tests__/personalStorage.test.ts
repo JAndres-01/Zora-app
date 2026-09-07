@@ -117,4 +117,50 @@ describe('personalStorage Local-First Engine', () => {
     expect(schedulesWithSubjects[0].subject?.name).toBe('Algoritmos y Estructuras')
     expect(schedulesWithSubjects[0].classroom_room).toBe('Lab 3')
   })
+
+  test('fusiona transparentemente materias de clase y materias locales sin duplicados', async () => {
+    const classSubs: Subject[] = [
+      { id: 'c-1', name: 'Matemáticas Discretas', color: '#6366F1' },
+      { id: 'c-2', name: 'Física', color: '#10B981' },
+    ]
+    const localSubs: Subject[] = [
+      { id: 'l-1', name: 'física', color: '#000000' }, // Nombre duplicado en minúsculas
+      { id: 'l-2', name: 'Programación Web', color: '#F59E0B' },
+    ]
+
+    await personalStorage.setClassSubjectsCache(classSubs)
+    await personalStorage.setSubjects(localSubs)
+
+    const merged = personalStorage.getCachedSubjects()
+    expect(merged).toHaveLength(3) // c-1, c-2, l-2 (l-1 descartado por duplicado)
+    expect(merged.map((s) => s.name)).toContain('Matemáticas Discretas')
+    expect(merged.map((s) => s.name)).toContain('Física')
+    expect(merged.map((s) => s.name)).toContain('Programación Web')
+  })
+
+  test('asigna subject_id y objeto subject a tareas de clase en getCachedTasksWithSubjects', async () => {
+    const classSubs: Subject[] = [
+      { id: 'c-sub-1', name: 'Inteligencia Artificial', color: '#EC4899' },
+    ]
+    await personalStorage.setClassSubjectsCache(classSubs)
+
+    await personalStorage.setClassTasksCache([
+      {
+        id: 'ct-1',
+        title: 'Proyecto Redes Neuronales',
+        subject_name: 'Inteligencia Artificial',
+        type: 'teamwork',
+        due_date: '2026-09-10T12:00:00Z',
+        created_at: '2026-09-01T12:00:00Z',
+        updated_at: '2026-09-01T12:00:00Z',
+      },
+    ])
+
+    const allTasks = personalStorage.getCachedTasksWithSubjects()
+    expect(allTasks).toHaveLength(1)
+    expect(allTasks[0].is_class_task).toBe(true)
+    expect(allTasks[0].subject_id).toBe('c-sub-1')
+    expect(allTasks[0].subject?.name).toBe('Inteligencia Artificial')
+    expect(allTasks[0].subject?.color).toBe('#EC4899')
+  })
 })

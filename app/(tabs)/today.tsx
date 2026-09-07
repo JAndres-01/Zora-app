@@ -37,7 +37,10 @@ export default function TodayScreen() {
   const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
   const [schedulesToday, setSchedulesToday] = useState<Schedule[]>(() => {
     const todayNum = new Date().getDay() === 0 ? 7 : new Date().getDay()
-    return personalStorage.getCachedSchedulesWithSubjects().filter((s) => s.day_of_week === todayNum)
+    const classScheds = personalStorage.getCachedClassSchedulesWithSubjects()
+    const localScheds = personalStorage.getCachedSchedulesWithSubjects()
+    const active = classScheds.length > 0 ? classScheds : localScheds
+    return active.filter((s) => s.day_of_week === todayNum)
   })
   const [confettiBurstTrigger, setConfettiBurstTrigger] = useState(0)
 
@@ -57,14 +60,16 @@ export default function TodayScreen() {
   }
 
   const loadData = useCallback(async () => {
-    const [resolvedScheds, resolvedTasks, subjs] = await Promise.all([
+    const [localScheds, classScheds, resolvedTasks, subjs] = await Promise.all([
       personalStorage.getSchedulesWithSubjects(),
+      personalStorage.getClassSchedulesWithSubjects(),
       personalStorage.getTasksWithSubjects(),
       personalStorage.getSubjects(),
     ])
 
     const todayNum = getTodayDayOfWeek()
-    setSchedulesToday(resolvedScheds.filter((s) => s.day_of_week === todayNum))
+    const activeScheds = classScheds && classScheds.length > 0 ? classScheds : localScheds
+    setSchedulesToday(activeScheds.filter((s) => s.day_of_week === todayNum))
     setTasks(resolvedTasks)
     setSubjects(subjs)
   }, [])

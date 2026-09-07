@@ -151,7 +151,13 @@ export function TasksSubjectFilterModal({
             {subjects.map((subj) => {
               const isSelected = selectedSubjectId === subj.id
               const isWhite = isWhiteColor(subj.color)
-              const count = tasks.filter((t) => t.subject_id === subj.id).length
+              const count = tasks.filter(
+                (t) =>
+                  t.subject_id === subj.id ||
+                  t.subject?.id === subj.id ||
+                  (t.subject?.name &&
+                    t.subject.name.trim().toLowerCase() === subj.name.trim().toLowerCase())
+              ).length
 
               return (
                 <Pressable

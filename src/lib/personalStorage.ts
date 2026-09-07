@@ -63,6 +63,27 @@ function notifyListeners() {
   })
 }
 
+function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[] | null): Subject[] {
+  const cList = classSubjects || []
+  const lList = localSubjects || []
+  if (cList.length === 0) return [...lList]
+  if (lList.length === 0) return [...cList]
+
+  const result: Subject[] = [...cList]
+  const seenIds = new Set(cList.map((s) => s.id))
+  const seenNames = new Set(cList.map((s) => s.name.trim().toLowerCase()))
+
+  for (const ls of lList) {
+    if (!seenIds.has(ls.id) && !seenNames.has(ls.name.trim().toLowerCase())) {
+      result.push(ls)
+      seenIds.add(ls.id)
+      seenNames.add(ls.name.trim().toLowerCase())
+    }
+  }
+
+  return result
+}
+
 function mapClassTasksToTaskObjects(
   classTasks: ClassTask[],
   subjects: Subject[],
@@ -78,8 +99,14 @@ function mapClassTasksToTaskObjects(
     )
 
     const matchingSubject = subjects.find(
-      (s) => s.name.trim().toLowerCase() === ct.subject_name.trim().toLowerCase()
+      (s) => s.name.trim().toLowerCase() === (ct.subject_name || '').trim().toLowerCase()
     ) || null
+
+    const resolvedSubject = matchingSubject || {
+      id: ct.subject_name ? `virtual_${ct.subject_name}` : `virtual_${ct.id}`,
+      name: ct.subject_name || 'General',
+      color: '#3B82F6',
+    }
 
     result.push({
       id: `class_${ct.id}`,
@@ -98,11 +125,8 @@ function mapClassTasksToTaskObjects(
       class_updated_at: ct.updated_at,
       created_at: ct.created_at,
       updated_at: ct.updated_at,
-      subject: matchingSubject || {
-        id: `virtual_${ct.id}`,
-        name: ct.subject_name,
-        color: '#3B82F6',
-      },
+      subject_id: matchingSubject ? matchingSubject.id : resolvedSubject.id,
+      subject: resolvedSubject,
     })
   }
 
@@ -114,6 +138,10 @@ export const personalStorage = {
   // MÉTODOS DE ACCESO DIRECTO A CACHÉ EN MEMORIA
   // ==========================================
   getCachedSubjects(): Subject[] {
+    return mergeSubjects(_classSubjectsCache, _subjectsCache)
+  },
+
+  getCachedLocalSubjects(): Subject[] {
     return _subjectsCache ? [..._subjectsCache] : []
   },
 
@@ -126,16 +154,16 @@ export const personalStorage = {
   },
 
   getCachedSchedulesWithSubjects(): Schedule[] {
-    const subjects = _subjectsCache || []
+    const subjects = this.getCachedSubjects()
     const schedules = _schedulesCache || []
     return schedules.map((sch) => ({
       ...sch,
-      subject: subjects.find((s) => s.id === sch.subject_id) || null,
+      subject: sch.subject || subjects.find((s) => s.id === sch.subject_id) || null,
     }))
   },
 
   getCachedTasksWithSubjects(): Task[] {
-    const subjects = _subjectsCache || []
+    const subjects = this.getCachedSubjects()
     const tasks = _tasksCache || []
     const classTasks = _classTasksCache || []
     const classStatuses = _classTaskStatusesCache || {}
@@ -144,7 +172,7 @@ export const personalStorage = {
 
     const localTasksWithSub = tasks.map((t) => ({
       ...t,
-      subject: subjects.find((s) => s.id === t.subject_id) || null,
+      subject: subjects.find((s) => s.id === t.subject_id) || t.subject || null,
     }))
 
     return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])
@@ -167,7 +195,7 @@ export const personalStorage = {
   },
 
   getCachedClassSchedulesWithSubjects(): Schedule[] {
-    const subjects = _classSubjectsCache || _subjectsCache || []
+    const subjects = this.getCachedSubjects()
     const schedules = _classSchedulesCache || []
     return schedules.map((sch) => ({
       ...sch,
@@ -181,7 +209,7 @@ export const personalStorage = {
   async preloadAll(): Promise<void> {
     try {
       await Promise.all([
-        this.getSubjects(),
+        this.getLocalSubjects(),
         this.getSchedules(),
         this.getTasks(),
         this.getProfile(),
@@ -199,7 +227,7 @@ export const personalStorage = {
   // ==========================================
   // MATERIAS (SUBJECTS)
   // ==========================================
-  async getSubjects(): Promise<Subject[]> {
+  async getLocalSubjects(): Promise<Subject[]> {
     if (_subjectsCache !== null) {
       return [..._subjectsCache]
     }
@@ -213,10 +241,18 @@ export const personalStorage = {
         }
       }
     } catch (err) {
-      logger.error('[personalStorage] Error leyendo materias:', err)
+      logger.error('[personalStorage] Error leyendo materias locales:', err)
     }
     _subjectsCache = []
     return []
+  },
+
+  async getSubjects(): Promise<Subject[]> {
+    const [local, classSubs] = await Promise.all([
+      this.getLocalSubjects(),
+      this.getClassSubjectsCache(),
+    ])
+    return mergeSubjects(classSubs, local)
   },
 
   async setSubjects(subjects: Subject[]): Promise<void> {
@@ -230,7 +266,7 @@ export const personalStorage = {
   },
 
   async saveSubject(subject: Subject): Promise<Subject[]> {
-    const list = await this.getSubjects()
+    const list = await this.getLocalSubjects()
     const index = list.findIndex((s) => s.id === subject.id)
     let updated: Subject[]
     if (index >= 0) {
@@ -240,11 +276,11 @@ export const personalStorage = {
       updated = [...list, subject]
     }
     await this.setSubjects(updated)
-    return updated
+    return mergeSubjects(_classSubjectsCache, updated)
   },
 
   async removeSubject(subjectId: string): Promise<Subject[]> {
-    const list = await this.getSubjects()
+    const list = await this.getLocalSubjects()
     const updated = list.filter((s) => s.id !== subjectId)
     await this.setSubjects(updated)
 
@@ -261,7 +297,7 @@ export const personalStorage = {
     )
     await this.setTasks(updatedTasks)
 
-    return updated
+    return mergeSubjects(_classSubjectsCache, updated)
   },
 
   // ==========================================
@@ -597,6 +633,17 @@ export const personalStorage = {
     } catch (err) {
       logger.error('[personalStorage] Error guardando caché de class_schedules:', err)
     }
+  },
+
+  async getClassSchedulesWithSubjects(): Promise<Schedule[]> {
+    const [schedules, subjects] = await Promise.all([
+      this.getClassSchedulesCache(),
+      this.getSubjects(),
+    ])
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: sch.subject || subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
   },
 
   // ==========================================

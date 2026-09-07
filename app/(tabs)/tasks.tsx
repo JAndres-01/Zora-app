@@ -230,8 +230,14 @@ export default function TasksScreen() {
   // Filtrado de Tareas
   const filteredTasks = useMemo(() => {
     const list = tasks.filter((task) => {
-      if (selectedSubjectId !== 'all' && task.subject_id !== selectedSubjectId) {
-        return false
+      if (selectedSubjectId !== 'all') {
+        const matchesSubj =
+          task.subject_id === selectedSubjectId ||
+          task.subject?.id === selectedSubjectId ||
+          (selectedSubject &&
+            task.subject?.name &&
+            task.subject.name.trim().toLowerCase() === selectedSubject.name.trim().toLowerCase())
+        if (!matchesSubj) return false
       }
 
       if (statusFilter === 'pending' && task.status !== 'pending') {

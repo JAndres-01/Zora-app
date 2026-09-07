@@ -16,11 +16,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
 export function MinimalistVitalStats() {
   const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
-  const [subjects, setSubjects] = useState<Subject[]>(() => {
-    const local = personalStorage.getCachedSubjects()
-    const classSubs = personalStorage.getCachedClassSubjects()
-    return classSubs.length > 0 ? classSubs : local
-  })
+  const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
 
   const animProgress = useRef(new Animated.Value(0)).current
 
@@ -28,15 +24,13 @@ export function MinimalistVitalStats() {
     let isMounted = true
     const updateData = async () => {
       try {
-        const [allTasks, localSubs, classSubs] = await Promise.all([
+        const [allTasks, allSubs] = await Promise.all([
           personalStorage.getTasksWithSubjects(),
           personalStorage.getSubjects(),
-          personalStorage.getClassSubjectsCache(),
         ])
         if (!isMounted) return
         if (allTasks) setTasks(allTasks)
-        const combined = classSubs.length > 0 ? classSubs : localSubs
-        if (combined) setSubjects(combined)
+        if (allSubs) setSubjects(allSubs)
       } catch {
         // Safe fallback
       }

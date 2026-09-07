@@ -23,11 +23,7 @@ const TOGGLE_WIDTH = 70
 export function MinimalistSubjectBalance() {
   const [scope, setScope] = useState<ScopeFilter>('pending')
   const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
-  const [subjects, setSubjects] = useState<Subject[]>(() => {
-    const local = personalStorage.getCachedSubjects()
-    const classSubs = personalStorage.getCachedClassSubjects()
-    return classSubs.length > 0 ? classSubs : local
-  })
+  const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
 
   // Animación del selector de ámbito
   const slideAnim = useRef(new Animated.Value(0)).current
@@ -45,15 +41,13 @@ export function MinimalistSubjectBalance() {
     let isMounted = true
     const updateData = async () => {
       try {
-        const [allTasks, localSubs, classSubs] = await Promise.all([
+        const [allTasks, allSubs] = await Promise.all([
           personalStorage.getTasksWithSubjects(),
           personalStorage.getSubjects(),
-          personalStorage.getClassSubjectsCache(),
         ])
         if (!isMounted) return
         if (allTasks) setTasks(allTasks)
-        const combined = classSubs.length > 0 ? classSubs : localSubs
-        if (combined) setSubjects(combined)
+        if (allSubs) setSubjects(allSubs)
       } catch {
         // Safe fallback
       }
@@ -83,17 +77,36 @@ export function MinimalistSubjectBalance() {
     const countsMap = new Map<string, number>()
     let generalCount = 0
 
+    const subjById = new Map<string, Subject>()
+    const subjByName = new Map<string, Subject>()
+    subjects.forEach((s) => {
+      subjById.set(s.id, s)
+      subjByName.set(s.name.trim().toLowerCase(), s)
+    })
+
     filteredTasks.forEach((t) => {
-      if (t.subject_id) {
-        countsMap.set(t.subject_id, (countsMap.get(t.subject_id) || 0) + 1)
+      const resolvedSubj =
+        (t.subject_id && subjById.get(t.subject_id)) ||
+        (t.subject?.id && subjById.get(t.subject.id)) ||
+        (t.subject?.name && subjByName.get(t.subject.name.trim().toLowerCase())) ||
+        t.subject ||
+        null
+
+      if (resolvedSubj && resolvedSubj.name && resolvedSubj.name.trim().toLowerCase() !== 'general') {
+        const id = resolvedSubj.id
+        countsMap.set(id, (countsMap.get(id) || 0) + 1)
+        if (!subjById.has(id)) {
+          subjById.set(id, resolvedSubj)
+        }
       } else {
         generalCount++
       }
     })
 
     const result: SubjectStat[] = []
+    const allSubjects = Array.from(subjById.values())
 
-    subjects.forEach((subj) => {
+    allSubjects.forEach((subj) => {
       const count = countsMap.get(subj.id) || 0
       if (count > 0) {
         result.push({

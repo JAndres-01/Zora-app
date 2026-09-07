@@ -171,14 +171,17 @@ export function MinimalistTaskModal({
     }
   }, [activePicker])
 
-  // Cargar horarios del usuario para el selector de clases
+  // Cargar horarios para el selector de clases (universal de clase o local)
   useEffect(() => {
     let isMounted = true
     if (modalVisible) {
-      personalStorage.getSchedules().then((list) => {
-        if (isMounted && list) {
-          setSchedules(list)
-        }
+      Promise.all([
+        personalStorage.getSchedulesWithSubjects(),
+        personalStorage.getClassSchedulesCache(),
+      ]).then(([localScheds, classScheds]) => {
+        if (!isMounted) return
+        const active = classScheds && classScheds.length > 0 ? classScheds : localScheds
+        setSchedules(active || [])
       })
     }
     return () => {

@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 
+// 1. ExpoModulesJSI Package.swift
 const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
 if (fs.existsSync(jsiPackagePath)) {
   const content = `// swift-tools-version: 6.0
@@ -163,6 +164,7 @@ func resolveTestFrameworks() -> (binaryTargets: [Target], dependencies: [Target.
   console.log('[patch-swift-packages] Successfully wrote Swift 6.0 ExpoModulesJSI Package.swift')
 }
 
+// 2. expo-modules-macros-plugin Package.swift
 const macrosPackagePath = path.join(process.cwd(), 'node_modules', '@expo', 'expo-modules-macros-plugin', 'apple', 'Package.swift')
 if (fs.existsSync(macrosPackagePath)) {
   let macrosContent = fs.readFileSync(macrosPackagePath, 'utf8')
@@ -171,37 +173,97 @@ if (fs.existsSync(macrosPackagePath)) {
   console.log('[patch-swift-packages] Successfully patched expo-modules-macros-plugin Package.swift')
 }
 
+// 3. RuntimeScheduler.h
 const schedulerHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'RuntimeScheduler.h')
 if (fs.existsSync(schedulerHeader)) {
   let headerContent = fs.readFileSync(schedulerHeader, 'utf8')
+  
+  // Define SWIFT_RETURNS_RETAINED attribute if not present
+  if (!headerContent.includes('#define SWIFT_RETURNS_RETAINED')) {
+    headerContent = headerContent.replace(
+      '#include <swift/bridging>',
+      '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))\n#endif'
+    )
+  } else {
+    headerContent = headerContent.replace(
+      /#define SWIFT_RETURNS_RETAINED\s*$/m,
+      '#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))'
+    )
+  }
+
+  // Remove SWIFT_RETURNS_RETAINED from constructor declarations
   headerContent = headerContent.replace(/SWIFT_RETURNS_RETAINED\s+RuntimeScheduler/g, 'RuntimeScheduler')
+
+  // Add static factory methods if not already added
+  if (!headerContent.includes('RuntimeScheduler *create(')) {
+    const factoryMethods = `
+  static inline RuntimeScheduler *create(void *scheduler, ScheduleFn fn) noexcept SWIFT_RETURNS_RETAINED {
+    return new RuntimeScheduler(scheduler, fn);
+  }
+
+  static inline RuntimeScheduler *create() noexcept SWIFT_RETURNS_RETAINED {
+    return new RuntimeScheduler();
+  }
+`
+    headerContent = headerContent.replace('RuntimeScheduler(void *scheduler, ScheduleFn fn)', factoryMethods + '\n  RuntimeScheduler(void *scheduler, ScheduleFn fn)')
+  }
+
   fs.writeFileSync(schedulerHeader, headerContent, 'utf8')
-  console.log('[patch-swift-packages] Cleaned constructor annotations in RuntimeScheduler.h')
+  console.log('[patch-swift-packages] Successfully patched RuntimeScheduler.h with factory methods')
 }
 
+// 4. HostFunctionClosure.h
 const closureHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'HostFunctionClosure.h')
 if (fs.existsSync(closureHeader)) {
   let headerContent = fs.readFileSync(closureHeader, 'utf8')
-  headerContent = headerContent.replace(
-    /using Closure = void\(Context context, const facebook::jsi::Value \*\w+ thisValue, const facebook::jsi::Value \*\w+ args, size_t count, facebook::jsi::Value \*\w+ result\);/g,
-    'using Closure = void (*)(Context context, const facebook::jsi::Value *_Nonnull thisValue, const facebook::jsi::Value *_Nonnull args, size_t count, facebook::jsi::Value *_Nonnull result);'
-  )
-  headerContent = headerContent.replace('Closure *_Nonnull _closure;', 'Closure _closure;')
+
+  if (!headerContent.includes('#define SWIFT_RETURNS_RETAINED')) {
+    headerContent = headerContent.replace(
+      '#include <swift/bridging>',
+      '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))\n#endif'
+    )
+  }
+
+  if (!headerContent.includes('HostFunctionClosure *create(')) {
+    const factoryMethod = `
+  static inline HostFunctionClosure *create(Context context, Closure closure, Deallocator deallocator) noexcept SWIFT_RETURNS_RETAINED {
+    return new HostFunctionClosure(context, closure, deallocator);
+  }
+`
+    headerContent = headerContent.replace('virtual ~HostFunctionClosure()', factoryMethod + '\n  virtual ~HostFunctionClosure()')
+  }
+
   fs.writeFileSync(closureHeader, headerContent, 'utf8')
-  console.log('[patch-swift-packages] Cleaned HostFunctionClosure.h for Swift 6.0 interop')
+  console.log('[patch-swift-packages] Successfully patched HostFunctionClosure.h with factory method')
 }
 
-const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
-if (fs.existsSync(buildXcframeworkScript)) {
-  let scriptContent = fs.readFileSync(buildXcframeworkScript, 'utf8')
-  if (scriptContent.includes('-disableAutomaticPackageResolution')) {
-    scriptContent = scriptContent.replace(/-disableAutomaticPackageResolution\s*\\/g, '')
-    fs.writeFileSync(buildXcframeworkScript, scriptContent, 'utf8')
-    console.log('[patch-swift-packages] Successfully removed -disableAutomaticPackageResolution from build-xcframework.sh')
+// 5. HostObjectCallbacks.h
+const hostObjectCallbacksHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'HostObjectCallbacks.h')
+if (fs.existsSync(hostObjectCallbacksHeader)) {
+  let headerContent = fs.readFileSync(hostObjectCallbacksHeader, 'utf8')
+  if (!headerContent.includes('addPropNameId(')) {
+    const helperMethod = `
+  static inline void addPropNameId(PropNameIds &vector, facebook::jsi::IRuntime &rt, const char *_Nonnull name) {
+    vector.push_back(facebook::jsi::PropNameID::forUtf8(rt, name));
+  }
+`
+    headerContent = headerContent.replace('using PropNameIds = std::vector<facebook::jsi::PropNameID>;', 'using PropNameIds = std::vector<facebook::jsi::PropNameID>;\n' + helperMethod)
+    fs.writeFileSync(hostObjectCallbacksHeader, headerContent, 'utf8')
+    console.log('[patch-swift-packages] Successfully added addPropNameId to HostObjectCallbacks.h')
   }
 }
 
-// Patch all Swift source files in ExpoModulesJSI for Swift 6.0
+// 6. build-xcframework.sh
+const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
+if (fs.existsSync(buildXcframeworkScript)) {
+  let scriptContent = fs.readFileSync(buildXcframeworkScript, 'utf8')
+  scriptContent = scriptContent.replace(/-disableAutomaticPackageResolution\s*\\?/g, '')
+  scriptContent = scriptContent.replace(/-quiet\s*\\?/g, '')
+  fs.writeFileSync(buildXcframeworkScript, scriptContent, 'utf8')
+  console.log('[patch-swift-packages] Successfully patched build-xcframework.sh')
+}
+
+// 7. Patch all Swift source files in ExpoModulesJSI
 const jsiSourcesDir = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI')
 function patchSwiftSources(dir) {
   if (!fs.existsSync(dir)) return
@@ -213,14 +275,20 @@ function patchSwiftSources(dir) {
     } else if (file.name.endsWith('.swift')) {
       let code = fs.readFileSync(fullPath, 'utf8')
       const original = code
-      // 1. weak let -> weak var
-      code = code.replace(/weak\s+let\s+/g, 'weak var ')
-      // 2. Trailing commas before closing paren in types / calls
+
+      // A. weak let -> nonisolated(unsafe) weak var
+      code = code.replace(/weak\s+let\s+/g, 'nonisolated(unsafe) weak var ')
+      // Ensure weak var runtime is marked nonisolated(unsafe) for Sendable classes
+      code = code.replace(/(?<!nonisolated\(unsafe\)\s+)weak\s+var\s+runtime/g, 'nonisolated(unsafe) weak var runtime')
+
+      // B. Trailing commas in function/closure signatures
       code = code.replace(/consuming JavaScriptValuesBuffer,\s*\)/g, 'consuming JavaScriptValuesBuffer\n    )')
-      code = code.replace(/vector\.push_back\(consuming:\s*propNameId\)/g, 'vector.push_back(propNameId)')
-      // 3. Task+Immediate fallback
-      if (file.name === 'Task+Immediate.swift') {
-        code = `// polyfill for Swift 6.0
+
+      // C. Task+immediate.swift polyfill (case-insensitive check)
+      if (file.name.toLowerCase() === 'task+immediate.swift') {
+        code = `// swift-format-ignore-file: AlwaysUseLowerCamelCase
+import Foundation
+
 extension Task where Failure == any Error {
   @discardableResult
   public static func immediate_polyfill(
@@ -233,13 +301,56 @@ extension Task where Failure == any Error {
 }
 `
       }
-      // 4. JavaScriptError CppError extension
+
+      // D. JavaScriptRuntime.swift constructor calls & property name push
+      if (file.name === 'JavaScriptRuntime.swift') {
+        // Use factory methods for RuntimeScheduler
+        code = code.replace(/expo\.RuntimeScheduler\(\)/g, 'expo.RuntimeScheduler.create()')
+        code = code.replace(/expo\.RuntimeScheduler\(scheduler,\s*fn\)/g, 'expo.RuntimeScheduler.create(scheduler, fn)')
+
+        // Use factory method for HostFunctionClosure
+        code = code.replace(/expo\.HostFunctionClosure\(context,\s*call,\s*deallocate\)/g, 'expo.HostFunctionClosure.create(context, call, deallocate)')
+
+        // Safe C++ vector push via HostObjectCallbacks.addPropNameId
+        const oldPushBlock = `      for propertyName in propertyNames {
+        let propNameId = facebook.jsi.PropNameID.forUtf8(iRuntime, std.string(propertyName))
+        vector.push_back(propNameId)
+      }`
+        const oldPushBlockConsuming = `      for propertyName in propertyNames {
+        let propNameId = facebook.jsi.PropNameID.forUtf8(iRuntime, std.string(propertyName))
+        vector.push_back(consuming: propNameId)
+      }`
+        const newPushBlock = `      for propertyName in propertyNames {
+        propertyName.withCString { cStr in
+          expo.HostObjectCallbacks.addPropNameId(&vector, iRuntime, cStr)
+        }
+      }`
+        if (code.includes(oldPushBlock)) {
+          code = code.replace(oldPushBlock, newPushBlock)
+        } else if (code.includes(oldPushBlockConsuming)) {
+          code = code.replace(oldPushBlockConsuming, newPushBlock)
+        } else {
+          // Regex fallback
+          code = code.replace(
+            /for\s+propertyName\s+in\s+propertyNames\s*\{[\s\S]*?vector\.push_back[\s\S]*?\}/,
+            `for propertyName in propertyNames {\n        propertyName.withCString { cStr in\n          expo.HostObjectCallbacks.addPropNameId(&vector, iRuntime, cStr)\n        }\n      }`
+          )
+        }
+      }
+
+      // E. JavaScriptActor.swift - preserve @JavaScriptActor on runIsolated
+      if (file.name === 'JavaScriptActor.swift') {
+        if (!code.includes('@JavaScriptActor\n  @usableFromInline\n  internal static func runIsolated')) {
+          code = code.replace(
+            /@usableFromInline\s+internal static func runIsolated/g,
+            '@JavaScriptActor\n  @usableFromInline\n  internal static func runIsolated'
+          )
+        }
+      }
+
+      // F. JavaScriptError.swift - remove public from CppError extension
       if (file.name === 'JavaScriptError.swift') {
         code = code.replace('public var message: String {', 'var message: String {')
-      }
-      // 5. JavaScriptActor runIsolated
-      if (file.name === 'JavaScriptActor.swift') {
-        code = code.replace(/@JavaScriptActor\s+@usableFromInline\s+internal static func runIsolated/g, '@usableFromInline\n  internal static func runIsolated')
       }
 
       if (code !== original) {
@@ -250,8 +361,4 @@ extension Task where Failure == any Error {
   }
 }
 patchSwiftSources(jsiSourcesDir)
-
-
-
-
-
+console.log('[patch-swift-packages] All Swift and C++ compatibility patches applied successfully.')

@@ -70,10 +70,10 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             -derivedDataPath build \
             build 2>&1 | tee xcodebuild.log || {
-              echo "❌ ERROR EN XCODEBUILD. Ultimas 100 lineas del log:"
-              tail -n 100 xcodebuild.log
+              echo "❌ ERROR EN XCODEBUILD. Ultimas 150 lineas del log:"
+              tail -n 150 xcodebuild.log
               echo "❌ Errores detectados:"
-              grep -E "(error:|fatal error:|\*\* BUILD FAILED \*\*)" xcodebuild.log | head -n 40
+              grep -E "(error:|fatal error:|\*\* BUILD FAILED \*\*)" xcodebuild.log | head -n 60
               exit 1
             }
 

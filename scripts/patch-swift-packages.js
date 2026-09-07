@@ -332,6 +332,54 @@ extension Task where Failure == any Error {
             `for propertyName in propertyNames {\n        propertyName.withCString { cStr in\n          expo.HostObjectCallbacks.addPropNameId(&vector, iRuntime, cStr)\n        }\n      }`
           )
         }
+
+        // Swift 6 data race prevention: convert raw pointers to UInt bitPattern before assumeIsolated
+        if (code.includes('let this = UnsafeMutablePointer(mutating: thisPtr).move()')) {
+          code = code.replace(
+            /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr[\s\S]*?\(context:\s*HostFunctionContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated\s*\{[\s\S]*?return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{[\s\S]*?let\s+this\s*=\s*UnsafeMutablePointer\(mutating:\s*thisPtr\)\.move\(\)[\s\S]*?let\s+arguments\s*=\s*JavaScriptValuesBuffer\(runtime,\s*start:\s*argumentsPtr,\s*count:\s*argumentsCount\)[\s\S]*?let\s+thisValue\s*=\s*JavaScriptValue\(runtime,\s*this\)[\s\S]*?return\s+try\s+context\.call\(thisValue,\s*consume\s+arguments\)\.asJSIValue\(\)[\s\S]*?\}\s*\}\s*\}/,
+            `let thisAddr = UInt(bitPattern: thisPtr)
+    let argsAddr = UInt(bitPattern: argumentsPtr)
+    nonisolated(unsafe) let resultPtr = resultPtr
+
+    // See \`withGuaranteedContext\` for why neither the context nor the runtime is retained here, and
+    // why the result is written to the caller's slot instead of being returned.
+    withGuaranteedContext(context) { (context: HostFunctionContext, runtime) in
+      resultPtr.pointee = JavaScriptActor.assumeIsolated {
+        return forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisAddr)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argsAddr)
+          let this = UnsafeMutablePointer(mutating: thisPtr).move()
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptValue(runtime, this)
+          return try context.call(thisValue, consume arguments).asJSIValue()
+        }
+      }
+    }`
+          )
+        }
+
+        if (code.includes('let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)')) {
+          code = code.replace(
+            /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr[\s\S]*?\(context:\s*UnownedThisHostFunctionContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated\s*\{[\s\S]*?return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{[\s\S]*?let\s+arguments\s*=\s*JavaScriptValuesBuffer\(runtime,\s*start:\s*argumentsPtr,\s*count:\s*argumentsCount\)[\s\S]*?let\s+thisValue\s*=\s*JavaScriptUnownedValue\(runtime\.pointee,\s*thisPtr\)[\s\S]*?return\s+try\s+context\.call\(thisValue,\s*consume\s+arguments\)\.asJSIValue\(\)[\s\S]*?\}\s*\}\s*\}/,
+            `let thisAddr = UInt(bitPattern: thisPtr)
+    let argsAddr = UInt(bitPattern: argumentsPtr)
+    nonisolated(unsafe) let resultPtr = resultPtr
+
+    // See \`withGuaranteedContext\` for why neither the context nor the runtime is retained here, and
+    // why the result is written to the caller's slot instead of being returned.
+    withGuaranteedContext(context) { (context: UnownedThisHostFunctionContext, runtime) in
+      resultPtr.pointee = JavaScriptActor.assumeIsolated {
+        return forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisAddr)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argsAddr)
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)
+          return try context.call(thisValue, consume arguments).asJSIValue()
+        }
+      }
+    }`
+          )
+        }
       }
 
       // E. JavaScriptActor.swift - preserve @JavaScriptActor on runIsolated

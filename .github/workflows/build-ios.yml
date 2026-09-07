@@ -35,13 +35,17 @@ jobs:
 
       - name: Expo Prebuild iOS & CocoaPods
         run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          export NODE_BINARY=$(which node)
           npx expo prebuild --platform ios --clean
           cd ios
-          pod install
+          pod install --repo-update
 
       - name: Compilar con Xcode (Unsigned para Sideloadly)
         run: |
           cd ios
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          export NODE_BINARY=$(which node)
           WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -n 1)
           if [ -z "$WORKSPACE" ]; then
             echo "No .xcworkspace found, searching for .xcodeproj..."
@@ -53,8 +57,14 @@ jobs:
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \
+              CODE_SIGN_ENTITLEMENTS="" \
+              CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
+              DEVELOPMENT_TEAM="" \
+              PROVISIONING_PROFILE_SPECIFIER="" \
+              AD_HOC_CODE_SIGNING_ALLOWED=YES \
+              COMPILER_INDEX_STORE_ENABLE=NO \
               -derivedDataPath build \
-              build
+              clean build
           else
             SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
             echo "Building with workspace: $WORKSPACE and scheme: $SCHEME_NAME"
@@ -66,13 +76,22 @@ jobs:
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \
+              CODE_SIGN_ENTITLEMENTS="" \
+              CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
+              DEVELOPMENT_TEAM="" \
+              PROVISIONING_PROFILE_SPECIFIER="" \
+              AD_HOC_CODE_SIGNING_ALLOWED=YES \
+              COMPILER_INDEX_STORE_ENABLE=NO \
               -derivedDataPath build \
-              build
+              clean build
           fi
 
       - name: Empaquetar archivo Zora.ipa
         run: |
-          APP_PATH=$(find ios/build/Build/Products -name "*.app" -type d | head -n 1)
+          APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" -type d 2>/dev/null | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find ios/build/Build/Products -name "*.app" -type d | head -n 1)
+          fi
           echo "Found app at: $APP_PATH"
           mkdir -p build_output/Payload
           cp -R "$APP_PATH" build_output/Payload/

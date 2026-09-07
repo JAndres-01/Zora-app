@@ -421,4 +421,23 @@ extension Task where Failure == any Error {
   }
 }
 patchSwiftSources(jsiSourcesDir)
+
+// 8. Patch Podfile to ensure expo-symbols is excluded if Podfile exists
+const podfilePath = path.join(process.cwd(), 'ios', 'Podfile')
+if (fs.existsSync(podfilePath)) {
+  let podfile = fs.readFileSync(podfilePath, 'utf8')
+  if (!podfile.includes("exclude: ['expo-symbols']")) {
+    podfile = podfile.replace(/use_expo_modules!\((.*?)\)/, (match, p1) => {
+      if (p1.trim()) {
+        return `use_expo_modules!(${p1}, exclude: ['expo-symbols'])`
+      } else {
+        return `use_expo_modules!(exclude: ['expo-symbols'])`
+      }
+    })
+    podfile = podfile.replace(/use_expo_modules!\s*$/m, "use_expo_modules!(exclude: ['expo-symbols'])")
+    fs.writeFileSync(podfilePath, podfile, 'utf8')
+    console.log('[patch-swift-packages] Successfully ensured expo-symbols is excluded from Podfile')
+  }
+}
+
 console.log('[patch-swift-packages] All Swift and C++ compatibility patches applied successfully.')

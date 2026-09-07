@@ -54,5 +54,12 @@
     "react-test-renderer": "^19.2.3",
     "test-renderer": "^1.2.0",
     "typescript": "~6.0.3"
+  },
+  "expo": {
+    "autolinking": {
+      "exclude": [
+        "expo-symbols"
+      ]
+    }
   }
 }

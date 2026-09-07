@@ -1,5 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { Subject, Schedule, Task, PersonalProfile, AppPreferences } from '@/types/personal'
+import type {
+  Subject,
+  Schedule,
+  Task,
+  PersonalProfile,
+  AppPreferences,
+  ClassTask,
+  TaskStatus,
+  ClassTaskLocalState,
+} from '@/types/personal'
 import { sortTasksByDueDate } from './taskSort'
 import {
   DEFAULT_USER_ID,
@@ -14,6 +23,9 @@ const KEYS = {
   TASKS: 'zora_personal_tasks_v2',
   PROFILE: 'zora_personal_profile_v2',
   PREFERENCES: 'zora_personal_prefs_v2',
+  CLASS_TASKS: 'zora_class_tasks_cache_v2',
+  CLASS_TASK_STATUSES: 'zora_class_task_statuses_v2',
+  CLASS_TASK_STATES: 'zora_class_task_states_v2',
 }
 
 // ==========================================
@@ -24,6 +36,9 @@ let _schedulesCache: Schedule[] | null = null
 let _tasksCache: Task[] | null = null
 let _profileCache: PersonalProfile | null = null
 let _preferencesCache: AppPreferences | null = null
+let _classTasksCache: ClassTask[] | null = null
+let _classTaskStatusesCache: Record<string, TaskStatus> | null = null
+let _classTaskStatesCache: Record<string, ClassTaskLocalState> | null = null
 
 const listeners = new Set<() => void>()
 
@@ -44,54 +59,118 @@ function notifyListeners() {
   })
 }
 
+function mapClassTasksToTaskObjects(
+  classTasks: ClassTask[],
+  subjects: Subject[],
+  classStatuses: Record<string, TaskStatus>
+): Task[] {
+  const result: Task[] = []
+
+  for (const ct of classTasks) {
+    const isOfficialUpdated = Boolean(
+      ct.updated_at &&
+      ct.created_at &&
+      new Date(ct.updated_at).getTime() > new Date(ct.created_at).getTime() + 1000
+    )
+
+    const matchingSubject = subjects.find(
+      (s) => s.name.trim().toLowerCase() === ct.subject_name.trim().toLowerCase()
+    ) || null
+
+    result.push({
+      id: `class_${ct.id}`,
+      title: ct.title,
+      description: ct.description || null,
+      type: ct.type,
+      status: classStatuses[ct.id] || 'pending',
+      due_date: ct.due_date,
+      attachments: ct.attachments || [],
+      is_class_task: true,
+      class_task_id: ct.id,
+      publisher_name: ct.publisher_name,
+      publisher_id: ct.publisher_id,
+      has_class_update: isOfficialUpdated,
+      official_class_task: ct,
+      class_updated_at: ct.updated_at,
+      created_at: ct.created_at,
+      updated_at: ct.updated_at,
+      subject: matchingSubject || {
+        id: `virtual_${ct.id}`,
+        name: ct.subject_name,
+        color: '#3B82F6',
+      },
+    })
+  }
+
+  return result
+}
+
 export const personalStorage = {
   // ==========================================
   // MÉTODOS DE ACCESO DIRECTO A CACHÉ EN MEMORIA
   // ==========================================
   getCachedSubjects(): Subject[] {
-    return _subjectsCache !== null ? [..._subjectsCache] : []
+    return _subjectsCache ? [..._subjectsCache] : []
   },
 
   getCachedSchedules(): Schedule[] {
-    return _schedulesCache !== null ? [..._schedulesCache] : []
+    return _schedulesCache ? [..._schedulesCache] : []
   },
 
   getCachedTasks(): Task[] {
-    return _tasksCache !== null ? sortTasksByDueDate(_tasksCache) : []
-  },
-
-  getCachedTasksWithSubjects(): Task[] {
-    const tasks = this.getCachedTasks()
-    const subjects = this.getCachedSubjects()
-    return tasks.map((t) => ({
-      ...t,
-      subject: subjects.find((s) => s.id === t.subject_id) || null,
-    }))
+    return _tasksCache ? [..._tasksCache] : []
   },
 
   getCachedSchedulesWithSubjects(): Schedule[] {
-    const scheds = this.getCachedSchedules()
-    const subjects = this.getCachedSubjects()
-    return scheds
-      .map((s) => ({
-        ...s,
-        subject: subjects.find((subj) => subj.id === s.subject_id) || null,
-      }))
-      .filter((s) => Boolean(s.subject))
+    const subjects = _subjectsCache || []
+    const schedules = _schedulesCache || []
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
+  },
+
+  getCachedTasksWithSubjects(): Task[] {
+    const subjects = _subjectsCache || []
+    const tasks = _tasksCache || []
+    const classTasks = _classTasksCache || []
+    const classStatuses = _classTaskStatusesCache || {}
+
+    const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses)
+
+    const localTasksWithSub = tasks.map((t) => ({
+      ...t,
+      subject: subjects.find((s) => s.id === t.subject_id) || null,
+    }))
+
+    return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])
+  },
+
+  getCachedProfile(): PersonalProfile | null {
+    return _profileCache ? { ..._profileCache } : null
   },
 
   getCachedPreferences(): AppPreferences | null {
-    return _preferencesCache !== null ? { ..._preferencesCache } : null
+    return _preferencesCache ? { ..._preferencesCache } : null
   },
 
+  // ==========================================
+  // PRECARGA INICIAL (INVOCAR EN SPLASH SCREEN)
+  // ==========================================
   async preloadAll(): Promise<void> {
-    await Promise.all([
-      this.getSubjects(),
-      this.getSchedules(),
-      this.getTasks(),
-      this.getProfile(),
-      this.getPreferences(),
-    ])
+    try {
+      await Promise.all([
+        this.getSubjects(),
+        this.getSchedules(),
+        this.getTasks(),
+        this.getProfile(),
+        this.getPreferences(),
+        this.getClassTasksCache(),
+        this.getClassTaskStatuses(),
+      ])
+    } catch (err) {
+      logger.error('[personalStorage] Error en preloadAll:', err)
+    }
   },
 
   // ==========================================
@@ -118,11 +197,10 @@ export const personalStorage = {
   },
 
   async setSubjects(subjects: Subject[]): Promise<void> {
-    const safeList = Array.isArray(subjects) ? subjects : []
-    _subjectsCache = [...safeList]
+    _subjectsCache = Array.isArray(subjects) ? [...subjects] : []
     notifyListeners()
     try {
-      await AsyncStorage.setItem(KEYS.SUBJECTS, JSON.stringify(safeList))
+      await AsyncStorage.setItem(KEYS.SUBJECTS, JSON.stringify(_subjectsCache))
     } catch (err) {
       logger.error('[personalStorage] Error guardando materias:', err)
     }
@@ -147,23 +225,17 @@ export const personalStorage = {
     const updated = list.filter((s) => s.id !== subjectId)
     await this.setSubjects(updated)
 
-    // Eliminar también de horarios
-    const scheds = await this.getSchedules()
-    const updatedScheds = scheds.filter((s) => s.subject_id !== subjectId)
-    await this.setSchedules(updatedScheds)
+    // Limpiar asociaciones en horarios y tareas de forma transaccional
+    const schedules = await this.getSchedules()
+    const updatedSchedules = schedules.map((sch) =>
+      sch.subject_id === subjectId ? { ...sch, subject_id: null } : sch
+    )
+    await this.setSchedules(updatedSchedules)
 
-    // Desvincular de las tareas (pasan a ser "General" / sin materia)
     const tasks = await this.getTasks()
-    const updatedTasks = tasks.map((t) => {
-      if (t.subject_id === subjectId) {
-        return {
-          ...t,
-          subject_id: null,
-          subject: null,
-        }
-      }
-      return t
-    })
+    const updatedTasks = tasks.map((t) =>
+      t.subject_id === subjectId ? { ...t, subject_id: null } : t
+    )
     await this.setTasks(updatedTasks)
 
     return updated
@@ -193,21 +265,22 @@ export const personalStorage = {
   },
 
   async getSchedulesWithSubjects(): Promise<Schedule[]> {
-    const [scheds, subjects] = await Promise.all([this.getSchedules(), this.getSubjects()])
-    return scheds
-      .map((s) => ({
-        ...s,
-        subject: subjects.find((subj) => subj.id === s.subject_id) || null,
-      }))
-      .filter((s) => Boolean(s.subject))
+    const [schedules, subjects] = await Promise.all([this.getSchedules(), this.getSubjects()])
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
   },
 
   async setSchedules(schedules: Schedule[]): Promise<void> {
-    const safeList = Array.isArray(schedules) ? schedules : []
-    _schedulesCache = [...safeList]
+    _schedulesCache = Array.isArray(schedules) ? [...schedules] : []
     notifyListeners()
     try {
-      await AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(safeList))
+      const storageList = _schedulesCache.map((s) => {
+        const { subject, ...rest } = s
+        return rest
+      })
+      await AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(storageList))
     } catch (err) {
       logger.error('[personalStorage] Error guardando horarios:', err)
     }
@@ -243,16 +316,15 @@ export const personalStorage = {
   // ==========================================
   async getTasks(): Promise<Task[]> {
     if (_tasksCache !== null) {
-      return sortTasksByDueDate(_tasksCache)
+      return [..._tasksCache]
     }
     try {
       const data = await AsyncStorage.getItem(KEYS.TASKS)
       if (data) {
         const parsed = JSON.parse(data)
         if (Array.isArray(parsed)) {
-          const sorted = sortTasksByDueDate(parsed)
-          _tasksCache = sorted
-          return [...sorted]
+          _tasksCache = parsed
+          return [...parsed]
         }
       }
     } catch (err) {
@@ -263,19 +335,31 @@ export const personalStorage = {
   },
 
   async getTasksWithSubjects(): Promise<Task[]> {
-    const [tasks, subjects] = await Promise.all([this.getTasks(), this.getSubjects()])
-    return tasks.map((t) => ({
+    const [tasks, subjects, classTasks, classStatuses] = await Promise.all([
+      this.getTasks(),
+      this.getSubjects(),
+      this.getClassTasksCache(),
+      this.getClassTaskStatuses(),
+    ])
+
+    const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses)
+
+    const localTasksWithSub = tasks.map((t) => ({
       ...t,
       subject: subjects.find((s) => s.id === t.subject_id) || null,
     }))
+
+    // Fusionar de forma transparente tareas locales + tareas de clase
+    return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])
   },
 
   async setTasks(tasks: Task[]): Promise<void> {
-    const safeList = sortTasksByDueDate(Array.isArray(tasks) ? tasks : [])
+    // Filtrar tareas de clase para guardar solo tareas locales en KEYS.TASKS
+    const onlyLocalTasks = tasks.filter((t) => !t.is_class_task)
+    const safeList = sortTasksByDueDate(Array.isArray(onlyLocalTasks) ? onlyLocalTasks : [])
     _tasksCache = [...safeList]
     notifyListeners()
     try {
-      // Optimizar para almacenamiento persistente: omitir objeto anidado redundante 'subject'
       const storageList = safeList.map((t) => {
         const { subject, ...rest } = t
         return rest
@@ -287,6 +371,10 @@ export const personalStorage = {
   },
 
   async saveTask(task: Task): Promise<Task[]> {
+    if (task.is_class_task && task.class_task_id) {
+      await this.setClassTaskStatus(task.class_task_id, task.status)
+      return this.getTasksWithSubjects()
+    }
     const list = await this.getTasks()
     const index = list.findIndex((t) => t.id === task.id)
     let updated: Task[]
@@ -302,10 +390,127 @@ export const personalStorage = {
   },
 
   async removeTask(taskId: string): Promise<Task[]> {
+    if (taskId.startsWith('class_')) {
+      const classTaskId = taskId.replace('class_', '')
+      await this.setClassTaskLocalState(classTaskId, { deleted_locally: true })
+      return this.getTasksWithSubjects()
+    }
     const list = await this.getTasks()
     const updated = list.filter((t) => t.id !== taskId)
     await this.setTasks(updated)
     return updated
+  },
+
+  // ==========================================
+  // TAREAS DE CLASE (CACHE & ESTADOS LOCALES)
+  // ==========================================
+  async getClassTasksCache(): Promise<ClassTask[]> {
+    if (_classTasksCache !== null) {
+      return [..._classTasksCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_TASKS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _classTasksCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo caché de class_tasks:', err)
+    }
+    _classTasksCache = []
+    return []
+  },
+
+  async setClassTasksCache(classTasks: ClassTask[]): Promise<void> {
+    _classTasksCache = Array.isArray(classTasks) ? [...classTasks] : []
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_TASKS, JSON.stringify(_classTasksCache))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando caché de class_tasks:', err)
+    }
+  },
+
+  async getClassTaskLocalStates(): Promise<Record<string, ClassTaskLocalState>> {
+    if (_classTaskStatesCache !== null) {
+      return { ..._classTaskStatesCache }
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_TASK_STATES)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (parsed && typeof parsed === 'object') {
+          _classTaskStatesCache = parsed
+          return { ...parsed }
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo estados de class_tasks:', err)
+    }
+    _classTaskStatesCache = {}
+    return {}
+  },
+
+  async setClassTaskLocalState(
+    classTaskId: string,
+    partial: Partial<ClassTaskLocalState>
+  ): Promise<void> {
+    const current = await this.getClassTaskLocalStates()
+    const existing: ClassTaskLocalState = current[classTaskId] || {
+      completed: false,
+      deleted_locally: false,
+      is_locally_edited: false,
+    }
+    const updatedState: ClassTaskLocalState = {
+      ...existing,
+      ...partial,
+      local_overrides:
+        partial.local_overrides !== undefined ? partial.local_overrides : existing.local_overrides,
+    }
+    const updated = { ...current, [classTaskId]: updatedState }
+    _classTaskStatesCache = updated
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_TASK_STATES, JSON.stringify(updated))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando estado local de class_task:', err)
+    }
+  },
+
+  async acceptOfficialClassUpdate(classTaskId: string): Promise<void> {
+    const classTasks = await this.getClassTasksCache()
+    const official = classTasks.find((ct) => ct.id === classTaskId)
+    await this.setClassTaskLocalState(classTaskId, {
+      is_locally_edited: false,
+      local_overrides: undefined,
+      last_seen_version: official?.updated_at || new Date().toISOString(),
+    })
+  },
+
+  async dismissClassUpdate(classTaskId: string): Promise<void> {
+    const classTasks = await this.getClassTasksCache()
+    const official = classTasks.find((ct) => ct.id === classTaskId)
+    await this.setClassTaskLocalState(classTaskId, {
+      last_seen_version: official?.updated_at || new Date().toISOString(),
+    })
+  },
+
+  async getClassTaskStatuses(): Promise<Record<string, TaskStatus>> {
+    const states = await this.getClassTaskLocalStates()
+    const statuses: Record<string, TaskStatus> = {}
+    for (const [id, s] of Object.entries(states)) {
+      statuses[id] = s.completed ? 'completed' : 'pending'
+    }
+    return statuses
+  },
+
+  async setClassTaskStatus(classTaskId: string, status: TaskStatus): Promise<void> {
+    await this.setClassTaskLocalState(classTaskId, {
+      completed: status === 'completed',
+    })
   },
 
   // ==========================================
@@ -447,6 +652,9 @@ export const personalStorage = {
     _tasksCache = []
     _profileCache = null
     _preferencesCache = null
+    _classTasksCache = []
+    _classTaskStatusesCache = {}
+    _classTaskStatesCache = {}
     notifyListeners()
     try {
       await AsyncStorage.multiRemove([
@@ -455,6 +663,9 @@ export const personalStorage = {
         KEYS.TASKS,
         KEYS.PROFILE,
         KEYS.PREFERENCES,
+        KEYS.CLASS_TASKS,
+        KEYS.CLASS_TASK_STATUSES,
+        KEYS.CLASS_TASK_STATES,
       ])
     } catch (err) {
       logger.error('[personalStorage] Error limpiando storage:', err)

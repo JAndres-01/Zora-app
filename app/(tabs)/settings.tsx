@@ -28,6 +28,7 @@ import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
 import { EditProfileModal } from '@/components/settings/EditProfileModal'
 import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
+import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
@@ -42,6 +43,7 @@ export default function ProfileScreen() {
   const [showEditProfileModal, setShowEditProfileModal] = useState(false)
   const [showTimeModal, setShowTimeModal] = useState(false)
   const [showCredentialModal, setShowCredentialModal] = useState(false)
+  const [showClassAuthModal, setShowClassAuthModal] = useState(false)
 
   // Preferencias del Sistema
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
@@ -394,6 +396,7 @@ export default function ProfileScreen() {
         onToggleHaptics={handleToggleHaptics}
         confettiEnabled={confettiEnabled}
         onToggleConfetti={handleToggleConfetti}
+        onOpenClassAuth={() => setShowClassAuthModal(true)}
         onClearData={handleClearAllData}
       />
 
@@ -422,6 +425,13 @@ export default function ProfileScreen() {
         onClose={() => setShowCredentialModal(false)}
         onChangeCredential={handlePickCredential}
         onDeleteCredential={handleDeleteCredential}
+      />
+
+      {/* Modal de Acceso / Estado de la Clase */}
+      <ClassAuthModal
+        visible={showClassAuthModal}
+        onClose={() => setShowClassAuthModal(false)}
+        onSuccess={loadData}
       />
     </View>
   )

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { PersonalAuthProvider } from '@/context/PersonalAuthContext'
+import { ClassAuthProvider } from '@/context/ClassAuthContext'
 import { StyleSheet } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { personalStorage } from '@/lib/personalStorage'
@@ -48,17 +49,19 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
         <PersonalAuthProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade',
-              contentStyle: { backgroundColor: '#09090B' },
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-          </Stack>
+          <ClassAuthProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'fade',
+                contentStyle: { backgroundColor: '#09090B' },
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            </Stack>
+          </ClassAuthProvider>
         </PersonalAuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

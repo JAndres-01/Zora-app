@@ -18,6 +18,7 @@ import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStora
 import type { Task, Subject } from '@/types/personal'
 import { MinimalistTaskRow } from '@/components/tasks/MinimalistTaskRow'
 import { MinimalistTaskModal, TaskModalMode } from '@/components/tasks/MinimalistTaskModal'
+import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { MinimalistConfetti } from '@/components/effects/MinimalistConfetti'
 import { TasksHeader } from '@/components/tasks/TasksHeader'
 import { TasksSegmentControl } from '@/components/tasks/TasksSegmentControl'
@@ -30,6 +31,7 @@ import {
 import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { sortTasksByDueDate } from '@/lib/taskSort'
 import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
+import { useClassAuth } from '@/context/ClassAuthContext'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -55,6 +57,7 @@ export default function TasksScreen() {
   // Modal Unificado de Tareas
   const [taskModalMode, setTaskModalMode] = useState<TaskModalMode>('none')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [showClassAuthModal, setShowClassAuthModal] = useState(false)
 
   // Transiciones y Scroll
   const [isScrollEnabled, setIsScrollEnabled] = useState(true)
@@ -189,7 +192,12 @@ export default function TasksScreen() {
         const updated = prevTasks.map((t) =>
           t.id === taskId ? { ...t, status: nextStatus as 'pending' | 'completed' } : t
         )
-        personalStorage.setTasks(updated)
+        const target = updated.find((t) => t.id === taskId)
+        if (target) {
+          personalStorage.saveTask(target)
+        } else {
+          personalStorage.setTasks(updated)
+        }
         return updated
       })
       setActiveTask((prev) =>
@@ -200,17 +208,24 @@ export default function TasksScreen() {
     []
   )
 
-  const handleDeleteTask = useCallback(async (taskId: string) => {
-    cancelTaskReminder(taskId)
-    LAYOUT_EASE(200)
-    setTasks((prevTasks) => {
-      const updated = prevTasks.filter((t) => t.id !== taskId)
-      personalStorage.setTasks(updated)
-      return updated
-    })
-    setActiveTask((prev) => (prev?.id === taskId ? null : prev))
-    setTaskModalMode('none')
-  }, [])
+  const { deleteClassTask } = useClassAuth()
+
+  const handleDeleteTask = useCallback(
+    async (taskId: string) => {
+      cancelTaskReminder(taskId)
+      LAYOUT_EASE(200)
+      if (taskId.startsWith('class_')) {
+        const classTaskId = taskId.replace('class_', '')
+        await deleteClassTask(classTaskId)
+      } else {
+        await personalStorage.removeTask(taskId)
+      }
+      setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
+      setActiveTask((prev) => (prev?.id === taskId ? null : prev))
+      setTaskModalMode('none')
+    },
+    [deleteClassTask]
+  )
 
   // Filtrado de Tareas
   const filteredTasks = useMemo(() => {
@@ -344,6 +359,7 @@ export default function TasksScreen() {
           selectedSubjectId={selectedSubjectId}
           onOpenSubjectMenu={() => setShowSubjectMenu(true)}
           onResetSubjectFilter={() => setSelectedSubjectId('all')}
+          onOpenClassAuth={() => setShowClassAuthModal(true)}
           cardEntranceAnim={cardEntranceAnims[0]}
         />
 
@@ -476,6 +492,13 @@ export default function TasksScreen() {
         onToggleStatus={handleToggleStatus}
         onDeleteTask={handleDeleteTask}
         onTaskSaved={loadData}
+      />
+
+      {/* Modal de Acceso / Estado de la Clase */}
+      <ClassAuthModal
+        visible={showClassAuthModal}
+        onClose={() => setShowClassAuthModal(false)}
+        onSuccess={loadData}
       />
     </View>
   )

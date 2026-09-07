@@ -52,20 +52,58 @@ export interface Task {
   status: TaskStatus
   due_date?: string | null
   attachments?: TaskAttachment[]
+  is_class_task?: boolean
+  class_task_id?: string
+  publisher_name?: string
+  publisher_id?: string
+  is_locally_edited?: boolean
+  has_class_update?: boolean
+  official_class_task?: ClassTask
+  class_updated_at?: string
   created_at?: string
   updated_at?: string
   subject?: Subject | null
+}
+
+export type UserRole = 'student' | 'admin' | 'publisher'
+
+export interface ClassTask {
+  id: string
+  publisher_id: string
+  publisher_name: string
+  subject_name: string
+  subject_code?: string | null
+  title: string
+  description?: string | null
+  type: TaskType
+  due_date: string
+  attachments?: TaskAttachment[] | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ClassTaskLocalState {
+  completed: boolean
+  deleted_locally: boolean
+  is_locally_edited: boolean
+  local_overrides?: {
+    title?: string
+    description?: string | null
+    due_date?: string
+    subject_name?: string
+    type?: TaskType
+  }
+  last_seen_version?: string // updated_at from official class task when synced/viewed
 }
 
 export interface AppPreferences {
   haptics_enabled: boolean
   confetti_enabled: boolean
   advance_reminder_enabled: boolean
-  advance_reminder_time: string // ej. "20:00"
+  advance_reminder_time: string // ej.  20:00
   class_reminder_enabled: boolean
-  semester_fall_start?: string // ej. "2026-08-01"
-  semester_fall_end?: string // ej. "2026-12-31"
-  semester_spring_start?: string // ej. "2026-02-01"
-  semester_spring_end?: string // ej. "2026-06-30"
+  semester_fall_start?: string // ej. 2026-08-01
+  semester_fall_end?: string // ej. 2026-12-31
+  semester_spring_start?: string // ej. 2026-02-01
+  semester_spring_end?: string // ej. 2026-06-30
 }
-

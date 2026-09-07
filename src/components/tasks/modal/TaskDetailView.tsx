@@ -15,6 +15,7 @@ import {
   Rocket,
   FileText,
   Users,
+  Globe,
 } from 'lucide-react-native'
 import * as Sharing from 'expo-sharing'
 import * as Linking from 'expo-linking'
@@ -167,6 +168,23 @@ export function TaskDetailView({
                 )}
                 <Text style={styles.detailMetaText}>{task?.type}</Text>
               </View>
+            )}
+
+            {/* Tag de Clase / Publicador */}
+            {Boolean(task?.is_class_task) && (
+              <>
+                <Text style={styles.detailMetaDot}>•</Text>
+                <View style={styles.detailMetaItem}>
+                  <Globe size={11} color="#71717A" />
+                  <Text style={[styles.detailMetaText, { color: '#71717A' }]}>
+                    {task?.has_class_update
+                      ? `Clase · Actualizada (${task.publisher_name || 'Profesor'})`
+                      : task?.publisher_name
+                      ? `Clase · ${task.publisher_name}`
+                      : 'Clase'}
+                  </Text>
+                </View>
+              </>
             )}
           </View>
         )}

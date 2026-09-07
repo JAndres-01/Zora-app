@@ -8,10 +8,11 @@ import {
   Animated,
   Keyboard,
 } from 'react-native'
-import { Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react-native'
+import { Search, X, SlidersHorizontal, ChevronDown, Globe } from 'lucide-react-native'
 import type { Subject } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { useClassAuth } from '@/context/ClassAuthContext'
 
 export interface TasksHeaderProps {
   isSearchActive: boolean
@@ -23,6 +24,7 @@ export interface TasksHeaderProps {
   selectedSubjectId: string
   onOpenSubjectMenu: () => void
   onResetSubjectFilter: () => void
+  onOpenClassAuth?: () => void
   cardEntranceAnim?: Animated.Value
 }
 
@@ -36,8 +38,10 @@ export function TasksHeader({
   selectedSubjectId,
   onOpenSubjectMenu,
   onResetSubjectFilter,
+  onOpenClassAuth,
   cardEntranceAnim,
 }: TasksHeaderProps) {
+  const { isConnected } = useClassAuth()
   const searchInputRef = useRef<TextInput>(null)
   const searchScaleAnim = useRef(new Animated.Value(0.9)).current
   const searchOpacityAnim = useRef(new Animated.Value(0)).current
@@ -100,13 +104,26 @@ export function TasksHeader({
               <Text style={styles.subtitle}>Entregas, exámenes y pendientes</Text>
             </View>
 
-            <Pressable
-              onPress={onOpenSearch}
-              style={styles.searchIconButton}
-              hitSlop={10}
-            >
-              <Search size={16} color="#FFFFFF" />
-            </Pressable>
+            <View style={styles.topRightActions}>
+              {onOpenClassAuth && (
+                <Pressable
+                  onPress={onOpenClassAuth}
+                  style={[styles.classIconButton, isConnected && styles.classIconButtonConnected]}
+                  hitSlop={10}
+                >
+                  <Globe size={16} color={isConnected ? '#3B82F6' : '#71717A'} />
+                  {isConnected && <View style={styles.onlineDot} />}
+                </Pressable>
+              )}
+
+              <Pressable
+                onPress={onOpenSearch}
+                style={styles.searchIconButton}
+                hitSlop={10}
+              >
+                <Search size={16} color="#FFFFFF" />
+              </Pressable>
+            </View>
           </View>
         </View>
       ) : (
@@ -233,6 +250,35 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     marginTop: 2,
     fontWeight: '500',
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  classIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  classIconButtonConnected: {
+    borderColor: 'rgba(59, 130, 246, 0.35)',
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+  },
+  onlineDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3B82F6',
   },
   searchIconButton: {
     width: 38,

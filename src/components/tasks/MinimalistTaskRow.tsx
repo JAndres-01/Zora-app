@@ -14,6 +14,7 @@ import { formatTaskDueDate } from '@/lib/academicDateUtils'
 import { APPLE_EASING } from '@/constants/animations'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
+import { useClassAuth } from '@/context/ClassAuthContext'
 
 const ACTION_BUTTON_WIDTH = 56
 const TOTAL_ACTIONS_WIDTH = 112
@@ -43,6 +44,8 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   onSwipeActiveChange,
 }: MinimalistTaskRowProps) {
   const isDone = task.status === 'completed'
+  const { isAdmin } = useClassAuth()
+  const canModify = !task.is_class_task || isAdmin
   // Si estamos en la pestaña "Completadas", mientras la tarea realiza su animación de salida
   // debe mantenerse tachada y atenuada (nunca iluminarse en blanco antes de desaparecer)
   const isVisuallyDone = isDone || statusFilter === 'completed'
@@ -154,11 +157,12 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           } else if (dampedDx < SWIPE_THRESHOLD && isGreenTriggered.current) {
             isGreenTriggered.current = false
           }
-        } else {
+        } else if (canModify) {
           // Deslizar hacia la izquierda (Revelar Editar Azul y Borrar Rojo sin texto)
           const clampedDx = Math.max(-150, dx)
           translateX.setValue(clampedDx)
-          rightSwipeDistance.setValue(0)
+        } else {
+          translateX.setValue(0)
         }
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -170,23 +174,22 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         }
 
         if (dx >= SWIPE_THRESHOLD) {
-          // Completar / Descompletar: regresa a 0 y al llegar dispara el toggle
+          // Activar palomita / desmarcar con animación Spotify fluida
           triggerHaptic('success')
-          isOpen.current = false
           isGreenTriggered.current = false
-          rightSwipeDistance.setValue(0)
+          isOpen.current = false
 
-          // scaleAnim: microinteracción táctil, fire-and-forget (no bloquea el callback)
+          // Micro rebote de éxito (se achica ligeramente y vuelve)
           Animated.sequence([
             Animated.timing(scaleAnim, {
-              toValue: 1.03,
-              duration: 60,
+              toValue: 0.98,
+              duration: 80,
               useNativeDriver: true,
             }),
-            Animated.timing(scaleAnim, {
+            Animated.spring(scaleAnim, {
               toValue: 1,
-              duration: 80,
-              easing: APPLE_EASING,
+              stiffness: 500,
+              damping: 20,
               useNativeDriver: true,
             }),
           ]).start()
@@ -200,7 +203,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           }).start(() => {
             onToggleStatus(task.id, task.status)
           })
-        } else if (dx <= -48) {
+        } else if (dx <= -48 && canModify) {
           // Desplegar y anclar botones de Editar y Borrar
           triggerHaptic('selection')
           isOpen.current = true
@@ -453,6 +456,16 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
                 <Text style={styles.subjectName}>{task.subject?.name || DEFAULT_SUBJECT_NAME}</Text>
               </View>
 
+              {/* Distintivo de Clase: sutil y puramente tipográfico */}
+              {task.is_class_task && (
+                <>
+                  <Text style={styles.metaDot}>•</Text>
+                  <Text style={[styles.classMetaText, task.has_class_update && styles.classMetaTextUpdate]}>
+                    {task.has_class_update ? 'Clase · Actualizada' : 'Clase'}
+                  </Text>
+                </>
+              )}
+
               {/* Vencimiento / Prioridad: Texto tipográfico puro coloreado sin cards */}
               {dueInfo && (
                 <>
@@ -616,6 +629,16 @@ const styles = StyleSheet.create({
     color: '#A1A1AA',
     fontSize: 12,
     fontWeight: '500',
+  },
+  classMetaText: {
+    color: '#71717A',
+    fontSize: 11.5,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+  },
+  classMetaTextUpdate: {
+    color: '#A1A1AA',
+    fontWeight: '600',
   },
   metaDot: {
     color: '#3F3F46',

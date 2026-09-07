@@ -3,6 +3,7 @@ name: Build iOS IPA
 on:
   push:
     branches:
+      - feature/online-class-tasks
       - feature/react-native-expo
       - main
   workflow_dispatch:

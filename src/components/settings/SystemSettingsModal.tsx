@@ -340,7 +340,7 @@ export function SystemSettingsModal({
                   <Text style={styles.itemTitle}>Feed de Clase</Text>
                   <Text style={styles.itemSubtitle}>
                     {isConnected
-                      ? `${user?.email} • ${isAdmin ? 'Profesor / Admin' : 'Estudiante'}`
+                      ? `${user?.email} • ${isAdmin ? 'Admin' : 'Estudiante'}`
                       : 'No conectado a la nube'}
                   </Text>
                 </View>

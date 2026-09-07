@@ -13,12 +13,11 @@ import {
   Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { X, Check, Globe, RefreshCw, LogOut, ShieldCheck, UserCheck } from 'lucide-react-native'
+import { X, Check, Globe, LogOut, ShieldCheck, UserCheck } from 'lucide-react-native'
 import { APPLE_EASING } from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { useClassAuth } from '@/context/ClassAuthContext'
-import type { UserRole } from '@/types/personal'
 
 export interface ClassAuthModalProps {
   visible: boolean
@@ -28,7 +27,7 @@ export interface ClassAuthModalProps {
 
 export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalProps) {
   const insets = useSafeAreaInsets()
-  const { isConnected, user, role, isAdmin, isSyncing, signIn, signUp, signOut, syncClassTasks } = useClassAuth()
+  const { isConnected, user, isAdmin, signIn, signUp, signOut } = useClassAuth()
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
@@ -139,12 +138,6 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
     }
   }
 
-  const handleSync = async () => {
-    triggerHaptic('light')
-    await syncClassTasks()
-    triggerHaptic('success')
-  }
-
   const handleSignOut = () => {
     triggerHaptic('warning')
     if (Platform.OS === 'web') {
@@ -163,12 +156,12 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
     }
 
     Alert.alert(
-      'Desconectar de la Clase',
+      'Cerrar Sesión',
       '¿Deseas salir de la clase? Las tareas sincronizadas permanecerán guardadas localmente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Desconectar',
+          text: 'Cerrar Sesión',
           style: 'destructive',
           onPress: async () => {
             triggerHaptic('medium')
@@ -208,7 +201,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
               <View>
                 <Text style={styles.modalTitle}>Feed de Clase</Text>
                 <Text style={styles.modalSubtitle}>
-                  {isConnected ? 'Conectado a la nube' : 'Sincroniza tareas de tu grupo'}
+                  {isConnected ? 'Sincronizado en tiempo real' : 'Tareas y horarios en la nube'}
                 </Text>
               </View>
             </View>
@@ -245,33 +238,22 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
                   </View>
                 </View>
 
+                <View style={styles.liveStatusRow}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveStatusText}>En vivo • Sincronización automática</Text>
+                </View>
+
                 <Text style={styles.roleExplanation}>
                   {isAdmin
-                    ? 'Tienes permisos de Administrador para gestionar materias, horarios y tareas de la clase.'
-                    : 'Recibes y sincronizas automáticamente el horario y tareas publicadas por tu Administrador.'}
+                    ? 'Tienes permisos para gestionar materias, horarios y publicar tareas para el grupo.'
+                    : 'Recibes automáticamente en tiempo real las tareas y horarios publicados por el Administrador.'}
                 </Text>
               </View>
-
-              {/* Botón Sincronizar */}
-              <Pressable
-                onPress={handleSync}
-                disabled={isSyncing}
-                style={styles.syncBtn}
-              >
-                {isSyncing ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <RefreshCw size={15} color="#FFFFFF" />
-                    <Text style={styles.syncBtnText}>Sincronizar Tareas Ahora</Text>
-                  </>
-                )}
-              </Pressable>
 
               {/* Botón Desconectar */}
               <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
                 <LogOut size={15} color="#EF4444" />
-                <Text style={styles.signOutBtnText}>Desconectar de la Clase</Text>
+                <Text style={styles.signOutBtnText}>Cerrar Sesión</Text>
               </Pressable>
             </View>
           ) : (
@@ -607,26 +589,34 @@ const styles = StyleSheet.create({
   roleTagStudentText: {
     color: '#34D399',
   },
+  liveStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(52, 211, 153, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
+  },
+  liveStatusText: {
+    color: '#34D399',
+    fontSize: 11.5,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
   roleExplanation: {
     color: '#A1A1AA',
     fontSize: 12,
     lineHeight: 16,
-  },
-  syncBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#27272A',
-    borderRadius: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#3F3F46',
-  },
-  syncBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '600',
   },
   signOutBtn: {
     flexDirection: 'row',

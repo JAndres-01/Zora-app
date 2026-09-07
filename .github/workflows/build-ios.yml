@@ -19,7 +19,7 @@ jobs:
       - name: Setup Xcode 16.2
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '^16.1'
+          xcode-version: '16.2'
 
       - name: Verify Xcode Version
         run: xcodebuild -version
@@ -51,14 +51,18 @@ jobs:
           export NODE_BINARY=$(which node)
           WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -n 1)
           SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
-          echo "Building with workspace: $WORKSPACE and scheme: $SCHEME_NAME"
+          echo "Resolving dependencies for workspace: $WORKSPACE"
+          xcodebuild -resolvePackageDependencies -workspace "$WORKSPACE" -scheme "$SCHEME_NAME" || true
           
+          echo "Building with workspace: $WORKSPACE and scheme: $SCHEME_NAME"
           set -o pipefail
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "$SCHEME_NAME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -70,7 +74,7 @@ jobs:
             ENABLE_USER_SCRIPT_SANDBOXING=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
             -derivedDataPath build \
-            clean build 2>&1 | tee xcodebuild.log || {
+            build 2>&1 | tee xcodebuild.log || {
               echo "❌ ERROR EN XCODEBUILD. Ultimas 100 lineas del log:"
               tail -n 100 xcodebuild.log
               echo "❌ Errores detectados:"

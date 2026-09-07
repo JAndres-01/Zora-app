@@ -27,7 +27,6 @@ import { MinimalistSubjectBalance } from '@/components/stats/MinimalistSubjectBa
 import { MinimalistCredentialModal } from '@/components/profile/MinimalistCredentialModal'
 import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
-import { EditProfileModal } from '@/components/settings/EditProfileModal'
 import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
@@ -36,11 +35,10 @@ import { logger } from '@/lib/logger'
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
-  const { profile, updateProfile, updateCredential, clearData } = usePersonalAuth()
+  const { profile, updateCredential, clearData } = usePersonalAuth()
 
   // Modales
   const [showSettingsModal, setShowSettingsModal] = useState(false)
-  const [showEditProfileModal, setShowEditProfileModal] = useState(false)
   const [showTimeModal, setShowTimeModal] = useState(false)
   const [showCredentialModal, setShowCredentialModal] = useState(false)
 
@@ -90,10 +88,6 @@ export default function ProfileScreen() {
   }, [loadData])
 
   // Handlers para el Perfil
-  const handleSaveProfileName = async (newName: string) => {
-    await updateProfile(newName)
-  }
-
   const handlePickCredential = async () => {
     triggerHaptic('light')
     try {
@@ -395,8 +389,6 @@ export default function ProfileScreen() {
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         profile={profile}
-        onSaveProfileName={handleSaveProfileName}
-        onOpenEditName={() => setShowEditProfileModal(true)}
         onOpenCredential={() => setShowCredentialModal(true)}
         onUploadCredential={handlePickCredential}
         advanceReminderEnabled={advanceReminderEnabled}
@@ -416,14 +408,6 @@ export default function ProfileScreen() {
         confettiEnabled={confettiEnabled}
         onToggleConfetti={handleToggleConfetti}
         onClearData={handleClearAllData}
-      />
-
-      {/* Modal para Editar Nombre */}
-      <EditProfileModal
-        visible={showEditProfileModal}
-        currentName={profile?.full_name || ''}
-        onClose={() => setShowEditProfileModal(false)}
-        onSaveName={handleSaveProfileName}
       />
 
       {/* Modal para Seleccionar Hora */}

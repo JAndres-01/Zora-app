@@ -43,8 +43,6 @@ export interface SystemSettingsModalProps {
   visible: boolean
   onClose: () => void
   profile: PersonalProfile | null
-  onOpenEditName?: () => void
-  onSaveProfileName?: (newName: string) => Promise<void>
   onOpenCredential: () => void
   onUploadCredential: () => void
   advanceReminderEnabled: boolean
@@ -112,8 +110,6 @@ export function SystemSettingsModal({
   visible,
   onClose,
   profile,
-  onOpenEditName,
-  onSaveProfileName,
   onOpenCredential,
   onUploadCredential,
   advanceReminderEnabled,
@@ -140,15 +136,6 @@ export function SystemSettingsModal({
     'fall_start' | 'fall_end' | 'spring_start' | 'spring_end' | null
   >(null)
 
-  // Edición de nombre inline (previene congelamientos por transición de modales)
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [nameInput, setNameInput] = useState(profile?.full_name || '')
-  const [isSavingName, setIsSavingName] = useState(false)
-
-  useEffect(() => {
-    setNameInput(profile?.full_name || '')
-  }, [profile?.full_name])
-
   const {
     modalVisible,
     fadeAnim,
@@ -161,26 +148,10 @@ export function SystemSettingsModal({
     onClose,
     onClosed: () => {
       setActiveDatePicker(null)
-      setIsEditingName(false)
     },
     dismissThreshold: 90,
     dismissVelocity: 0.45,
   })
-
-  const handleSaveNameInline = async () => {
-    const trimmed = nameInput.trim()
-    if (!trimmed) return
-    setIsSavingName(true)
-    try {
-      triggerHaptic('success')
-      await onSaveProfileName?.(trimmed)
-      setIsEditingName(false)
-    } catch (err) {
-      logger.error('Error al guardar nombre:', err)
-    } finally {
-      setIsSavingName(false)
-    }
-  }
 
   return (
     <Modal visible={modalVisible} transparent animationType="none" onRequestClose={handleClose}>
@@ -220,73 +191,14 @@ export function SystemSettingsModal({
             <View style={styles.settingsSection}>
               <Text style={styles.sectionHeaderTitle}>Cuenta y Perfil</Text>
 
-              {/* Cambiar Nombre (Inline) */}
-              {!isEditingName ? (
-                <Pressable
-                  onPress={() => {
-                    triggerHaptic('light')
-                    setNameInput(profile?.full_name || '')
-                    setIsEditingName(true)
-                  }}
-                  style={({ pressed }) => [styles.itemRowPressable, pressed && styles.rowPressed]}
-                >
-                  <User size={18} color="#A1A1AA" style={styles.itemIcon} />
-                  <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>Nombre de estudiante</Text>
-                    <Text style={styles.itemSubtitle}>{profile?.full_name || DEFAULT_STUDENT_NAME}</Text>
-                  </View>
-                  <View style={styles.timeValueRow}>
-                    <Text style={styles.timeValueText}>Cambiar</Text>
-                    <ChevronRight size={14} color="#71717A" />
-                  </View>
-                </Pressable>
-              ) : (
-                <View style={styles.inlineEditNameContainer}>
-                  <View style={styles.inlineEditNameHeader}>
-                    <User size={15} color="#A1A1AA" />
-                    <Text style={styles.inlineEditNameLabel}>EDITAR NOMBRE</Text>
-                  </View>
-                  <TextInput
-                    value={nameInput}
-                    onChangeText={setNameInput}
-                    placeholder="Tu nombre"
-                    placeholderTextColor="#52525B"
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={handleSaveNameInline}
-                    style={styles.inlineEditNameInput}
-                  />
-                  <View style={styles.inlineEditNameActions}>
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('light')
-                        setIsEditingName(false)
-                        setNameInput(profile?.full_name || '')
-                      }}
-                      style={styles.inlineEditCancelBtn}
-                    >
-                      <Text style={styles.inlineEditCancelText}>Cancelar</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={handleSaveNameInline}
-                      disabled={isSavingName || !nameInput.trim()}
-                      style={[
-                        styles.inlineEditSaveBtn,
-                        (!nameInput.trim() || isSavingName) && { opacity: 0.5 },
-                      ]}
-                    >
-                      {isSavingName ? (
-                        <ActivityIndicator size="small" color="#09090B" />
-                      ) : (
-                        <>
-                          <Check size={14} color="#09090B" strokeWidth={2.5} />
-                          <Text style={styles.inlineEditSaveText}>Guardar</Text>
-                        </>
-                      )}
-                    </Pressable>
-                  </View>
+              {/* Nombre de Estudiante (Permanente) */}
+              <View style={styles.itemRow}>
+                <User size={18} color="#A1A1AA" style={styles.itemIcon} />
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemTitle}>Nombre de estudiante</Text>
+                  <Text style={styles.itemSubtitle}>{profile?.full_name || DEFAULT_STUDENT_NAME}</Text>
                 </View>
-              )}
+              </View>
 
               <View style={styles.hairlineDivider} />
 
@@ -674,66 +586,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,
-  },
-  inlineEditNameContainer: {
-    backgroundColor: '#18181B',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#27272A',
-    padding: 14,
-    marginVertical: 4,
-    gap: 10,
-  },
-  inlineEditNameHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  inlineEditNameLabel: {
-    color: '#71717A',
-    fontSize: 10.5,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  inlineEditNameInput: {
-    backgroundColor: '#121214',
-    borderWidth: 1,
-    borderColor: '#3F3F46',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  inlineEditNameActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  inlineEditCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#27272A',
-  },
-  inlineEditCancelText: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  inlineEditSaveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  inlineEditSaveText: {
-    color: '#09090B',
-    fontSize: 13,
-    fontWeight: '700',
   },
 })

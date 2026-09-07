@@ -236,7 +236,15 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user)
         const profileData = await fetchUserProfile(data.user.id)
         setRole(profileData.role)
-        await syncClassTasks()
+        await Promise.all([
+          syncClassTasks(),
+          syncClassSchedule(),
+        ])
+        // Limpiar materias locales huérfanas creadas antes del inicio de sesión
+        await Promise.all([
+          personalStorage.setSubjects([]),
+          personalStorage.setSchedules([]),
+        ])
       }
 
       return { error: null }
@@ -287,7 +295,15 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         setSession(data.session)
         setUser(data.user)
         setRole(selectedRole)
-        await syncClassTasks()
+        await Promise.all([
+          syncClassTasks(),
+          syncClassSchedule(),
+        ])
+        // Limpiar materias locales huérfanas creadas antes del registro
+        await Promise.all([
+          personalStorage.setSubjects([]),
+          personalStorage.setSchedules([]),
+        ])
       }
 
       return { error: null }

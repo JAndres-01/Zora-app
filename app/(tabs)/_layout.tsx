@@ -5,13 +5,22 @@ import { MinimalistFloatingIsland, type TabKey } from '@/components/navigation/M
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import { MinimalistTaskModal } from '@/components/tasks/MinimalistTaskModal'
 import { useIncomingShareIntent } from '@/lib/useIncomingShareIntent'
+import { useClassAuth } from '@/context/ClassAuthContext'
 import type { Subject } from '@/types/personal'
 
 export default function TabLayout() {
   const pathname = usePathname()
   const router = useRouter()
+  const { isConnected, isLoading } = useClassAuth()
   const [pendingCount, setPendingCount] = useState(0)
   const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
+
+  // Si no está autenticado y ya terminó de cargar, redirigir a /auth
+  useEffect(() => {
+    if (!isLoading && !isConnected) {
+      router.replace('/auth')
+    }
+  }, [isLoading, isConnected, router])
 
   // Integración "Compartir con Zora" (Share Extension / Send Intent)
   const {

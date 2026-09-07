@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   Animated,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native'
+import { WebView } from 'react-native-webview'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -36,6 +38,98 @@ interface MinimalistCredentialModalProps {
   onDeleteCredential: () => void
 }
 
+const generateAndroidPdfHtml = (base64: string) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background-color: #0E0E12;
+      color: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+    }
+    #container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    canvas {
+      width: calc(100% - 24px) !important;
+      max-width: 100%;
+      height: auto !important;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+      background-color: #18181B;
+    }
+    #status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 120px;
+      color: #A1A1AA;
+      font-size: 13px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">Cargando credencial...</div>
+  <div id="container"></div>
+  <script>
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      var raw = atob('${base64}');
+      var uint8 = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) {
+        uint8[i] = raw.charCodeAt(i);
+      }
+      var task = pdfjsLib.getDocument({ data: uint8 });
+      task.promise.then(function(pdf) {
+        var status = document.getElementById('status');
+        if (status) status.style.display = 'none';
+        var container = document.getElementById('container');
+        
+        var renderPage = function(num) {
+          if (num > pdf.numPages) return;
+          pdf.getPage(num).then(function(page) {
+            var scale = 2.0;
+            var viewport = page.getViewport({ scale: scale });
+            var canvas = document.createElement('canvas');
+            var ctx = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            container.appendChild(canvas);
+            page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+              renderPage(num + 1);
+            });
+          });
+        };
+        renderPage(1);
+      }).catch(function(e) {
+        var status = document.getElementById('status');
+        if (status) status.innerText = 'Documento listo para visualizar';
+      });
+    } catch(e) {
+      var status = document.getElementById('status');
+      if (status) status.innerText = 'Documento listo para visualizar';
+    }
+  </script>
+</body>
+</html>
+`
+
 export function MinimalistCredentialModal({
   visible,
   credentialUrl,
@@ -46,6 +140,9 @@ export function MinimalistCredentialModal({
   onDeleteCredential,
 }: MinimalistCredentialModalProps) {
   const insets = useSafeAreaInsets()
+  const [webViewReady, setWebViewReady] = useState(false)
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null)
+  const [loadingFile, setLoadingFile] = useState(false)
 
   const {
     modalVisible,
@@ -57,6 +154,10 @@ export function MinimalistCredentialModal({
   } = useModalAnimation({
     visible,
     onClose,
+    onClosed: () => {
+      setWebViewReady(false)
+      setPdfBase64(null)
+    },
   })
 
   // Normalizar ruta para mitigar cambios de UUID del sandbox en iOS
@@ -71,7 +172,51 @@ export function MinimalistCredentialModal({
     return credentialUrl
   }, [credentialUrl])
 
-  const isImage = Boolean(resolvedUrl?.match(/\.(jpeg|jpg|png|webp|gif)/i))
+  const isImage = Boolean(
+    resolvedUrl?.match(/\.(jpeg|jpg|png|webp|gif|bmp|heic)/i) ||
+    credentialName?.match(/\.(jpeg|jpg|png|webp|gif|bmp|heic)/i)
+  )
+
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    if (visible && resolvedUrl) {
+      if (!isImage) {
+        if (Platform.OS === 'android') {
+          setLoadingFile(true)
+          FileSystem.readAsStringAsync(resolvedUrl, { encoding: 'base64' })
+            .then((b64) => {
+              if (active) {
+                setPdfBase64(b64)
+                setLoadingFile(false)
+                setWebViewReady(true)
+              }
+            })
+            .catch((err) => {
+              logger.warn('[MinimalistCredentialModal] Error al leer PDF base64:', err)
+              if (active) {
+                setLoadingFile(false)
+                setWebViewReady(true)
+              }
+            })
+        } else {
+          timer = setTimeout(() => {
+            if (active) setWebViewReady(true)
+          }, 180)
+        }
+      }
+    } else {
+      setWebViewReady(false)
+      setPdfBase64(null)
+      setLoadingFile(false)
+    }
+
+    return () => {
+      active = false
+      if (timer) clearTimeout(timer)
+    }
+  }, [visible, resolvedUrl, isImage])
 
   const handleClose = () => {
     handleSmoothClose()
@@ -175,7 +320,7 @@ export function MinimalistCredentialModal({
                     </View>
                   </View>
                   <Text style={styles.headerSubtitle} numberOfLines={1}>
-                    {studentName} • {credentialName || 'Archivo escolar'}
+                    {studentName} • {credentialName || (isImage ? 'Imagen escolar' : 'Archivo escolar')}
                   </Text>
                 </View>
               </View>
@@ -190,7 +335,7 @@ export function MinimalistCredentialModal({
             </View>
           </View>
 
-          {/* Visor de Credencial */}
+          {/* Visor de Credencial Directo In-App */}
           <View style={styles.viewerWrapper}>
             {!resolvedUrl ? (
               <View style={styles.errorOverlay}>
@@ -205,24 +350,49 @@ export function MinimalistCredentialModal({
                   resizeMode="contain"
                 />
               </View>
-            ) : (
-              /* Visor nativo seguro para PDF (evita crasheos de WebView en móvil) */
-              <View style={styles.pdfCardContainer}>
-                <View style={styles.pdfIconBadge}>
-                  <FileText size={36} color="#FFFFFF" strokeWidth={2} />
-                </View>
-                <Text style={styles.pdfCardTitle}>Documento PDF Vinculado</Text>
-                <Text style={styles.pdfFileName} numberOfLines={2}>
-                  {credentialName || 'Credencial_Digital.pdf'}
-                </Text>
-                <Text style={styles.pdfCardSub}>
-                  Visualiza o imprime tu credencial con el visor nativo seguro del sistema.
-                </Text>
-                <Pressable onPress={handleShare} style={styles.openNativeBtn}>
-                  <Share2 size={16} color="#09090B" strokeWidth={2.2} />
-                  <Text style={styles.openNativeBtnText}>Abrir en Visor del Sistema</Text>
-                </Pressable>
+            ) : Platform.OS === 'web' ? (
+              <iframe
+                src={resolvedUrl}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  backgroundColor: '#0E0E12',
+                }}
+                title={credentialName || 'Credencial PDF'}
+              />
+            ) : !webViewReady || loadingFile ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.loadingText}>Cargando credencial...</Text>
               </View>
+            ) : Platform.OS === 'android' && pdfBase64 ? (
+              <WebView
+                source={{ html: generateAndroidPdfHtml(pdfBase64) }}
+                style={styles.webview}
+                originWhitelist={['*']}
+                allowFileAccess={true}
+                allowFileAccessFromFileURLs={true}
+                allowUniversalAccessFromFileURLs={true}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                scalesPageToFit={true}
+                bounces={false}
+              />
+            ) : (
+              <WebView
+                source={{ uri: resolvedUrl }}
+                style={styles.webview}
+                originWhitelist={['*']}
+                allowFileAccess={true}
+                allowFileAccessFromFileURLs={true}
+                allowUniversalAccessFromFileURLs={true}
+                bounces={false}
+                scalesPageToFit={true}
+                onError={(e) => {
+                  logger.warn('[MinimalistCredentialModal] WebView error:', e.nativeEvent)
+                }}
+              />
             )}
           </View>
 
@@ -344,15 +514,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   pdfPill: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 6,
   },
   pdfPillText: {
-    color: '#EF4444',
+    color: '#FFFFFF',
     fontSize: 9.5,
     fontWeight: '800',
   },
@@ -394,59 +564,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
   },
-  pdfCardContainer: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  pdfIconBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 22,
-    backgroundColor: '#1C1C22',
-    borderWidth: 1,
-    borderColor: '#2E2E38',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  pdfCardTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  pdfFileName: {
-    color: '#FAFAFA',
-    fontSize: 13.5,
-    fontWeight: '600',
-    marginTop: 4,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  pdfCardSub: {
-    color: '#71717A',
-    fontSize: 12.5,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
-    marginBottom: 16,
-  },
-  openNativeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  openNativeBtnText: {
-    color: '#09090B',
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
   imageViewerContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -457,6 +574,22 @@ const styles = StyleSheet.create({
   credentialImage: {
     width: '100%',
     height: '100%',
+  },
+  loadingContainer: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: '#A1A1AA',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: '#000000',
   },
   actionBar: {
     flexDirection: 'row',

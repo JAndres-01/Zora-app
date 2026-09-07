@@ -27,7 +27,6 @@ import {
   Sparkles,
   Trash2,
   Check,
-  Globe,
 } from 'lucide-react-native'
 import type { PersonalProfile } from '@/types/personal'
 import { APPLE_EASING } from '@/constants/animations'
@@ -38,7 +37,6 @@ import { SemesterConfigCard, type SemesterPickerType } from './SemesterConfigCar
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { DEFAULT_STUDENT_NAME } from '@/constants/defaults'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
-import { useClassAuth } from '@/context/ClassAuthContext'
 import { logger } from '@/lib/logger'
 
 export interface SystemSettingsModalProps {
@@ -49,7 +47,6 @@ export interface SystemSettingsModalProps {
   onSaveProfileName?: (newName: string) => Promise<void>
   onOpenCredential: () => void
   onUploadCredential: () => void
-  onOpenClassAuth?: () => void
   advanceReminderEnabled: boolean
   onToggleAdvanceReminder: (val: boolean) => void
   advanceReminderTime: string
@@ -119,7 +116,6 @@ export function SystemSettingsModal({
   onSaveProfileName,
   onOpenCredential,
   onUploadCredential,
-  onOpenClassAuth,
   advanceReminderEnabled,
   onToggleAdvanceReminder,
   advanceReminderTime,
@@ -139,7 +135,6 @@ export function SystemSettingsModal({
   onClearData,
 }: SystemSettingsModalProps) {
   const insets = useSafeAreaInsets()
-  const { isConnected, user, isAdmin } = useClassAuth()
   const currentYear = new Date().getFullYear()
   const [activeDatePicker, setActiveDatePicker] = useState<
     'fall_start' | 'fall_end' | 'spring_start' | 'spring_end' | null
@@ -310,43 +305,16 @@ export function SystemSettingsModal({
               >
                 <IdCard size={18} color="#A1A1AA" style={styles.itemIcon} />
                 <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Credencial digital (PDF)</Text>
+                  <Text style={styles.itemTitle}>Credencial digital</Text>
                   <Text style={styles.itemSubtitle}>
                     {profile?.student_credential_url
                       ? profile.student_credential_name || 'Credencial vinculada'
-                      : 'Sin archivo PDF vinculado'}
+                      : 'Sin credencial vinculada'}
                   </Text>
                 </View>
                 <View style={styles.timeValueRow}>
                   <Text style={styles.timeValueText}>
                     {profile?.student_credential_url ? 'Ver' : 'Subir'}
-                  </Text>
-                  <ChevronRight size={14} color="#71717A" />
-                </View>
-              </Pressable>
-
-              <View style={styles.hairlineDivider} />
-
-              {/* Feed de Clase / Supabase */}
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  onOpenClassAuth?.()
-                }}
-                style={({ pressed }) => [styles.itemRowPressable, pressed && styles.rowPressed]}
-              >
-                <Globe size={18} color={isConnected ? '#FFFFFF' : '#A1A1AA'} style={styles.itemIcon} />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Feed de Clase</Text>
-                  <Text style={styles.itemSubtitle}>
-                    {isConnected
-                      ? `${user?.email} • ${isAdmin ? 'Admin' : 'Estudiante'}`
-                      : 'No conectado a la nube'}
-                  </Text>
-                </View>
-                <View style={styles.timeValueRow}>
-                  <Text style={[styles.timeValueText, isConnected && { color: '#FFFFFF' }]}>
-                    {isConnected ? 'Conectado' : 'Conectar'}
                   </Text>
                   <ChevronRight size={14} color="#71717A" />
                 </View>

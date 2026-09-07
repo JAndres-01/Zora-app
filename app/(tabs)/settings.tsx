@@ -29,7 +29,6 @@ import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
 import { EditProfileModal } from '@/components/settings/EditProfileModal'
 import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
-import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
@@ -44,7 +43,6 @@ export default function ProfileScreen() {
   const [showEditProfileModal, setShowEditProfileModal] = useState(false)
   const [showTimeModal, setShowTimeModal] = useState(false)
   const [showCredentialModal, setShowCredentialModal] = useState(false)
-  const [showClassAuthModal, setShowClassAuthModal] = useState(false)
 
   // Preferencias del Sistema
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
@@ -100,7 +98,7 @@ export default function ProfileScreen() {
     triggerHaptic('light')
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf'],
+        type: ['application/pdf', 'image/*'],
         copyToCacheDirectory: true,
       })
 
@@ -113,7 +111,10 @@ export default function ProfileScreen() {
           if (!dirInfo.exists) {
             await FileSystem.makeDirectoryAsync(destDir, { intermediates: true })
           }
-          const cleanName = (asset.name || 'Credencial_Digital.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')
+          const isImg = asset.mimeType?.startsWith('image/') || asset.name?.match(/\.(jpeg|jpg|png|webp|gif|heic)/i)
+          const fallbackName = isImg ? 'Credencial.jpg' : 'Credencial.pdf'
+          const rawName = asset.name || fallbackName
+          const cleanName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_')
           const destUri = `${destDir}${Date.now()}_${cleanName}`
           await FileSystem.copyAsync({ from: asset.uri, to: destUri })
           permanentUri = destUri
@@ -121,13 +122,15 @@ export default function ProfileScreen() {
           logger.warn('[ProfileScreen] Copia permanente:', copyErr)
         }
 
-        await updateCredential(permanentUri, asset.name || 'Credencial_Digital.pdf')
+        const isImg = asset.mimeType?.startsWith('image/') || asset.name?.match(/\.(jpeg|jpg|png|webp|gif|heic)/i)
+        const finalName = asset.name || (isImg ? 'Credencial_Digital.jpg' : 'Credencial_Digital.pdf')
+        await updateCredential(permanentUri, finalName)
         triggerHaptic('success')
         setShowCredentialModal(true)
       }
     } catch (err: unknown) {
       logger.error('[ProfileScreen] Error al seleccionar credencial:', err)
-      Alert.alert('Error', 'No se pudo cargar el archivo PDF de la credencial.')
+      Alert.alert('Error', 'No se pudo cargar el archivo de la credencial.')
       triggerHaptic('error')
     }
   }
@@ -412,7 +415,6 @@ export default function ProfileScreen() {
         onToggleHaptics={handleToggleHaptics}
         confettiEnabled={confettiEnabled}
         onToggleConfetti={handleToggleConfetti}
-        onOpenClassAuth={() => setShowClassAuthModal(true)}
         onClearData={handleClearAllData}
       />
 
@@ -441,13 +443,6 @@ export default function ProfileScreen() {
         onClose={() => setShowCredentialModal(false)}
         onChangeCredential={handlePickCredential}
         onDeleteCredential={handleDeleteCredential}
-      />
-
-      {/* Modal de Acceso / Estado de la Clase */}
-      <ClassAuthModal
-        visible={showClassAuthModal}
-        onClose={() => setShowClassAuthModal(false)}
-        onSuccess={loadData}
       />
     </View>
   )

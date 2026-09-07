@@ -111,7 +111,7 @@ export function TasksHeader({
                   style={[styles.classIconButton, isConnected && styles.classIconButtonConnected]}
                   hitSlop={10}
                 >
-                  <Globe size={16} color={isConnected ? '#3B82F6' : '#71717A'} />
+                  <Globe size={16} color={isConnected ? '#FFFFFF' : '#71717A'} />
                   {isConnected && <View style={styles.onlineDot} />}
                 </Pressable>
               )}
@@ -268,8 +268,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   classIconButtonConnected: {
-    borderColor: 'rgba(59, 130, 246, 0.35)',
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    borderColor: '#3F3F46',
+    backgroundColor: '#27272A',
   },
   onlineDot: {
     position: 'absolute',
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#FFFFFF',
   },
   searchIconButton: {
     width: 38,

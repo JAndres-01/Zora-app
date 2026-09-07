@@ -335,7 +335,7 @@ export function SystemSettingsModal({
                 }}
                 style={({ pressed }) => [styles.itemRowPressable, pressed && styles.rowPressed]}
               >
-                <Globe size={18} color={isConnected ? '#3B82F6' : '#A1A1AA'} style={styles.itemIcon} />
+                <Globe size={18} color={isConnected ? '#FFFFFF' : '#A1A1AA'} style={styles.itemIcon} />
                 <View style={styles.itemContent}>
                   <Text style={styles.itemTitle}>Feed de Clase</Text>
                   <Text style={styles.itemSubtitle}>
@@ -345,7 +345,7 @@ export function SystemSettingsModal({
                   </Text>
                 </View>
                 <View style={styles.timeValueRow}>
-                  <Text style={[styles.timeValueText, isConnected && { color: '#60A5FA' }]}>
+                  <Text style={[styles.timeValueText, isConnected && { color: '#FFFFFF' }]}>
                     {isConnected ? 'Conectado' : 'Conectar'}
                   </Text>
                   <ChevronRight size={14} color="#71717A" />

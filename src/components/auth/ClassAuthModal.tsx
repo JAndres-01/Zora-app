@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { X, Check, Globe, LogOut, ShieldCheck, UserCheck } from 'lucide-react-native'
+import { Check, LogOut } from 'lucide-react-native'
 import { APPLE_EASING } from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
@@ -192,65 +192,51 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
         >
           <View style={styles.dragHandle} />
 
-          {/* Cabecera */}
+          {/* Cabecera Minimalista */}
           <View style={styles.sheetHeader}>
-            <View style={styles.headerTitleGroup}>
-              <View style={styles.cloudIconWrapper}>
-                <Globe size={18} color="#3B82F6" strokeWidth={2.4} />
-              </View>
-              <View>
-                <Text style={styles.modalTitle}>Feed de Clase</Text>
-                <Text style={styles.modalSubtitle}>
-                  {isConnected ? 'Sincronizado en tiempo real' : 'Tareas y horarios en la nube'}
-                </Text>
-              </View>
-            </View>
-
-            <Pressable onPress={handleClose} hitSlop={12} style={styles.modalCloseBtn}>
-              <X size={18} color="#A1A1AA" />
-            </Pressable>
+            <Text style={styles.modalTitle}>Feed de Clase</Text>
           </View>
 
-          {/* ESTADO 1: USUARIO YA CONECTADO */}
+          {/* ESTADO 1: USUARIO YA CONECTADO (Sin cards, lista plana monocromática) */}
           {isConnected ? (
             <View style={styles.connectedContainer}>
-              <View style={styles.profileBadgeCard}>
-                <View style={styles.profileBadgeTop}>
-                  <View style={styles.userAvatarWrapper}>
-                    {isAdmin ? (
-                      <ShieldCheck size={20} color="#60A5FA" />
-                    ) : (
-                      <UserCheck size={20} color="#34D399" />
-                    )}
-                  </View>
-                  <View style={styles.profileTextGroup}>
-                    <Text style={styles.connectedName} numberOfLines={1}>
-                      {user?.user_metadata?.full_name || 'Estudiante'}
-                    </Text>
-                    <Text style={styles.connectedEmail} numberOfLines={1}>
-                      {user?.email}
-                    </Text>
-                  </View>
-                  <View style={[styles.roleTag, isAdmin ? styles.roleTagAdmin : styles.roleTagStudent]}>
-                    <Text style={[styles.roleTagText, isAdmin ? styles.roleTagAdminText : styles.roleTagStudentText]}>
-                      {isAdmin ? 'ADMIN' : 'ESTUDIANTE'}
-                    </Text>
-                  </View>
+              <View style={styles.fieldList}>
+                <View style={styles.fieldItem}>
+                  <Text style={styles.fieldLabel}>USUARIO</Text>
+                  <Text style={styles.fieldValuePrimary}>
+                    {user?.user_metadata?.full_name || 'Estudiante'}
+                  </Text>
                 </View>
 
-                <View style={styles.liveStatusRow}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveStatusText}>En vivo • Sincronización automática</Text>
+                <View style={styles.fieldDivider} />
+
+                <View style={styles.fieldItem}>
+                  <Text style={styles.fieldLabel}>CORREO ELECTRÓNICO</Text>
+                  <Text style={styles.fieldValueSecondary}>{user?.email || '-'}</Text>
                 </View>
 
-                <Text style={styles.roleExplanation}>
-                  {isAdmin
-                    ? 'Tienes permisos para gestionar materias, horarios y publicar tareas para el grupo.'
-                    : 'Recibes automáticamente en tiempo real las tareas y horarios publicados por el Administrador.'}
-                </Text>
+                <View style={styles.fieldDivider} />
+
+                <View style={styles.fieldItem}>
+                  <Text style={styles.fieldLabel}>ROL</Text>
+                  <Text style={styles.fieldValueSecondary}>
+                    {isAdmin ? 'Administrador' : 'Estudiante'}
+                  </Text>
+                </View>
+
+                <View style={styles.fieldDivider} />
+
+                <View style={styles.fieldItem}>
+                  <Text style={styles.fieldLabel}>PERMISOS</Text>
+                  <Text style={styles.fieldPermissionsText}>
+                    {isAdmin
+                      ? 'Crear, editar y organizar materias, horarios y tareas de la clase.'
+                      : 'Visualizar horarios, recibir tareas grupales y marcar entregas completadas.'}
+                  </Text>
+                </View>
               </View>
 
-              {/* Botón Desconectar */}
+              {/* Botón Cerrar Sesión */}
               <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
                 <LogOut size={15} color="#EF4444" />
                 <Text style={styles.signOutBtnText}>Cerrar Sesión</Text>
@@ -368,7 +354,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#121214',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingTop: 12,
     borderWidth: 1,
     borderColor: '#27272A',
@@ -382,25 +368,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  headerTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cloudIconWrapper: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 20,
+    paddingTop: 2,
   },
   modalTitle: {
     color: '#FFFFFF',
@@ -408,20 +377,60 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  modalSubtitle: {
-    color: '#71717A',
-    fontSize: 12,
-    marginTop: 2,
+  connectedContainer: {
+    gap: 22,
   },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
+  fieldList: {
+    gap: 12,
+  },
+  fieldItem: {
+    gap: 4,
+  },
+  fieldLabel: {
+    color: '#71717A',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  fieldValuePrimary: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  fieldValueSecondary: {
+    color: '#D4D4D8',
+    fontSize: 14.5,
+    fontWeight: '500',
+  },
+  fieldPermissionsText: {
+    color: '#A1A1AA',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
+  },
+  fieldDivider: {
+    height: 1,
+    backgroundColor: '#27272A',
+  },
+  signOutBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#18181B',
+    borderRadius: 14,
+    paddingVertical: 13,
+    borderWidth: 1,
+    borderColor: '#27272A',
+    marginTop: 4,
+  },
+  signOutBtnText: {
+    color: '#EF4444',
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  formContainer: {
+    gap: 12,
   },
   tabSelector: {
     flexDirection: 'row',
@@ -463,9 +472,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '500',
   },
-  formContainer: {
-    gap: 12,
-  },
   inputGroup: {
     gap: 6,
   },
@@ -486,31 +492,6 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  rolePickerRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  roleOption: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#27272A',
-    backgroundColor: '#18181B',
-    alignItems: 'center',
-  },
-  roleOptionActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-  },
-  roleOptionText: {
-    color: '#71717A',
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  roleOptionTextActive: {
-    color: '#60A5FA',
-  },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -525,113 +506,5 @@ const styles = StyleSheet.create({
     color: '#09090B',
     fontSize: 14,
     fontWeight: '700',
-  },
-  connectedContainer: {
-    gap: 12,
-  },
-  profileBadgeCard: {
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-  },
-  profileBadgeTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  userAvatarWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#27272A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileTextGroup: {
-    flex: 1,
-  },
-  connectedName: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  connectedEmail: {
-    color: '#71717A',
-    fontSize: 12,
-    marginTop: 1,
-  },
-  roleTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  roleTagAdmin: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  roleTagStudent: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  roleTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  roleTagAdminText: {
-    color: '#60A5FA',
-  },
-  roleTagStudentText: {
-    color: '#34D399',
-  },
-  liveStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(52, 211, 153, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#34D399',
-  },
-  liveStatusText: {
-    color: '#34D399',
-    fontSize: 11.5,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  roleExplanation: {
-    color: '#A1A1AA',
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  signOutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    borderRadius: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  signOutBtnText: {
-    color: '#EF4444',
-    fontSize: 13.5,
-    fontWeight: '600',
   },
 })

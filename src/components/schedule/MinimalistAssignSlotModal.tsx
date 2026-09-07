@@ -33,6 +33,8 @@ interface MinimalistAssignSlotModalProps {
   initialBlock?: number
   existingSchedule?: Schedule | null
   onScheduleSaved: () => void
+  onSaveSlotCustom?: (slot: Schedule) => Promise<{ error: Error | null; data?: Schedule }>
+  onClearSlotCustom?: (slotId: string, day: number, block: number) => Promise<{ error: Error | null }>
 }
 
 const DAYS = DAYS_NUM_NAME
@@ -46,6 +48,8 @@ export function MinimalistAssignSlotModal({
   initialBlock = 1,
   existingSchedule,
   onScheduleSaved,
+  onSaveSlotCustom,
+  onClearSlotCustom,
 }: MinimalistAssignSlotModalProps) {
   const [dayOfWeek, setDayOfWeek] = useState(initialDay)
   const [blockNumber, setBlockNumber] = useState(initialBlock)
@@ -68,7 +72,7 @@ export function MinimalistAssignSlotModal({
     setDayOfWeek(initialDay)
     setBlockNumber(initialBlock)
     if (existingSchedule) {
-      setSelectedSubjectId(existingSchedule.subject_id)
+      setSelectedSubjectId(existingSchedule.subject_id || null)
     } else {
       setSelectedSubjectId(null)
     }
@@ -98,7 +102,13 @@ export function MinimalistAssignSlotModal({
         classroom_room: existingSchedule?.classroom_room || '',
       }
 
-      await personalStorage.saveScheduleSlot(slotData)
+      if (onSaveSlotCustom) {
+        const res = await onSaveSlotCustom(slotData)
+        if (res.error) throw res.error
+      } else {
+        await personalStorage.saveScheduleSlot(slotData)
+      }
+
       triggerHaptic('success')
       onScheduleSaved()
       handleSmoothClose()
@@ -114,7 +124,14 @@ export function MinimalistAssignSlotModal({
   const handleClearSlot = async () => {
     setLoading(true)
     try {
-      await personalStorage.clearScheduleSlot(dayOfWeek, blockNumber)
+      if (onClearSlotCustom) {
+        const slotId = existingSchedule?.id || `csched_${dayOfWeek}_${blockNumber}`
+        const res = await onClearSlotCustom(slotId, dayOfWeek, blockNumber)
+        if (res.error) throw res.error
+      } else {
+        await personalStorage.clearScheduleSlot(dayOfWeek, blockNumber)
+      }
+
       triggerHaptic('success')
       onScheduleSaved()
       handleSmoothClose()

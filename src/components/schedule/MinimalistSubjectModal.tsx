@@ -29,6 +29,8 @@ interface MinimalistSubjectModalProps {
   userId?: string
   subjects: Subject[]
   onSubjectsUpdated: () => void
+  onSaveSubjectCustom?: (subject: Subject) => Promise<{ error: Error | null; data?: Subject }>
+  onDeleteSubjectCustom?: (subjectId: string) => Promise<{ error: Error | null }>
 }
 
 const DISTINCT_PALETTE = [
@@ -48,6 +50,8 @@ export function MinimalistSubjectModal({
   userId,
   subjects = [],
   onSubjectsUpdated,
+  onSaveSubjectCustom,
+  onDeleteSubjectCustom,
 }: MinimalistSubjectModalProps) {
   const [localSubjects, setLocalSubjects] = useState<Subject[]>(subjects)
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null)
@@ -55,6 +59,10 @@ export function MinimalistSubjectModal({
   const [teacher, setTeacher] = useState('')
   const [selectedColor, setSelectedColor] = useState(DISTINCT_PALETTE[0])
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLocalSubjects(subjects)
+  }, [subjects])
 
   const resetForm = () => {
     setEditingSubject(null)
@@ -108,8 +116,14 @@ export function MinimalistSubjectModal({
           color: selectedColor,
         }
 
-        const updatedList = await personalStorage.saveSubject(updated)
-        setLocalSubjects(updatedList)
+        if (onSaveSubjectCustom) {
+          const res = await onSaveSubjectCustom(updated)
+          if (res.error) throw res.error
+        } else {
+          const updatedList = await personalStorage.saveSubject(updated)
+          setLocalSubjects(updatedList)
+        }
+
         triggerHaptic('success')
         onSubjectsUpdated()
         resetForm()
@@ -121,8 +135,14 @@ export function MinimalistSubjectModal({
           color: selectedColor,
         }
 
-        const updatedList = await personalStorage.saveSubject(newSubject)
-        setLocalSubjects(updatedList)
+        if (onSaveSubjectCustom) {
+          const res = await onSaveSubjectCustom(newSubject)
+          if (res.error) throw res.error
+        } else {
+          const updatedList = await personalStorage.saveSubject(newSubject)
+          setLocalSubjects(updatedList)
+        }
+
         triggerHaptic('success')
         onSubjectsUpdated()
         resetForm()
@@ -153,8 +173,14 @@ export function MinimalistSubjectModal({
                 resetForm()
               }
 
-              const updatedList = await personalStorage.removeSubject(subjectId)
-              setLocalSubjects(updatedList)
+              if (onDeleteSubjectCustom) {
+                const res = await onDeleteSubjectCustom(subjectId)
+                if (res.error) throw res.error
+              } else {
+                const updatedList = await personalStorage.removeSubject(subjectId)
+                setLocalSubjects(updatedList)
+              }
+
               onSubjectsUpdated()
             } catch (err) {
               logger.error('Error eliminando materia:', err)

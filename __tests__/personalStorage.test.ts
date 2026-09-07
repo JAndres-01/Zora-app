@@ -88,4 +88,33 @@ describe('personalStorage Local-First Engine', () => {
     expect(personalStorage.getCachedSubjects()).toHaveLength(1)
     expect(personalStorage.getCachedTasks()).toHaveLength(1)
   })
+
+  test('almacena y sincroniza caché de materias y horarios universales de clase', async () => {
+    const mockClassSubjects: Subject[] = [
+      { id: 'csubj-1', name: 'Algoritmos y Estructuras', color: '#8B5CF6' },
+    ]
+    const mockClassSchedules = [
+      {
+        id: 'csched-1',
+        day_of_week: 1,
+        block_number: 1,
+        subject_id: 'csubj-1',
+        start_time: '07:00',
+        end_time: '08:30',
+        classroom_room: 'Lab 3',
+        subject: mockClassSubjects[0],
+      },
+    ]
+
+    await personalStorage.setClassSubjectsCache(mockClassSubjects)
+    await personalStorage.setClassSchedulesCache(mockClassSchedules)
+
+    expect(personalStorage.getCachedClassSubjects()).toHaveLength(1)
+    expect(personalStorage.getCachedClassSubjects()[0].name).toBe('Algoritmos y Estructuras')
+
+    const schedulesWithSubjects = personalStorage.getCachedClassSchedulesWithSubjects()
+    expect(schedulesWithSubjects).toHaveLength(1)
+    expect(schedulesWithSubjects[0].subject?.name).toBe('Algoritmos y Estructuras')
+    expect(schedulesWithSubjects[0].classroom_room).toBe('Lab 3')
+  })
 })

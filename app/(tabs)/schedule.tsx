@@ -30,10 +30,23 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
 import { SCREEN_WIDTH } from '@/constants/layout'
+import { useClassAuth } from '@/context/ClassAuthContext'
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+
+  const {
+    isConnected,
+    isAdmin,
+    classSubjects,
+    classSchedules,
+    saveClassSubject,
+    deleteClassSubject,
+    assignClassScheduleSlot,
+    clearClassScheduleSlot,
+    syncClassSchedule,
+  } = useClassAuth()
 
   const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
   const [schedules, setSchedules] = useState<Schedule[]>(() => personalStorage.getCachedSchedulesWithSubjects())
@@ -42,6 +55,18 @@ export default function ScheduleScreen() {
 
   const academicWeek = useMemo(() => getActiveAcademicWeek(), [])
   const [selectedDay, setSelectedDay] = useState<number>(academicWeek.defaultSelectedDay)
+
+  const activeSubjects = useMemo(() => {
+    if (isConnected && classSubjects && classSubjects.length > 0) return classSubjects
+    return subjects
+  }, [isConnected, classSubjects, subjects])
+
+  const activeSchedules = useMemo(() => {
+    if (isConnected && classSchedules && classSchedules.length > 0) return classSchedules
+    return schedules
+  }, [isConnected, classSchedules, schedules])
+
+  const canEdit = !isConnected || isAdmin
 
   // Modales
   const [showSubjectModal, setShowSubjectModal] = useState(false)
@@ -96,7 +121,11 @@ export default function ScheduleScreen() {
     setSchedules(resolvedScheds)
     setSubjects(cachedSubjs)
     setTasks(resolvedTasks)
-  }, [])
+
+    if (isConnected) {
+      await syncClassSchedule()
+    }
+  }, [isConnected, syncClassSchedule])
 
   useFocusEffect(
     useCallback(() => {
@@ -180,19 +209,23 @@ export default function ScheduleScreen() {
           <View style={styles.headerTop}>
             <View>
               <Text style={styles.title}>Horario</Text>
-              <Text style={styles.subtitle}>{academicWeek.fullLabel}</Text>
+              <Text style={styles.subtitle}>
+                {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
+              </Text>
             </View>
 
-            <Pressable
-              onPress={() => {
-                triggerHaptic('light')
-                setShowSubjectModal(true)
-              }}
-              style={styles.manageSubjBtn}
-            >
-              <BookOpen size={13} color="#09090B" />
-              <Text style={styles.manageSubjBtnText}>Materias</Text>
-            </Pressable>
+            {canEdit && (
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  setShowSubjectModal(true)
+                }}
+                style={styles.manageSubjBtn}
+              >
+                <BookOpen size={13} color="#09090B" />
+                <Text style={styles.manageSubjBtnText}>Materias</Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -303,18 +336,19 @@ export default function ScheduleScreen() {
         >
           {viewMode === 'day' ? (
             <MinimalistDayView
-              schedules={schedules}
+              schedules={activeSchedules}
               tasks={tasks}
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
               onOpenDayTasks={handleOpenDayTasks}
-              onAssignSlot={handleOpenAssign}
+              onAssignSlot={canEdit ? handleOpenAssign : undefined}
             />
           ) : (
             <MinimalistWeeklyMatrix
-              schedules={schedules}
+              schedules={activeSchedules}
               tasks={tasks}
-              onAssignSlot={handleOpenAssign}
+              onAssignSlot={canEdit ? handleOpenAssign : undefined}
+              onOpenDayTasks={handleOpenDayTasks}
             />
           )}
         </Animated.View>
@@ -325,7 +359,7 @@ export default function ScheduleScreen() {
         visible={dayTasksModalData.visible}
         day={dayTasksModalData.day}
         subjectId={dayTasksModalData.subjectId}
-        schedules={schedules}
+        schedules={activeSchedules}
         tasks={tasks}
         onClose={() => setDayTasksModalData((prev) => ({ ...prev, visible: false, subjectId: null }))}
         onToggleTaskStatus={handleToggleTaskStatus}
@@ -336,19 +370,23 @@ export default function ScheduleScreen() {
       <MinimalistAssignSlotModal
         visible={assignModalData.visible}
         onClose={() => setAssignModalData((prev) => ({ ...prev, visible: false }))}
-        subjects={subjects}
+        subjects={activeSubjects}
         initialDay={assignModalData.day}
         initialBlock={assignModalData.block}
         existingSchedule={assignModalData.existingSchedule}
         onScheduleSaved={loadData}
+        onSaveSlotCustom={isConnected && isAdmin ? assignClassScheduleSlot : undefined}
+        onClearSlotCustom={isConnected && isAdmin ? ((slotId) => clearClassScheduleSlot(slotId)) : undefined}
       />
 
       {/* Modal de Administrar Materias */}
       <MinimalistSubjectModal
         visible={showSubjectModal}
         onClose={() => setShowSubjectModal(false)}
-        subjects={subjects}
+        subjects={activeSubjects}
         onSubjectsUpdated={loadData}
+        onSaveSubjectCustom={isConnected && isAdmin ? saveClassSubject : undefined}
+        onDeleteSubjectCustom={isConnected && isAdmin ? deleteClassSubject : undefined}
       />
     </View>
   )

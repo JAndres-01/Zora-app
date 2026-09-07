@@ -26,6 +26,8 @@ const KEYS = {
   CLASS_TASKS: 'zora_class_tasks_cache_v2',
   CLASS_TASK_STATUSES: 'zora_class_task_statuses_v2',
   CLASS_TASK_STATES: 'zora_class_task_states_v2',
+  CLASS_SUBJECTS: 'zora_class_subjects_v2',
+  CLASS_SCHEDULES: 'zora_class_schedules_v2',
 }
 
 // ==========================================
@@ -39,6 +41,8 @@ let _preferencesCache: AppPreferences | null = null
 let _classTasksCache: ClassTask[] | null = null
 let _classTaskStatusesCache: Record<string, TaskStatus> | null = null
 let _classTaskStatesCache: Record<string, ClassTaskLocalState> | null = null
+let _classSubjectsCache: Subject[] | null = null
+let _classSchedulesCache: Schedule[] | null = null
 
 const listeners = new Set<() => void>()
 
@@ -154,6 +158,23 @@ export const personalStorage = {
     return _preferencesCache ? { ..._preferencesCache } : null
   },
 
+  getCachedClassSubjects(): Subject[] {
+    return _classSubjectsCache ? [..._classSubjectsCache] : []
+  },
+
+  getCachedClassSchedules(): Schedule[] {
+    return _classSchedulesCache ? [..._classSchedulesCache] : []
+  },
+
+  getCachedClassSchedulesWithSubjects(): Schedule[] {
+    const subjects = _classSubjectsCache || _subjectsCache || []
+    const schedules = _classSchedulesCache || []
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: sch.subject || subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
+  },
+
   // ==========================================
   // PRECARGA INICIAL (INVOCAR EN SPLASH SCREEN)
   // ==========================================
@@ -167,6 +188,8 @@ export const personalStorage = {
         this.getPreferences(),
         this.getClassTasksCache(),
         this.getClassTaskStatuses(),
+        this.getClassSubjectsCache(),
+        this.getClassSchedulesCache(),
       ])
     } catch (err) {
       logger.error('[personalStorage] Error en preloadAll:', err)
@@ -514,6 +537,69 @@ export const personalStorage = {
   },
 
   // ==========================================
+  // HORARIO Y MATERIAS DE CLASE (UNIVERSAL)
+  // ==========================================
+  async getClassSubjectsCache(): Promise<Subject[]> {
+    if (_classSubjectsCache !== null) {
+      return [..._classSubjectsCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_SUBJECTS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _classSubjectsCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo caché de class_subjects:', err)
+    }
+    _classSubjectsCache = []
+    return []
+  },
+
+  async setClassSubjectsCache(subjects: Subject[]): Promise<void> {
+    _classSubjectsCache = Array.isArray(subjects) ? [...subjects] : []
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_SUBJECTS, JSON.stringify(_classSubjectsCache))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando caché de class_subjects:', err)
+    }
+  },
+
+  async getClassSchedulesCache(): Promise<Schedule[]> {
+    if (_classSchedulesCache !== null) {
+      return [..._classSchedulesCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_SCHEDULES)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _classSchedulesCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo caché de class_schedules:', err)
+    }
+    _classSchedulesCache = []
+    return []
+  },
+
+  async setClassSchedulesCache(schedules: Schedule[]): Promise<void> {
+    _classSchedulesCache = Array.isArray(schedules) ? [...schedules] : []
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_SCHEDULES, JSON.stringify(_classSchedulesCache))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando caché de class_schedules:', err)
+    }
+  },
+
+  // ==========================================
   // PERFIL LOCAL (PROFILE)
   // ==========================================
   async getProfile(): Promise<PersonalProfile> {
@@ -655,6 +741,8 @@ export const personalStorage = {
     _classTasksCache = []
     _classTaskStatusesCache = {}
     _classTaskStatesCache = {}
+    _classSubjectsCache = []
+    _classSchedulesCache = []
     notifyListeners()
     try {
       await AsyncStorage.multiRemove([
@@ -666,6 +754,8 @@ export const personalStorage = {
         KEYS.CLASS_TASKS,
         KEYS.CLASS_TASK_STATUSES,
         KEYS.CLASS_TASK_STATES,
+        KEYS.CLASS_SUBJECTS,
+        KEYS.CLASS_SCHEDULES,
       ])
     } catch (err) {
       logger.error('[personalStorage] Error limpiando storage:', err)

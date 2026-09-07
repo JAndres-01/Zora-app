@@ -1,12 +1,20 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Session, User } from '@supabase/supabase-js'
-import type { UserRole, ClassTask, TaskType, TaskAttachment } from '@/types/personal'
+import type { UserRole, ClassTask, TaskType, TaskAttachment, Subject, Schedule } from '@/types/personal'
 import { personalStorage } from '@/lib/personalStorage'
 import { logger } from '@/lib/logger'
 import { generateId } from '@/lib/idGenerator'
 import { useProfile } from './PersonalAuthContext'
-import { uploadClassTaskAttachments } from '@/lib/classStorage'
+import {
+  uploadClassTaskAttachments,
+  fetchClassSubjects,
+  saveClassSubject as remoteSaveClassSubject,
+  deleteClassSubject as remoteDeleteClassSubject,
+  fetchClassSchedules,
+  assignClassScheduleSlot as remoteAssignClassScheduleSlot,
+  clearClassScheduleSlot as remoteClearClassScheduleSlot,
+} from '@/lib/classStorage'
 
 interface ClassAuthContextType {
   session: Session | null
@@ -17,10 +25,13 @@ interface ClassAuthContextType {
   isLoading: boolean
   isSyncing: boolean
   classTasks: ClassTask[]
+  classSubjects: Subject[]
+  classSchedules: Schedule[]
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   syncClassTasks: () => Promise<void>
+  syncClassSchedule: () => Promise<void>
   publishClassTask: (taskData: {
     title: string
     description?: string | null
@@ -43,6 +54,10 @@ interface ClassAuthContextType {
     }
   ) => Promise<{ error: Error | null; data?: ClassTask }>
   deleteClassTask: (classTaskId: string) => Promise<{ error: Error | null }>
+  saveClassSubject: (subject: Subject) => Promise<{ error: Error | null; data?: Subject }>
+  deleteClassSubject: (subjectId: string) => Promise<{ error: Error | null }>
+  assignClassScheduleSlot: (schedule: Schedule) => Promise<{ error: Error | null; data?: Schedule }>
+  clearClassScheduleSlot: (slotId: string) => Promise<{ error: Error | null }>
 }
 
 const ClassAuthContext = createContext<ClassAuthContextType | undefined>(undefined)
@@ -55,6 +70,8 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [classTasks, setClassTasks] = useState<ClassTask[]>([])
+  const [classSubjects, setClassSubjects] = useState<Subject[]>(() => personalStorage.getCachedClassSubjects())
+  const [classSchedules, setClassSchedules] = useState<Schedule[]>(() => personalStorage.getCachedClassSchedulesWithSubjects())
 
   const fetchUserProfile = async (userId: string): Promise<{ role: UserRole; fullName: string | null }> => {
     try {
@@ -109,14 +126,40 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const syncClassSchedule = useCallback(async () => {
+    try {
+      const [subjs, scheds] = await Promise.all([
+        fetchClassSubjects(),
+        fetchClassSchedules(),
+      ])
+
+      if (Array.isArray(subjs)) {
+        await personalStorage.setClassSubjectsCache(subjs)
+        setClassSubjects(subjs)
+      }
+
+      if (Array.isArray(scheds)) {
+        await personalStorage.setClassSchedulesCache(scheds)
+        setClassSchedules(scheds)
+      }
+    } catch (err) {
+      logger.error('[ClassAuth] Error en syncClassSchedule:', err)
+    }
+  }, [])
+
   useEffect(() => {
     let isMounted = true
 
-    // 1. Cargar cache local de tareas de clase de inmediato
-    personalStorage.getClassTasksCache().then((cached) => {
-      if (isMounted && cached.length > 0) {
-        setClassTasks(cached)
-      }
+    // 1. Cargar cache local de inmediato
+    Promise.all([
+      personalStorage.getClassTasksCache(),
+      personalStorage.getClassSubjectsCache(),
+      personalStorage.getClassSchedulesCache(),
+    ]).then(([cachedTasks, cachedSubjs, cachedScheds]) => {
+      if (!isMounted) return
+      if (cachedTasks.length > 0) setClassTasks(cachedTasks)
+      if (cachedSubjs.length > 0) setClassSubjects(cachedSubjs)
+      if (cachedScheds.length > 0) setClassSchedules(cachedScheds)
     })
 
     // 2. Verificar sesión actual en Supabase
@@ -130,6 +173,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           setRole(profileData.role)
           syncClassTasks()
+          syncClassSchedule()
         }
       }
       setIsLoading(false)
@@ -146,6 +190,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           setRole(profileData.role)
           syncClassTasks()
+          syncClassSchedule()
         }
       } else {
         setRole(null)
@@ -153,11 +198,26 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
     })
 
+    // 4. Suscripción en tiempo real a cambios de la clase
+    const channel = supabase
+      .channel('class-realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'class_tasks' }, () => {
+        syncClassTasks()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'class_subjects' }, () => {
+        syncClassSchedule()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'class_schedules' }, () => {
+        syncClassSchedule()
+      })
+      .subscribe()
+
     return () => {
       isMounted = false
       subscription.unsubscribe()
+      supabase.removeChannel(channel)
     }
-  }, [syncClassTasks])
+  }, [syncClassTasks, syncClassSchedule])
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -375,6 +435,62 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const saveClassSubject = async (subject: Subject) => {
+    if (!user || (role !== 'admin' && role !== 'publisher')) {
+      return { error: new Error('No tienes permisos para editar materias de la clase.') }
+    }
+
+    const res = await remoteSaveClassSubject(subject)
+    if (res.error) {
+      return { error: new Error(res.error.message || 'Error guardando materia') }
+    }
+
+    await syncClassSchedule()
+    return { error: null, data: res.data || undefined }
+  }
+
+  const deleteClassSubject = async (subjectId: string) => {
+    if (!user || (role !== 'admin' && role !== 'publisher')) {
+      return { error: new Error('No tienes permisos para eliminar materias de la clase.') }
+    }
+
+    const res = await remoteDeleteClassSubject(subjectId)
+    if (res.error) {
+      return { error: new Error(res.error.message || 'Error eliminando materia') }
+    }
+
+    await syncClassSchedule()
+    return { error: null }
+  }
+
+  const assignClassScheduleSlot = async (schedule: Schedule) => {
+    if (!user || (role !== 'admin' && role !== 'publisher')) {
+      return { error: new Error('No tienes permisos para asignar bloques de clase.') }
+    }
+
+    const res = await remoteAssignClassScheduleSlot(schedule)
+    if (res.error) {
+      return { error: new Error(res.error.message || 'Error asignando bloque') }
+    }
+
+    await syncClassSchedule()
+    return { error: null, data: res.data || undefined }
+  }
+
+  const clearClassScheduleSlot = async (slotId: string) => {
+    if (!user || (role !== 'admin' && role !== 'publisher')) {
+      return { error: new Error('No tienes permisos para liberar bloques de clase.') }
+    }
+
+    const res = await remoteClearClassScheduleSlot(slotId)
+    if (res.error) {
+      return { error: new Error(res.error.message || 'Error limpiando bloque') }
+    }
+
+    await syncClassSchedule()
+    return { error: null }
+  }
+
   const isAdmin = role === 'admin' || role === 'publisher'
   const isConnected = Boolean(session && user)
 
@@ -388,15 +504,35 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isSyncing,
       classTasks,
+      classSubjects,
+      classSchedules,
       signIn,
       signUp,
       signOut,
       syncClassTasks,
+      syncClassSchedule,
       publishClassTask,
       updateClassTask,
       deleteClassTask,
+      saveClassSubject,
+      deleteClassSubject,
+      assignClassScheduleSlot,
+      clearClassScheduleSlot,
     }),
-    [session, user, role, isAdmin, isConnected, isLoading, isSyncing, classTasks, syncClassTasks]
+    [
+      session,
+      user,
+      role,
+      isAdmin,
+      isConnected,
+      isLoading,
+      isSyncing,
+      classTasks,
+      classSubjects,
+      classSchedules,
+      syncClassTasks,
+      syncClassSchedule,
+    ]
   )
 
   return <ClassAuthContext.Provider value={value}>{children}</ClassAuthContext.Provider>
@@ -411,13 +547,20 @@ const defaultClassAuthValue: ClassAuthContextType = {
   isLoading: false,
   isSyncing: false,
   classTasks: [],
+  classSubjects: [],
+  classSchedules: [],
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => {},
   syncClassTasks: async () => {},
+  syncClassSchedule: async () => {},
   publishClassTask: async () => ({ error: null }),
   updateClassTask: async () => ({ error: null }),
   deleteClassTask: async () => ({ error: null }),
+  saveClassSubject: async () => ({ error: null }),
+  deleteClassSubject: async () => ({ error: null }),
+  assignClassScheduleSlot: async () => ({ error: null }),
+  clearClassScheduleSlot: async () => ({ error: null }),
 }
 
 export function useClassAuth() {

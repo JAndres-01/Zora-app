@@ -19,7 +19,8 @@ import { SPRING_TOUCH_CONFIG } from '@/constants/animations'
 interface MinimalistWeeklyMatrixProps {
   schedules: Schedule[]
   tasks?: Task[]
-  onAssignSlot: (day: number, block: number, existing?: Schedule | null) => void
+  onAssignSlot?: (day: number, block: number, existing?: Schedule | null) => void
+  onOpenDayTasks?: (day: number, subjectId?: string | null) => void
 }
 
 const DAYS = DAYS_WITH_MATRIX_SHORT
@@ -28,11 +29,13 @@ const MatrixSlotCard = memo(function MatrixSlotCard({
   blockNum,
   schedule,
   pendingTaskCount = 0,
+  canAssign = true,
   onPress,
 }: {
   blockNum: number
   schedule?: Schedule | null
   pendingTaskCount?: number
+  canAssign?: boolean
   onPress: () => void
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current
@@ -114,7 +117,7 @@ const MatrixSlotCard = memo(function MatrixSlotCard({
           </View>
         ) : (
           <View style={styles.slotEmptyContent}>
-            <Plus size={12} color="#52525B" style={styles.plusIcon} />
+            {canAssign && <Plus size={12} color="#52525B" style={styles.plusIcon} />}
             <Text style={styles.slotEmptyText}>Libre</Text>
           </View>
         )}
@@ -127,6 +130,7 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
   schedules = [],
   tasks = [],
   onAssignSlot,
+  onOpenDayTasks,
 }: MinimalistWeeklyMatrixProps) {
   const currentDay = new Date().getDay()
   const academicWeek = useMemo(() => getActiveAcademicWeek(), [])
@@ -207,7 +211,14 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
                           blockNum={blockDef.block}
                           schedule={item}
                           pendingTaskCount={pendingTaskCount}
-                          onPress={() => onAssignSlot(d.num, blockDef.block, item)}
+                          canAssign={Boolean(onAssignSlot)}
+                          onPress={() => {
+                            if (onAssignSlot) {
+                              onAssignSlot(d.num, blockDef.block, item)
+                            } else if (item?.subject && onOpenDayTasks) {
+                              onOpenDayTasks(d.num, item.subject_id)
+                            }
+                          }}
                         />
                       )
                     })}

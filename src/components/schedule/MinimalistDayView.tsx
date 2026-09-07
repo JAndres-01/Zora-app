@@ -171,10 +171,12 @@ const DayClassRow = memo(function DayClassRow({
             <View style={styles.freeSlotWrapper}>
               <View style={styles.freeSlotRow}>
                 <Text style={styles.freeTitle}>Hora Libre</Text>
-                <View style={styles.assignSlotPill}>
-                  <Plus size={11} color="#A1A1AA" />
-                  <Text style={styles.assignSlotPillText}>Asignar materia</Text>
-                </View>
+                {Boolean(onAssignSlot) && (
+                  <View style={styles.assignSlotPill}>
+                    <Plus size={11} color="#A1A1AA" />
+                    <Text style={styles.assignSlotPillText}>Asignar materia</Text>
+                  </View>
+                )}
               </View>
             </View>
           )}

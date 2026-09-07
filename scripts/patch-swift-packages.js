@@ -1,6 +1,19 @@
 const fs = require('fs')
 const path = require('path')
 
+// 0. expo-notifications: remove iOS 26 API (isRepeatedDay) that fails on Swift 6.1.x runners
+const dateComponentsSerializerPath = path.join(process.cwd(), 'node_modules', 'expo-notifications', 'ios', 'ExpoNotifications', 'Notifications', 'DateComponentsSerializer.swift')
+if (fs.existsSync(dateComponentsSerializerPath)) {
+  let content = fs.readFileSync(dateComponentsSerializerPath, 'utf8')
+  const orig = content
+  // Remove isRepeatedDay block which uses iOS 26+ SDK not available in Swift 6.1.x
+  content = content.replace(/\s*if #available\(iOS 26\.0,\s*\*\)\s*\{[^}]*\}/g, '')
+  if (content !== orig) {
+    fs.writeFileSync(dateComponentsSerializerPath, content, 'utf8')
+    console.log('[patch-swift-packages] Removed iOS 26 isRepeatedDay block from DateComponentsSerializer.swift')
+  }
+}
+
 // 1. ExpoModulesJSI Package.swift
 const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
 if (fs.existsSync(jsiPackagePath)) {

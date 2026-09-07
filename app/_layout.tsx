@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { PersonalAuthProvider } from '@/context/PersonalAuthContext'
 import { ClassAuthProvider } from '@/context/ClassAuthContext'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, Platform } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { personalStorage } from '@/lib/personalStorage'
 import { setupNotificationInfrastructure } from '@/lib/personalNotifications'
@@ -33,6 +33,12 @@ export default function RootLayout() {
 
     prepare()
   }, [])
+
+  useEffect(() => {
+    if (appIsReady) {
+      SplashScreen.hideAsync().catch(() => {})
+    }
+  }, [appIsReady])
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
@@ -71,6 +77,8 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    height: Platform.OS === 'web' ? '100vh' as any : '100%',
+    width: '100%',
     backgroundColor: '#09090B',
   },
 })

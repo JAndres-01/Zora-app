@@ -10,6 +10,8 @@ import { logger } from '@/lib/logger'
  * Debe invocarse de forma controlada durante el ciclo de arranque de la aplicación.
  */
 export function setupNotificationInfrastructure(): void {
+  if (Platform.OS === 'web') return
+
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -42,6 +44,8 @@ export function setupNotificationInfrastructure(): void {
  * Solicita permisos de notificación al sistema operativo (iOS / Android)
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
+  if (Platform.OS === 'web') return false
+
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync()
     let finalStatus = existingStatus
@@ -65,23 +69,29 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 /**
  * Cancela el recordatorio de una tarea específica (al tacharla o eliminarla)
  */
-export async function cancelTaskReminder(taskId: string): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(`task_adv_${taskId}`)
-  } catch (err) {
-    logger.warn('[personalNotifications] Error cancelando recordatorio de tarea:', err)
-  }
+export function cancelTaskReminder(taskId: string): Promise<void> {
+  if (Platform.OS === 'web') return Promise.resolve()
+  return (async () => {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(`task_adv_${taskId}`)
+    } catch (err) {
+      logger.warn('[personalNotifications] Error cancelando recordatorio de tarea:', err)
+    }
+  })()
 }
 
 /**
  * Cancela absolutamente todos los recordatorios programados en el sistema operativo
  */
-export async function cancelAllNotifications(): Promise<void> {
-  try {
-    await Notifications.cancelAllScheduledNotificationsAsync()
-  } catch (err) {
-    logger.warn('[personalNotifications] Error cancelando todas las notificaciones:', err)
-  }
+export function cancelAllNotifications(): Promise<void> {
+  if (Platform.OS === 'web') return Promise.resolve()
+  return (async () => {
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync()
+    } catch (err) {
+      logger.warn('[personalNotifications] Error cancelando todas las notificaciones:', err)
+    }
+  })()
 }
 
 /**
@@ -91,6 +101,7 @@ export async function scheduleTaskReminder(
   task: Task,
   prefs: AppPreferences
 ): Promise<void> {
+  if (Platform.OS === 'web') return
   if (task.status !== 'pending' || !task.due_date || !prefs.advance_reminder_enabled) {
     await cancelTaskReminder(task.id)
     return

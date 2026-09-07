@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useShareIntent } from 'expo-share-intent'
 import * as Linking from 'expo-linking'
+import { Platform } from 'react-native'
 import type { TaskAttachment } from '@/types/personal'
 import { triggerHaptic } from './personalHaptics'
 import { generateId } from './idGenerator'
@@ -36,6 +37,7 @@ export function useIncomingShareIntent() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent({
     debug: false,
     resetOnBackground: true,
+    disabled: Platform.OS === 'web',
   })
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)

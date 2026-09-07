@@ -11,6 +11,7 @@ import {
   Alert,
   Animated,
   PanResponder,
+  Platform,
 } from 'react-native'
 import type { Subject } from '@/types/personal'
 import { X, Plus, Trash2, BookOpen, Check, User, Pencil, RotateCcw } from 'lucide-react-native'
@@ -160,6 +161,36 @@ export function MinimalistSubjectModal({
 
   const handleDeleteSubject = (subjectId: string, subjectName: string) => {
     triggerHaptic('warning')
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof window !== 'undefined'
+          ? window.confirm(`¿Deseas eliminar "${subjectName}"? Se liberarán sus bloques en el horario.`)
+          : true
+      if (confirmed) {
+        ;(async () => {
+          try {
+            triggerHaptic('error')
+            if (editingSubject?.id === subjectId) {
+              resetForm()
+            }
+
+            if (onDeleteSubjectCustom) {
+              const res = await onDeleteSubjectCustom(subjectId)
+              if (res.error) throw res.error
+            } else {
+              const updatedList = await personalStorage.removeSubject(subjectId)
+              setLocalSubjects(updatedList)
+            }
+
+            onSubjectsUpdated()
+          } catch (err) {
+            logger.error('Error eliminando materia:', err)
+          }
+        })()
+      }
+      return
+    }
+
     Alert.alert(
       'Eliminar Materia',
       `¿Deseas eliminar "${subjectName}"? Se liberarán sus bloques en el horario.`,

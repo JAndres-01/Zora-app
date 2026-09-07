@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
@@ -248,6 +249,21 @@ export default function ProfileScreen() {
 
   const handleClearAllData = () => {
     triggerHaptic('warning')
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof window !== 'undefined'
+          ? window.confirm('¿Deseas eliminar todas las materias, horarios y tareas del dispositivo? Esta acción no se puede deshacer.')
+          : true
+      if (confirmed) {
+        triggerHaptic('error')
+        clearData().then(() => {
+          loadData()
+          setShowSettingsModal(false)
+        })
+      }
+      return
+    }
+
     Alert.alert(
       'Restablecer App',
       '¿Deseas eliminar todas las materias, horarios y tareas del dispositivo? Esta acción no se puede deshacer.',

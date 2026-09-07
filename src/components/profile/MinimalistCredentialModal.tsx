@@ -127,6 +127,18 @@ export function MinimalistCredentialModal({
 
   const handleDelete = () => {
     triggerHaptic('warning')
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof window !== 'undefined'
+          ? window.confirm('¿Deseas remover tu credencial digital de la aplicación? Puedes volver a subirla cuando lo necesites.')
+          : true
+      if (confirmed) {
+        triggerHaptic('error')
+        onDeleteCredential()
+      }
+      return
+    }
+
     Alert.alert(
       'Eliminar Credencial',
       '¿Deseas remover tu credencial digital de la aplicación? Puedes volver a subirla cuando lo necesites.',

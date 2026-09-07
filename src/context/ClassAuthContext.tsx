@@ -302,10 +302,18 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setIsLoading(true)
-      await supabase.auth.signOut()
       setSession(null)
       setUser(null)
       setRole(null)
+      setClassTasks([])
+      setClassSubjects([])
+      setClassSchedules([])
+      await Promise.all([
+        personalStorage.setClassTasksCache([]),
+        personalStorage.setClassSubjectsCache([]),
+        personalStorage.setClassSchedulesCache([]),
+      ])
+      await supabase.auth.signOut()
     } catch (err) {
       logger.error('[ClassAuth] Error en signOut:', err)
     } finally {

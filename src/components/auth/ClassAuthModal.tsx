@@ -148,6 +148,21 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
 
   const handleSignOut = () => {
     triggerHaptic('warning')
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof window !== 'undefined'
+          ? window.confirm('¿Deseas salir de la clase? Las tareas sincronizadas permanecerán guardadas localmente.')
+          : true
+      if (confirmed) {
+        triggerHaptic('medium')
+        signOut().then(() => {
+          handleClose()
+          onSuccess?.()
+        })
+      }
+      return
+    }
+
     Alert.alert(
       'Desconectar de la Clase',
       '¿Deseas salir de la clase? Las tareas sincronizadas permanecerán guardadas localmente.',
@@ -160,6 +175,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
             triggerHaptic('medium')
             await signOut()
             handleClose()
+            onSuccess?.()
           },
         },
       ]

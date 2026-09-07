@@ -22,8 +22,12 @@ const TOGGLE_WIDTH = 70
 
 export function MinimalistSubjectBalance() {
   const [scope, setScope] = useState<ScopeFilter>('pending')
-  const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasks())
-  const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
+  const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
+  const [subjects, setSubjects] = useState<Subject[]>(() => {
+    const local = personalStorage.getCachedSubjects()
+    const classSubs = personalStorage.getCachedClassSubjects()
+    return classSubs.length > 0 ? classSubs : local
+  })
 
   // Animación del selector de ámbito
   const slideAnim = useRef(new Animated.Value(0)).current
@@ -39,13 +43,20 @@ export function MinimalistSubjectBalance() {
 
   useEffect(() => {
     let isMounted = true
-    const updateData = () => {
-      personalStorage.getTasks().then((t) => {
-        if (isMounted && t) setTasks(t)
-      })
-      personalStorage.getSubjects().then((s) => {
-        if (isMounted && s) setSubjects(s)
-      })
+    const updateData = async () => {
+      try {
+        const [allTasks, localSubs, classSubs] = await Promise.all([
+          personalStorage.getTasksWithSubjects(),
+          personalStorage.getSubjects(),
+          personalStorage.getClassSubjectsCache(),
+        ])
+        if (!isMounted) return
+        if (allTasks) setTasks(allTasks)
+        const combined = classSubs.length > 0 ? classSubs : localSubs
+        if (combined) setSubjects(combined)
+      } catch {
+        // Safe fallback
+      }
     }
     updateData()
     const unsubscribe = subscribeToPersonalStorage(updateData)

@@ -15,22 +15,31 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
 export function MinimalistVitalStats() {
-  const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasks())
-  const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
+  const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
+  const [subjects, setSubjects] = useState<Subject[]>(() => {
+    const local = personalStorage.getCachedSubjects()
+    const classSubs = personalStorage.getCachedClassSubjects()
+    return classSubs.length > 0 ? classSubs : local
+  })
 
   const animProgress = useRef(new Animated.Value(0)).current
-  const cardOpacity = useRef(new Animated.Value(0)).current
-  const cardScale = useRef(new Animated.Value(0.97)).current
 
   useEffect(() => {
     let isMounted = true
-    const updateData = () => {
-      personalStorage.getTasks().then((t) => {
-        if (isMounted && t) setTasks(t)
-      })
-      personalStorage.getSubjects().then((s) => {
-        if (isMounted && s) setSubjects(s)
-      })
+    const updateData = async () => {
+      try {
+        const [allTasks, localSubs, classSubs] = await Promise.all([
+          personalStorage.getTasksWithSubjects(),
+          personalStorage.getSubjects(),
+          personalStorage.getClassSubjectsCache(),
+        ])
+        if (!isMounted) return
+        if (allTasks) setTasks(allTasks)
+        const combined = classSubs.length > 0 ? classSubs : localSubs
+        if (combined) setSubjects(combined)
+      } catch {
+        // Safe fallback
+      }
     }
     updateData()
     const unsubscribe = subscribeToPersonalStorage(updateData)
@@ -60,33 +69,12 @@ export function MinimalistVitalStats() {
 
   useEffect(() => {
     animProgress.setValue(0)
-    cardOpacity.setValue(0)
-    cardScale.setValue(0.97)
-
-    Animated.parallel([
-      Animated.timing(cardOpacity, {
-        toValue: 1,
-        duration: 350,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-      Animated.spring(cardScale, {
-        toValue: 1,
-        stiffness: 260,
-        damping: 24,
-        mass: 0.8,
-        useNativeDriver: true,
-      }),
-      Animated.sequence([
-        Animated.delay(120),
-        Animated.timing(animProgress, {
-          toValue: Math.max(0.02, stats.completionRate / 100),
-          duration: 800,
-          easing: APPLE_EASING,
-          useNativeDriver: false,
-        }),
-      ]),
-    ]).start()
+    Animated.timing(animProgress, {
+      toValue: Math.max(0.02, stats.completionRate / 100),
+      duration: 750,
+      easing: APPLE_EASING,
+      useNativeDriver: false,
+    }).start()
   }, [stats.completionRate])
 
   const strokeDashoffset = animProgress.interpolate({
@@ -95,15 +83,7 @@ export function MinimalistVitalStats() {
   })
 
   return (
-    <Animated.View
-      style={[
-        styles.cardWrapper,
-        {
-          opacity: cardOpacity,
-          transform: [{ scale: cardScale }],
-        },
-      ]}
-    >
+    <View style={styles.cardWrapper}>
       {/* Encabezado */}
       <View style={styles.headerRow}>
         <View style={styles.titleWithIconRow}>
@@ -188,7 +168,7 @@ export function MinimalistVitalStats() {
           </View>
         </View>
       </View>
-    </Animated.View>
+    </View>
   )
 }
 

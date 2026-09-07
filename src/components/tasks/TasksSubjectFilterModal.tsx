@@ -13,6 +13,7 @@ import type { Subject, Task } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { SCREEN_HEIGHT } from '@/constants/layout'
+import { APPLE_EASING } from '@/constants/animations'
 
 export interface TasksSubjectFilterModalProps {
   visible: boolean
@@ -32,19 +33,23 @@ export function TasksSubjectFilterModal({
   onClose,
 }: TasksSubjectFilterModalProps) {
   const [modalVisible, setModalVisible] = useState(visible)
-  const menuFadeAnim = useRef(new Animated.Value(0)).current
-  const menuSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const menuFadeAnim = useRef(new Animated.Value(visible ? 1 : 0)).current
+  const menuSlideAnim = useRef(new Animated.Value(visible ? 0 : SCREEN_HEIGHT)).current
+
+  if (visible && !modalVisible) {
+    setModalVisible(true)
+  }
 
   useEffect(() => {
     if (visible) {
-      setModalVisible(true)
       menuFadeAnim.setValue(0)
       menuSlideAnim.setValue(SCREEN_HEIGHT)
 
       Animated.parallel([
         Animated.timing(menuFadeAnim, {
           toValue: 1,
-          duration: 220,
+          duration: 200,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.spring(menuSlideAnim, {
@@ -60,29 +65,33 @@ export function TasksSubjectFilterModal({
         Animated.timing(menuFadeAnim, {
           toValue: 0,
           duration: 180,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(menuSlideAnim, {
           toValue: SCREEN_HEIGHT,
           duration: 220,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
       ]).start(() => {
         setModalVisible(false)
       })
     }
-  }, [visible])
+  }, [visible, modalVisible])
 
   const handleClose = () => {
     Animated.parallel([
       Animated.timing(menuFadeAnim, {
         toValue: 0,
         duration: 180,
+        easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.timing(menuSlideAnim, {
         toValue: SCREEN_HEIGHT,
         duration: 220,
+        easing: APPLE_EASING,
         useNativeDriver: true,
       }),
     ]).start(() => {

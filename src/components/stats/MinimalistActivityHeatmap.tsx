@@ -34,7 +34,7 @@ export function MinimalistActivityHeatmap() {
   // Feb (1) to Jun (5) defaults to spring, otherwise fall
   const defaultTab: SemesterTab = currentMonth >= 1 && currentMonth <= 5 ? 'spring' : 'fall'
   const [activeSemester, setActiveSemester] = useState<SemesterTab>(defaultTab)
-  const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasks())
+  const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
   const [prefs, setPrefs] = useState<AppPreferences | null>(() => personalStorage.getCachedPreferences())
   const [selectedDay, setSelectedDay] = useState<HeatmapDay | null>(null)
 
@@ -51,7 +51,7 @@ export function MinimalistActivityHeatmap() {
   }, [])
 
   const updateData = useCallback(() => {
-    personalStorage.getTasks().then((t) => {
+    personalStorage.getTasksWithSubjects().then((t) => {
       if (isMountedRef.current && t) setTasks(t)
     })
     personalStorage.getPreferences().then((p) => {

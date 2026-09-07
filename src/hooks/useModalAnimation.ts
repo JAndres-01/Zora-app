@@ -41,9 +41,24 @@ export function useModalAnimation({
   const [modalVisible, setModalVisible] = useState(visible)
   const isClosingRef = useRef(false)
 
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const onClosedRef = useRef(onClosed)
+  onClosedRef.current = onClosed
+
+  const dismissThresholdRef = useRef(dismissThreshold)
+  dismissThresholdRef.current = dismissThreshold
+  const dismissVelocityRef = useRef(dismissVelocity)
+  dismissVelocityRef.current = dismissVelocity
+
+  const fadeAnim = useRef(new Animated.Value(visible ? 1 : 0)).current
+  const slideAnim = useRef(new Animated.Value(visible ? 0 : SCREEN_HEIGHT)).current
   const panY = useRef(new Animated.Value(0)).current
+
+  // Sincronizar inmediatamente la visibilidad durante el render cuando visible pasa a true
+  if (visible && !modalVisible && !isClosingRef.current) {
+    setModalVisible(true)
+  }
 
   const handleSmoothClose = useCallback(
     (callback?: (() => void) | unknown) => {
@@ -56,38 +71,38 @@ export function useModalAnimation({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 160,
+          duration: 180,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: SCREEN_HEIGHT,
-          duration: 200,
+          duration: 220,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(panY, {
           toValue: 0,
-          duration: 160,
+          duration: 180,
           useNativeDriver: true,
         }),
       ]).start(() => {
         setModalVisible(false)
         isClosingRef.current = false
-        onClose()
-        onClosed?.()
+        onCloseRef.current()
+        onClosedRef.current?.()
         if (typeof callback === 'function') {
-          setTimeout(callback, 80)
+          setTimeout(callback, 50)
         }
       })
     },
-    [fadeAnim, slideAnim, panY, onClose, onClosed]
+    [fadeAnim, slideAnim, panY]
   )
 
   // Sincronizar apertura/cierre reactivo cuando cambia la prop `visible`
   useEffect(() => {
     if (visible) {
       isClosingRef.current = false
-      setModalVisible(true)
       fadeAnim.setValue(0)
       slideAnim.setValue(SCREEN_HEIGHT)
       panY.setValue(0)
@@ -95,7 +110,8 @@ export function useModalAnimation({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 180,
+          duration: 200,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim, {
@@ -110,27 +126,28 @@ export function useModalAnimation({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 160,
+          duration: 180,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: SCREEN_HEIGHT,
-          duration: 200,
+          duration: 220,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(panY, {
           toValue: 0,
-          duration: 160,
+          duration: 180,
           useNativeDriver: true,
         }),
       ]).start(() => {
         setModalVisible(false)
         isClosingRef.current = false
-        onClosed?.()
+        onClosedRef.current?.()
       })
     }
-  }, [visible, fadeAnim, slideAnim, panY, onClosed])
+  }, [visible, modalVisible, fadeAnim, slideAnim, panY])
 
   // Gesto PanResponder para arrastrar hacia abajo y cerrar
   const panResponder = useRef(
@@ -145,7 +162,9 @@ export function useModalAnimation({
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > dismissThreshold || gestureState.vy > dismissVelocity) {
+        const threshold = dismissThresholdRef.current ?? 100
+        const velocity = dismissVelocityRef.current ?? 0.6
+        if (gestureState.dy > threshold || gestureState.vy > velocity) {
           handleSmoothClose()
         } else {
           Animated.spring(panY, {
@@ -168,3 +187,4 @@ export function useModalAnimation({
     handleSmoothClose,
   }
 }
+

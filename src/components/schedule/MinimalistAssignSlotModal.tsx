@@ -151,7 +151,7 @@ export function MinimalistAssignSlotModal({
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
 
-        <Animated.View style={[styles.sheetContainer, { transform: [{ translateY: slideAnim }, { translateY: panY }] }]}>
+        <Animated.View style={[styles.sheetContainer, { transform: [{ translateY: Animated.add(slideAnim, panY) }] }]}>
           {/* Header */}
           <View style={styles.sheetHeader} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />

@@ -97,7 +97,7 @@ export function MinimalistDayTasksModal({
             styles.sheetContainer,
             {
               paddingBottom: Math.max(insets.bottom, 16) + 8,
-              transform: [{ translateY: slideAnim }, { translateY: panY }],
+              transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
         >

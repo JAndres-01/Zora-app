@@ -53,7 +53,9 @@ export function MinimalistSubjectModal({
   onSaveSubjectCustom,
   onDeleteSubjectCustom,
 }: MinimalistSubjectModalProps) {
-  const [localSubjects, setLocalSubjects] = useState<Subject[]>(subjects)
+  const [localSubjects, setLocalSubjects] = useState<Subject[]>(() =>
+    Array.isArray(subjects) ? subjects : []
+  )
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null)
   const [name, setName] = useState('')
   const [teacher, setTeacher] = useState('')
@@ -61,7 +63,7 @@ export function MinimalistSubjectModal({
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    setLocalSubjects(subjects)
+    setLocalSubjects(Array.isArray(subjects) ? subjects : [])
   }, [subjects])
 
   const resetForm = () => {
@@ -193,6 +195,8 @@ export function MinimalistSubjectModal({
 
   if (!modalVisible) return null
 
+  const safeSubjects = Array.isArray(localSubjects) ? localSubjects.filter(Boolean) : []
+
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
       <View style={styles.modalRoot}>
@@ -203,7 +207,7 @@ export function MinimalistSubjectModal({
         <Animated.View
           style={[
             styles.sheetContainer,
-            { transform: [{ translateY: slideAnim }, { translateY: panY }] },
+            { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
           ]}
         >
           {/* Header */}
@@ -213,7 +217,7 @@ export function MinimalistSubjectModal({
               <View>
                 <Text style={styles.sheetTitle}>Gestionar Materias</Text>
                 <Text style={styles.sheetSubtitle}>
-                  {editingSubject ? 'Editando materia' : `${localSubjects.length} registradas`}
+                  {editingSubject ? 'Editando materia' : `${safeSubjects.length} registradas`}
                 </Text>
               </View>
 
@@ -332,15 +336,15 @@ export function MinimalistSubjectModal({
             {/* Lista Abierta de Materias Registradas */}
             <View style={styles.listSection}>
               <Text style={styles.sectionHeader}>
-                MATERIAS REGISTRADAS ({localSubjects.length})
+                MATERIAS REGISTRADAS ({safeSubjects.length})
               </Text>
 
-              {localSubjects.length > 0 ? (
+              {safeSubjects.length > 0 ? (
                 <View style={styles.subjectsList}>
-                  {localSubjects.map((s, idx) => {
+                  {safeSubjects.map((s, idx) => {
                     const isEditing = editingSubject?.id === s.id
                     const isWhite = isWhiteColor(s.color)
-                    const isLast = idx === localSubjects.length - 1
+                    const isLast = idx === safeSubjects.length - 1
 
                     return (
                       <View

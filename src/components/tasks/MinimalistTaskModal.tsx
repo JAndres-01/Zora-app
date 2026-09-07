@@ -223,12 +223,16 @@ export function MinimalistTaskModal({
     }
   }, [modalVisible, insets.bottom, keyboardTranslateY])
 
+  // Sincronizar visibilidad de inmediato durante render si mode !== 'none'
+  if (mode !== 'none' && !modalVisible) {
+    setModalVisible(true)
+  }
+
   // Apertura y Cierre controlados
   useEffect(() => {
     let focusTimer: ReturnType<typeof setTimeout> | undefined
 
     if (mode !== 'none') {
-      setModalVisible(true)
       setCurrentView(mode === 'detail' ? 'detail' : 'form')
 
       if (mode === 'create') {
@@ -263,7 +267,8 @@ export function MinimalistTaskModal({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 180,
+          duration: 200,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim, {
@@ -276,12 +281,13 @@ export function MinimalistTaskModal({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 160,
+          duration: 180,
+          easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: SCREEN_HEIGHT,
-          duration: 200,
+          duration: 220,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
@@ -294,7 +300,7 @@ export function MinimalistTaskModal({
     return () => {
       if (focusTimer) clearTimeout(focusTimer)
     }
-  }, [mode, task, initialTitle, initialDescription, initialAttachments])
+  }, [mode, modalVisible, task, initialTitle, initialDescription, initialAttachments])
 
   const handleSmoothClose = () => {
     triggerHaptic('light')
@@ -303,12 +309,13 @@ export function MinimalistTaskModal({
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 160,
+        duration: 180,
+        easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 200,
+        duration: 220,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),

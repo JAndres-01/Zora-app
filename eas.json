@@ -8,10 +8,12 @@
       "distribution": "internal"
     },
     "preview": {
+      "distribution": "internal"
+    },
+    "preview-simulator": {
       "ios": {
         "simulator": true
-      },
-      "npmInstallArgs": ["--legacy-peer-deps"]
+      }
     },
     "production": {
       "autoIncrement": true

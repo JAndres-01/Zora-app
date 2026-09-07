@@ -249,6 +249,18 @@ if (fs.existsSync(hostObjectCallbacksHeader)) {
   }
 }
 
+// 5.5. ExpoModulesCore.podspec - force build from source to avoid Swift 6.3.1 prebuilt binary mismatch
+const corePodspecPath = path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'ExpoModulesCore.podspec')
+if (fs.existsSync(corePodspecPath)) {
+  let corePodspec = fs.readFileSync(corePodspecPath, 'utf8')
+  corePodspec = corePodspec.replace(
+    /if \(!Expo::PackagesConfig\.instance\.try_link_with_prebuilt_xcframework\(s\)\)/g,
+    'if (true)'
+  )
+  fs.writeFileSync(corePodspecPath, corePodspec, 'utf8')
+  console.log('[patch-swift-packages] Successfully configured ExpoModulesCore to build from source')
+}
+
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
 if (fs.existsSync(buildXcframeworkScript)) {

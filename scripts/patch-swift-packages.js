@@ -174,14 +174,21 @@ if (fs.existsSync(macrosPackagePath)) {
 const schedulerHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'RuntimeScheduler.h')
 if (fs.existsSync(schedulerHeader)) {
   let headerContent = fs.readFileSync(schedulerHeader, 'utf8')
-  if (!headerContent.includes('#ifndef SWIFT_RETURNS_RETAINED')) {
-    headerContent = headerContent.replace(
-      '#include <swift/bridging>',
-      '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED\n#endif'
-    )
-    fs.writeFileSync(schedulerHeader, headerContent, 'utf8')
-    console.log('[patch-swift-packages] Successfully added SWIFT_RETURNS_RETAINED fallback to RuntimeScheduler.h')
-  }
+  headerContent = headerContent.replace(/SWIFT_RETURNS_RETAINED\s+RuntimeScheduler/g, 'RuntimeScheduler')
+  fs.writeFileSync(schedulerHeader, headerContent, 'utf8')
+  console.log('[patch-swift-packages] Cleaned constructor annotations in RuntimeScheduler.h')
+}
+
+const closureHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'HostFunctionClosure.h')
+if (fs.existsSync(closureHeader)) {
+  let headerContent = fs.readFileSync(closureHeader, 'utf8')
+  headerContent = headerContent.replace(
+    /using Closure = void\(Context context, const facebook::jsi::Value \*\w+ thisValue, const facebook::jsi::Value \*\w+ args, size_t count, facebook::jsi::Value \*\w+ result\);/g,
+    'using Closure = void (*)(Context context, const facebook::jsi::Value *_Nonnull thisValue, const facebook::jsi::Value *_Nonnull args, size_t count, facebook::jsi::Value *_Nonnull result);'
+  )
+  headerContent = headerContent.replace('Closure *_Nonnull _closure;', 'Closure _closure;')
+  fs.writeFileSync(closureHeader, headerContent, 'utf8')
+  console.log('[patch-swift-packages] Cleaned HostFunctionClosure.h for Swift 6.0 interop')
 }
 
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
@@ -193,6 +200,57 @@ if (fs.existsSync(buildXcframeworkScript)) {
     console.log('[patch-swift-packages] Successfully removed -disableAutomaticPackageResolution from build-xcframework.sh')
   }
 }
+
+// Patch all Swift source files in ExpoModulesJSI for Swift 6.0
+const jsiSourcesDir = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI')
+function patchSwiftSources(dir) {
+  if (!fs.existsSync(dir)) return
+  const files = fs.readdirSync(dir, { withFileTypes: true })
+  for (const file of files) {
+    const fullPath = path.join(dir, file.name)
+    if (file.isDirectory()) {
+      patchSwiftSources(fullPath)
+    } else if (file.name.endsWith('.swift')) {
+      let code = fs.readFileSync(fullPath, 'utf8')
+      const original = code
+      // 1. weak let -> weak var
+      code = code.replace(/weak\s+let\s+/g, 'weak var ')
+      // 2. Trailing commas before closing paren in types / calls
+      code = code.replace(/consuming JavaScriptValuesBuffer,\s*\)/g, 'consuming JavaScriptValuesBuffer\n    )')
+      code = code.replace(/vector\.push_back\(consuming:\s*propNameId\)/g, 'vector.push_back(propNameId)')
+      // 3. Task+Immediate fallback
+      if (file.name === 'Task+Immediate.swift') {
+        code = `// polyfill for Swift 6.0
+extension Task where Failure == any Error {
+  @discardableResult
+  public static func immediate_polyfill(
+    name: String? = nil,
+    priority: TaskPriority? = nil,
+    @_inheritActorContext @_implicitSelfCapture operation: sending @escaping @isolated(any) () async throws -> Success
+  ) -> Task<Success, any Error> {
+    return Task(priority: priority ?? .high, operation: operation)
+  }
+}
+`
+      }
+      // 4. JavaScriptError CppError extension
+      if (file.name === 'JavaScriptError.swift') {
+        code = code.replace('public var message: String {', 'var message: String {')
+      }
+      // 5. JavaScriptActor runIsolated
+      if (file.name === 'JavaScriptActor.swift') {
+        code = code.replace(/@JavaScriptActor\s+@usableFromInline\s+internal static func runIsolated/g, '@usableFromInline\n  internal static func runIsolated')
+      }
+
+      if (code !== original) {
+        fs.writeFileSync(fullPath, code, 'utf8')
+        console.log(`[patch-swift-packages] Patched Swift source: ${file.name}`)
+      }
+    }
+  }
+}
+patchSwiftSources(jsiSourcesDir)
+
 
 
 

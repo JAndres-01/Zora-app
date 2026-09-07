@@ -34,10 +34,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Patch Swift Package Manifests for Xcode 16
-        run: |
-          find node_modules -name "Package.swift" -type f -exec sed -i '' 's/swift-tools-version: 6.2/swift-tools-version: 6.0/g' {} + 2>/dev/null || true
-          echo "Swift tools versions en node_modules:"
-          grep -rn "swift-tools-version" node_modules/expo-modules-jsi/ node_modules/@expo/expo-modules-macros-plugin/ 2>/dev/null || true
+        run: node scripts/patch-swift-packages.js
 
       - name: Expo Prebuild iOS & CocoaPods
         run: |
@@ -45,7 +42,7 @@ jobs:
           export NODE_BINARY=$(which node)
           npx expo prebuild --platform ios --clean
           echo "export NODE_BINARY=$(which node)" > ios/.xcode.env.local
-          find node_modules -name "Package.swift" -type f -exec sed -i '' 's/swift-tools-version: 6.2/swift-tools-version: 6.0/g' {} + 2>/dev/null || true
+          node scripts/patch-swift-packages.js
           cd ios
           pod install --repo-update
 

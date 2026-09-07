@@ -93,17 +93,17 @@ export default function ScheduleScreen() {
     subjectId: null,
   })
 
-  // Animaciones del Switcher de Vista (Día / Semana)
-  const [segmentContainerWidth, setSegmentContainerWidth] = useState(SCREEN_WIDTH - 32)
-  const segmentWidth = Math.max(0, (segmentContainerWidth - 6) / 2)
+  // Dimensiones estáticas para evitar saltos y re-renderizados innecesarios por onLayout
+  const SEGMENT_CONTAINER_WIDTH = SCREEN_WIDTH - 32
+  const SEGMENT_WIDTH = Math.max(0, (SEGMENT_CONTAINER_WIDTH - 6) / 2)
   const viewModeAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     Animated.spring(viewModeAnim, {
-      toValue: viewMode === 'day' ? 0 : segmentWidth,
+      toValue: viewMode === 'day' ? 0 : SEGMENT_WIDTH,
       ...SPRING_SLIDE_INDICATOR,
     }).start()
-  }, [viewMode, segmentWidth, viewModeAnim])
+  }, [viewMode, SEGMENT_WIDTH, viewModeAnim])
 
   const handleViewModeChange = (mode: 'day' | 'week') => {
     if (mode === viewMode) return
@@ -121,11 +121,7 @@ export default function ScheduleScreen() {
     setSchedules(resolvedScheds)
     setSubjects(cachedSubjs)
     setTasks(resolvedTasks)
-
-    if (isConnected) {
-      await syncClassSchedule()
-    }
-  }, [isConnected, syncClassSchedule])
+  }, [])
 
   useFocusEffect(
     useCallback(() => {
@@ -229,7 +225,7 @@ export default function ScheduleScreen() {
           </View>
         </View>
 
-        {/* Card 0: Segmented Control iOS con Glassmorfismo Nativo (BlurView) */}
+        {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
         <Animated.View
           style={{
             opacity: cardEntranceAnims[0].interpolate({
@@ -252,22 +248,12 @@ export default function ScheduleScreen() {
             ],
           }}
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 55 : 90}
-            tint="dark"
-            style={styles.segmentedContainer}
-            onLayout={(e: LayoutChangeEvent) => {
-              const w = e.nativeEvent.layout.width
-              if (w > 0 && Math.abs(w - segmentContainerWidth) > 1) {
-                setSegmentContainerWidth(w)
-              }
-            }}
-          >
+          <View style={styles.segmentedContainer}>
             <Animated.View
               style={[
                 styles.activeSegmentPill,
                 {
-                  width: segmentWidth,
+                  width: SEGMENT_WIDTH,
                   transform: [{ translateX: viewModeAnim }],
                 },
               ]}
@@ -308,7 +294,7 @@ export default function ScheduleScreen() {
                 Matriz Semanal
               </Text>
             </Pressable>
-          </BlurView>
+          </View>
         </Animated.View>
 
         {/* Card 1: Vista Seleccionada (Diaria / Semanal) */}

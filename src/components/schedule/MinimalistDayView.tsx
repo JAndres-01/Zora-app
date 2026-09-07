@@ -196,20 +196,36 @@ export function MinimalistDayView({
 }: MinimalistDayViewProps) {
   const currentDay = new Date().getDay()
   const academicWeek = useMemo(() => getActiveAcademicWeek(), [])
-  const targetDayDate = academicWeek.getDayDate(selectedDay)
-  const daySchedules = schedules.filter((s) => s.day_of_week === selectedDay)
+  const targetDayDate = useMemo(() => academicWeek.getDayDate(selectedDay), [academicWeek, selectedDay])
+  const daySchedules = useMemo(
+    () => schedules.filter((s) => s.day_of_week === selectedDay),
+    [schedules, selectedDay]
+  )
 
-  const [containerWidth, setContainerWidth] = useState(SCREEN_WIDTH - 32)
-  const pillWidth = Math.max(0, (containerWidth - 6) / 5)
+  // Mapa optimizado O(N) para tareas de este día específico
+  const dayPendingTasksMap = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    tasks.forEach((t) => {
+      if (t.status === 'pending' && t.subject_id && isTaskForAcademicDay(t.due_date, targetDayDate)) {
+        const list = map.get(t.subject_id) || []
+        list.push(t)
+        map.set(t.subject_id, list)
+      }
+    })
+    return map
+  }, [tasks, targetDayDate])
+
+  const DAY_CONTAINER_WIDTH = SCREEN_WIDTH - 32
+  const DAY_PILL_WIDTH = Math.max(0, (DAY_CONTAINER_WIDTH - 6) / 5)
   const activeDayIndex = Math.max(0, DAYS.findIndex((d) => d.num === selectedDay))
-  const daySlideAnim = useRef(new Animated.Value(activeDayIndex * pillWidth)).current
+  const daySlideAnim = useRef(new Animated.Value(activeDayIndex * DAY_PILL_WIDTH)).current
 
   useEffect(() => {
     Animated.spring(daySlideAnim, {
-      toValue: activeDayIndex * pillWidth,
+      toValue: activeDayIndex * DAY_PILL_WIDTH,
       ...SPRING_SLIDE_INDICATOR,
     }).start()
-  }, [activeDayIndex, pillWidth, daySlideAnim])
+  }, [activeDayIndex, DAY_PILL_WIDTH, daySlideAnim])
 
   const handleDayPress = (dayNum: number) => {
     if (dayNum === selectedDay || academicWeek.isDayDisabled(dayNum)) return
@@ -218,24 +234,14 @@ export function MinimalistDayView({
 
   return (
     <View style={styles.container}>
-      {/* Selector de Días Horizontal con Glassmorfismo Nativo y Pastilla Deslizante */}
-      <BlurView
-        intensity={Platform.OS === 'ios' ? 55 : 90}
-        tint="dark"
-        style={styles.daySelectorContainer}
-        onLayout={(e: LayoutChangeEvent) => {
-          const w = e.nativeEvent.layout.width
-          if (w > 0 && Math.abs(w - containerWidth) > 1) {
-            setContainerWidth(w)
-          }
-        }}
-      >
+      {/* Selector de Días Horizontal Minimalista y Rápido */}
+      <View style={styles.daySelectorContainer}>
         {/* Indicador deslizante de día seleccionado */}
         <Animated.View
           style={[
             styles.activeDayIndicator,
             {
-              width: pillWidth,
+              width: DAY_PILL_WIDTH,
               transform: [{ translateX: daySlideAnim }],
             },
           ]}
@@ -274,19 +280,13 @@ export function MinimalistDayView({
             </Pressable>
           )
         })}
-      </BlurView>
+      </View>
 
       {/* Lista Abierta y Continua de 4 Bloques Diarios */}
       <View style={styles.blocksList}>
         {PERSONAL_SCHEDULE_BLOCKS.map((blockDef, idx) => {
           const item = daySchedules.find((s) => s.block_number === blockDef.block)
-
-          // FILTRADO ESTRICTO: ÚNICAMENTE tareas cuya fecha de entrega cae exactamente en la fecha de este día de la semana activa
-          const classTasks = tasks.filter((t) => {
-            if (t.status !== 'pending') return false
-            if (!item?.subject_id || t.subject_id !== item.subject_id) return false
-            return isTaskForAcademicDay(t.due_date, targetDayDate)
-          })
+          const classTasks = item?.subject_id ? (dayPendingTasksMap.get(item.subject_id) || []) : []
 
           return (
             <DayClassRow

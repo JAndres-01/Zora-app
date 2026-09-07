@@ -135,14 +135,40 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
   const currentDay = new Date().getDay()
   const academicWeek = useMemo(() => getActiveAcademicWeek(), [])
 
-  const getPendingTasksForDayAndSubject = (day: number, subjectId?: string | null) => {
-    if (!subjectId) return 0
-    const columnDate = academicWeek.getDayDate(day)
-    return tasks.filter((t) => {
-      if (t.status !== 'pending' || t.subject_id !== subjectId) return false
-      return isTaskForAcademicDay(t.due_date, columnDate)
-    }).length
-  }
+  // Mapa optimizado O(1) para contar tareas pendientes por día y materia
+  const pendingTaskCountMap = useMemo(() => {
+    const map = new Map<string, number>()
+    const datesByDay = new Map<number, Date>()
+    for (let day = 1; day <= 5; day++) {
+      datesByDay.set(day, academicWeek.getDayDate(day))
+    }
+
+    tasks.forEach((t) => {
+      if (t.status === 'pending' && t.subject_id && t.due_date) {
+        for (let day = 1; day <= 5; day++) {
+          const dDate = datesByDay.get(day)
+          if (dDate && isTaskForAcademicDay(t.due_date, dDate)) {
+            const key = `${day}_${t.subject_id}`
+            map.set(key, (map.get(key) || 0) + 1)
+          }
+        }
+      }
+    })
+    return map
+  }, [tasks, academicWeek])
+
+  const schedulesByDay = useMemo(() => {
+    const map = new Map<number, Schedule[]>()
+    for (let day = 1; day <= 5; day++) {
+      map.set(day, [])
+    }
+    schedules.forEach((s) => {
+      const list = map.get(s.day_of_week) || []
+      list.push(s)
+      map.set(s.day_of_week, list)
+    })
+    return map
+  }, [schedules])
 
   return (
     <View style={styles.container}>
@@ -189,7 +215,7 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
           {/* Cuerpo de la Matriz (4 Bloques por Día) */}
           <View style={styles.bodyRow}>
             {DAYS.map((d) => {
-              const daySchedules = schedules.filter((s) => s.day_of_week === d.num)
+              const daySchedules = schedulesByDay.get(d.num) || []
               const isToday = currentDay === d.num
 
               return (
@@ -203,7 +229,9 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
                   <View style={styles.daySlotsColumn}>
                     {PERSONAL_SCHEDULE_BLOCKS.map((blockDef) => {
                       const item = daySchedules.find((s) => s.block_number === blockDef.block)
-                      const pendingTaskCount = getPendingTasksForDayAndSubject(d.num, item?.subject_id)
+                      const pendingTaskCount = item?.subject_id
+                        ? (pendingTaskCountMap.get(`${d.num}_${item.subject_id}`) || 0)
+                        : 0
 
                       return (
                         <MatrixSlotCard

@@ -38,6 +38,9 @@ jobs:
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           export NODE_BINARY=$(which node)
           npx expo prebuild --platform ios --clean
+          echo "export NODE_BINARY=$(which node)" > ios/.xcode.env.local
+          echo "Contenido de ios/.xcode.env.local:"
+          cat ios/.xcode.env.local
           cd ios
           pod install --repo-update
 
@@ -47,52 +50,47 @@ jobs:
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           export NODE_BINARY=$(which node)
           WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -n 1)
-          if [ -z "$WORKSPACE" ]; then
-            echo "No .xcworkspace found, searching for .xcodeproj..."
-            PROJECT=$(ls -d *.xcodeproj 2>/dev/null | head -n 1)
-            xcodebuild -project "$PROJECT" \
-              -configuration Release \
-              -sdk iphoneos \
-              -destination 'generic/platform=iOS' \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGN_IDENTITY="" \
-              CODE_SIGN_ENTITLEMENTS="" \
-              CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
-              DEVELOPMENT_TEAM="" \
-              PROVISIONING_PROFILE_SPECIFIER="" \
-              AD_HOC_CODE_SIGNING_ALLOWED=YES \
-              COMPILER_INDEX_STORE_ENABLE=NO \
-              -derivedDataPath build \
-              clean build
-          else
-            SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
-            echo "Building with workspace: $WORKSPACE and scheme: $SCHEME_NAME"
-            xcodebuild -workspace "$WORKSPACE" \
-              -scheme "$SCHEME_NAME" \
-              -configuration Release \
-              -sdk iphoneos \
-              -destination 'generic/platform=iOS' \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGN_IDENTITY="" \
-              CODE_SIGN_ENTITLEMENTS="" \
-              CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
-              DEVELOPMENT_TEAM="" \
-              PROVISIONING_PROFILE_SPECIFIER="" \
-              AD_HOC_CODE_SIGNING_ALLOWED=YES \
-              COMPILER_INDEX_STORE_ENABLE=NO \
-              -derivedDataPath build \
-              clean build
-          fi
+          SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Building with workspace: $WORKSPACE and scheme: $SCHEME_NAME"
+          
+          set -o pipefail
+          xcodebuild -workspace "$WORKSPACE" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            ENABLE_USER_SCRIPT_SANDBOXING=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            -derivedDataPath build \
+            clean build 2>&1 | tee xcodebuild.log || {
+              echo "❌ ERROR EN XCODEBUILD. Ultimas 100 lineas del log:"
+              tail -n 100 xcodebuild.log
+              echo "❌ Errores detectados:"
+              grep -E "(error:|fatal error:|\*\* BUILD FAILED \*\*)" xcodebuild.log | head -n 40
+              exit 1
+            }
 
       - name: Empaquetar archivo Zora.ipa
         run: |
+          echo "Buscando .app generado..."
           APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" -type d 2>/dev/null | head -n 1)
           if [ -z "$APP_PATH" ]; then
-            APP_PATH=$(find ios/build/Build/Products -name "*.app" -type d | head -n 1)
+            APP_PATH=$(find ios/build/Build/Products -name "*.app" -type d 2>/dev/null | head -n 1)
           fi
-          echo "Found app at: $APP_PATH"
+          echo "App encontrado en: $APP_PATH"
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ No se encontro ningun archivo .app en ios/build/Build/Products"
+            ls -laR ios/build/Build/Products
+            exit 1
+          fi
           mkdir -p build_output/Payload
           cp -R "$APP_PATH" build_output/Payload/
           cd build_output

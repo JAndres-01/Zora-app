@@ -217,16 +217,12 @@ const closureHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi
 if (fs.existsSync(closureHeader)) {
   let headerContent = fs.readFileSync(closureHeader, 'utf8')
 
-  if (!headerContent.includes('#define SWIFT_RETURNS_RETAINED')) {
-    headerContent = headerContent.replace(
-      '#include <swift/bridging>',
-      '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))\n#endif'
-    )
-  }
+  // Remove any previous SWIFT_RETURNS_RETAINED on create
+  headerContent = headerContent.replace(/\s*SWIFT_RETURNS_RETAINED\s*\{/g, ' {')
 
   if (!headerContent.includes('HostFunctionClosure *create(')) {
     const factoryMethod = `
-  static inline HostFunctionClosure *create(Context context, Closure closure, Deallocator deallocator) noexcept SWIFT_RETURNS_RETAINED {
+  static inline HostFunctionClosure *create(Context context, Closure closure, Deallocator deallocator) noexcept {
     return new HostFunctionClosure(context, closure, deallocator);
   }
 `

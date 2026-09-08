@@ -151,6 +151,48 @@ patchExpoRouterToolbar(
   'Replaced iOS 26 .prominent button style with .done in RouterToolbarModule.swift'
 )
 
+// 0.6. expo-image-picker: remove iOS 26 Photos APIs (PHAsset.contentType / PHAssetResource.contentType)
+// that fail on Xcode 16 / iOS 18 SDK runners
+const imagePickerMediaHandlerPath = path.join(process.cwd(), 'node_modules', 'expo-image-picker', 'ios', 'MediaHandler.swift')
+function patchImagePickerMediaHandler(oldBlock, newBlock, label) {
+  if (!fs.existsSync(imagePickerMediaHandlerPath)) return
+  let content = fs.readFileSync(imagePickerMediaHandlerPath, 'utf8')
+  const orig = content
+  if (content.includes(oldBlock)) {
+    content = content.replace(oldBlock, newBlock)
+    if (content !== orig) {
+      fs.writeFileSync(imagePickerMediaHandlerPath, content, 'utf8')
+      console.log(`[patch-swift-packages] ${label}`)
+    }
+  } else {
+    console.log(`[patch-swift-packages] WARN: could not find ${label} block in MediaHandler.swift, version may have changed`)
+  }
+}
+
+patchImagePickerMediaHandler(
+`    let utType: UTType? = if #available(iOS 26.0, *) {
+      asset?.contentType ?? UTType(filenameExtension: fileExtension)
+    } else {
+      UTType(filenameExtension: fileExtension)
+    }
+`,
+`    let utType: UTType? = UTType(filenameExtension: fileExtension)
+`,
+  'Removed iOS 26 PHAsset.contentType usage in MediaHandler.swift (getMimeType from asset)'
+)
+
+patchImagePickerMediaHandler(
+`    let utType: UTType? = if #available(iOS 26.0, *) {
+      resource.contentType
+    } else {
+      UTType(resource.uniformTypeIdentifier) ?? UTType(filenameExtension: fileExtension)
+    }
+`,
+`    let utType: UTType? = UTType(resource.uniformTypeIdentifier) ?? UTType(filenameExtension: fileExtension)
+`,
+  'Removed iOS 26 PHAssetResource.contentType usage in MediaHandler.swift (getMimeType from resource)'
+)
+
 // 1. ExpoModulesJSI Package.swift
 const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
 if (fs.existsSync(jsiPackagePath)) {

@@ -14,6 +14,143 @@ if (fs.existsSync(dateComponentsSerializerPath)) {
   }
 }
 
+// 0.5. expo-router: remove iOS 26 Toolbar APIs that fail on Xcode 16 / iOS 18 SDK runners
+const expoRouterDir = path.join(process.cwd(), 'node_modules', 'expo-router', 'ios')
+function patchExpoRouterToolbar(fileName, oldBlock, newBlock, label) {
+  const filePath = path.join(expoRouterDir, fileName)
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  const orig = content
+  if (content.includes(oldBlock)) {
+    content = content.replace(oldBlock, newBlock)
+    if (content !== orig) {
+      fs.writeFileSync(filePath, content, 'utf8')
+      console.log(`[patch-swift-packages] ${label}`)
+    }
+  } else {
+    console.log(`[patch-swift-packages] WARN: could not find ${label} block in ${fileName}, version may have changed`)
+  }
+}
+
+patchExpoRouterToolbar(
+  path.join('Toolbar', 'RouterToolbarHostView.swift'),
+`            if #available(iOS 26.0, *) {
+              if let hidesSharedBackground = menu.hidesSharedBackground {
+                item.hidesSharedBackground = hidesSharedBackground
+              }
+              if let sharesBackground = menu.sharesBackground {
+                item.sharesBackground = sharesBackground
+              }
+            }
+`,
+'',
+  'Removed iOS 26 shared background properties from RouterToolbarHostView.swift'
+)
+
+patchExpoRouterToolbar(
+  path.join('Toolbar', 'RouterToolbarItemView.swift'),
+`    } else if type == .searchBar {
+      guard #available(iOS 26.0, *), let controller = self.host?.findViewController() else {
+        // Check for iOS 26, should already be guarded by the JS side, so this warning will only fire if controller is nil
+        logger?.warn(
+          "[expo-router] navigationItem.searchBarPlacementBarButtonItem not available. This is most likely a bug in expo-router."
+        )
+        currentBarButtonItem = nil
+        return
+      }
+      guard let navController = controller.navigationController else {
+        currentBarButtonItem = nil
+        return
+      }
+      guard navController.isNavigationBarHidden == false else {
+        logger?.warn(
+          "[expo-router] Toolbar.SearchBarPreferredSlot should only be used when stack header is shown."
+        )
+        currentBarButtonItem = nil
+        return
+      }
+
+      item = controller.navigationItem.searchBarPlacementBarButtonItem
+    } else {
+`,
+`    } else if type == .searchBar {
+      // Search bar toolbar items require iOS 26 APIs (searchBarPlacementBarButtonItem) not
+      // available in the Xcode 16 / iOS 18 SDK of the CI runner. This app does not use Toolbar.
+      logger?.warn(
+        "[expo-router] Toolbar.SearchBarPreferredSlot requires iOS 26 APIs not available on this build. This is most likely a bug in expo-router."
+      )
+      currentBarButtonItem = nil
+      return
+    } else {
+`,
+  'Replaced searchBar toolbar item branch with iOS 26-free fallback in RouterToolbarItemView.swift'
+)
+
+patchExpoRouterToolbar(
+  path.join('Toolbar', 'RouterToolbarItemView.swift'),
+`    if #available(iOS 26.0, *) {
+      item.hidesSharedBackground = hidesSharedBackground
+      item.sharesBackground = sharesBackground
+    }
+    item.style = barButtonItemStyle ?? .plain
+`,
+`    item.style = barButtonItemStyle ?? .plain
+`,
+  'Removed iOS 26 shared background properties from RouterToolbarItemView.swift'
+)
+
+patchExpoRouterToolbar(
+  path.join('Toolbar', 'RouterToolbarItemView.swift'),
+`    if #available(iOS 26.0, *) {
+      if let badgeConfig = badgeConfiguration {
+        var badge = UIBarButtonItem.Badge.indicator()
+        if let value = badgeConfig.value {
+          badge = .string(value)
+        }
+        if let backgroundColor = badgeConfig.backgroundColor {
+          badge.backgroundColor = backgroundColor
+        }
+        if let foregroundColor = badgeConfig.color {
+          badge.foregroundColor = foregroundColor
+        }
+        if badgeConfig.fontFamily != nil || badgeConfig.fontSize != nil
+          || badgeConfig.fontWeight != nil {
+          let font = RouterFontUtils.convertTitleStyleToFont(
+            TitleStyle(
+              fontFamily: badgeConfig.fontFamily,
+              fontSize: badgeConfig.fontSize,
+              fontWeight: badgeConfig.fontWeight
+            ))
+          badge.font = font
+        }
+        item.badge = badge
+      } else {
+        item.badge = nil
+      }
+    }
+  }
+`,
+`    // iOS 26 UIBarButtonItem.Badge APIs removed for Xcode 16 / iOS 18 SDK compatibility
+  }
+`,
+  'Removed iOS 26 badge APIs from RouterToolbarItemView.swift'
+)
+
+patchExpoRouterToolbar(
+  path.join('Toolbar', 'RouterToolbarModule.swift'),
+`    case .prominent:
+      if #available(iOS 26.0, *) {
+        return .prominent
+      } else {
+        return .done
+      }
+`,
+`    case .prominent:
+      return .done
+`,
+  'Replaced iOS 26 .prominent button style with .done in RouterToolbarModule.swift'
+)
+
 // 1. ExpoModulesJSI Package.swift
 const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
 if (fs.existsSync(jsiPackagePath)) {

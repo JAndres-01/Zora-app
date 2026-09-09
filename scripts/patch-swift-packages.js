@@ -193,6 +193,104 @@ patchImagePickerMediaHandler(
   'Removed iOS 26 PHAssetResource.contentType usage in MediaHandler.swift (getMimeType from resource)'
 )
 
+// 0.7. @expo/ui: remove iOS 26 SwiftUI APIs (DrawOnSymbolEffect / DrawOffSymbolEffect / lineHeight(.exact:))
+// that fail on Xcode 16 / iOS 18 SDK runners
+const expoUIDir = path.join(process.cwd(), 'node_modules', '@expo', 'ui', 'ios')
+function patchExpoUIFile(fileName, oldBlock, newBlock, label) {
+  const filePath = path.join(expoUIDir, fileName)
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  const orig = content
+  if (content.includes(oldBlock)) {
+    content = content.replace(oldBlock, newBlock)
+    if (content !== orig) {
+      fs.writeFileSync(filePath, content, 'utf8')
+      console.log(`[patch-swift-packages] ${label}`)
+    }
+  } else {
+    console.log(`[patch-swift-packages] WARN: could not find ${label} block in ${fileName}, version may have changed`)
+  }
+}
+
+patchExpoUIFile(
+  path.join('Modifiers', 'SymbolEffectModifier.swift'),
+`@available(iOS 26.0, tvOS 26.0, *)
+private func buildDrawOnEffect(_ config: SymbolEffectConfig) -> DrawOnSymbolEffect {
+  return switch config.scope {
+  case .byLayer: .drawOn.byLayer
+  case .individually: .drawOn.individually
+  case .wholeSymbol: .drawOn.wholeSymbol
+  default: .drawOn
+  }
+}
+
+@available(iOS 26.0, tvOS 26.0, *)
+private func buildDrawOffEffect(_ config: SymbolEffectConfig) -> DrawOffSymbolEffect {
+  let played: DrawOffSymbolEffect = switch config.playbackStyle {
+  case .reversed: .drawOff.reversed
+  case .nonReversed: .drawOff.nonReversed
+  default: .drawOff
+  }
+  return switch config.scope {
+  case .byLayer: played.byLayer
+  case .individually: played.individually
+  case .wholeSymbol: played.wholeSymbol
+  default: played
+  }
+}
+`,
+`/* iOS 26 DrawOn/DrawOff symbol effects removed for Xcode 16 / iOS 18 SDK compatibility */
+`,
+  'Removed iOS 26 DrawOn/DrawOff symbol effect builders from SymbolEffectModifier.swift'
+)
+
+patchExpoUIFile(
+  path.join('Modifiers', 'SymbolEffectModifier.swift'),
+`  case .drawOn:
+    if #available(iOS 26.0, tvOS 26.0, *) {
+      view.symbolEffect(buildDrawOnEffect(config), options: options, isActive: isActive)
+    } else {
+      view
+    }
+  case .drawOff:
+    if #available(iOS 26.0, tvOS 26.0, *) {
+      view.symbolEffect(buildDrawOffEffect(config), options: options, isActive: isActive)
+    } else {
+      view
+    }
+`,
+`  case .drawOn:
+    /* iOS 26 DrawOn symbol effect removed for Xcode 16 / iOS 18 SDK compatibility */
+    view
+  case .drawOff:
+    /* iOS 26 DrawOff symbol effect removed for Xcode 16 / iOS 18 SDK compatibility */
+    view
+`,
+  'Neutralized iOS 26 drawOn/drawOff dispatch in SymbolEffectModifier.swift'
+)
+
+patchExpoUIFile(
+  path.join('Modifiers', 'ViewModifierRegistry.swift'),
+`  func body(content: Content) -> some View {
+    if let value {
+      if #available(iOS 26.0, macOS 26.0, tvOS 26.0, *) {
+        content.lineHeight(.exact(points: value))
+      } else {
+        content
+      }
+    } else {
+      content
+    }
+  }
+`,
+`  func body(content: Content) -> some View {
+    /* iOS 26 lineHeight(.exact:) modifier removed for Xcode 16 / iOS 18 SDK compatibility */
+    content
+  }
+`,
+  'Neutralized iOS 26 lineHeight(.exact:) modifier in ViewModifierRegistry.swift'
+)
+
 // 1. ExpoModulesJSI Package.swift
 const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
 if (fs.existsSync(jsiPackagePath)) {

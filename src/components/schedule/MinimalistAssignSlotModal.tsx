@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -6,19 +6,16 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Animated,
-  PanResponder,
 } from 'react-native'
 import type { Subject, Schedule } from '@/types/personal'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
+import { SCHEDULE_DAYS } from '@/constants/dates'
 import { X, Check, Trash2 } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { personalStorage } from '@/lib/personalStorage'
-import { DAYS_NUM_NAME } from '@/constants/dates'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
-import { APPLE_EASING } from '@/constants/animations'
 import { generateId } from '@/lib/idGenerator'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
@@ -37,8 +34,6 @@ interface MinimalistAssignSlotModalProps {
   onClearSlotCustom?: (slotId: string, day: number, block: number) => Promise<{ error: Error | null }>
 }
 
-const DAYS = DAYS_NUM_NAME
-
 export function MinimalistAssignSlotModal({
   visible,
   onClose,
@@ -51,8 +46,6 @@ export function MinimalistAssignSlotModal({
   onSaveSlotCustom,
   onClearSlotCustom,
 }: MinimalistAssignSlotModalProps) {
-  const [dayOfWeek, setDayOfWeek] = useState(initialDay)
-  const [blockNumber, setBlockNumber] = useState(initialBlock)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -69,34 +62,26 @@ export function MinimalistAssignSlotModal({
   })
 
   useEffect(() => {
-    setDayOfWeek(initialDay)
-    setBlockNumber(initialBlock)
     if (existingSchedule) {
       setSelectedSubjectId(existingSchedule.subject_id || null)
     } else {
       setSelectedSubjectId(null)
     }
-  }, [initialDay, initialBlock, existingSchedule, visible])
+  }, [existingSchedule, visible])
 
-  const handleSave = async () => {
-    if (!selectedSubjectId) {
-      Alert.alert('Selecciona una materia', 'Por favor selecciona la materia para este bloque.')
-      triggerHaptic('error')
-      return
-    }
-
-    const blockDef = PERSONAL_SCHEDULE_BLOCKS.find((b) => b.block === blockNumber)
+  const handleSelectSubject = async (subjectId: string) => {
+    const blockDef = PERSONAL_SCHEDULE_BLOCKS.find((b) => b.block === initialBlock)
     if (!blockDef) return
 
     setLoading(true)
-    triggerHaptic('medium')
+    triggerHaptic('selection')
 
     try {
       const slotData: Schedule = {
         id: existingSchedule?.id || generateId('sched'),
-        day_of_week: dayOfWeek,
-        block_number: blockNumber,
-        subject_id: selectedSubjectId,
+        day_of_week: initialDay,
+        block_number: initialBlock,
+        subject_id: subjectId,
         start_time: blockDef.startTime,
         end_time: blockDef.endTime,
         classroom_room: existingSchedule?.classroom_room || '',
@@ -113,7 +98,7 @@ export function MinimalistAssignSlotModal({
       onScheduleSaved()
       handleSmoothClose()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'No se pudo guardar la clase.'
+      const msg = err instanceof Error ? err.message : 'No se pudo asignar la materia.'
       Alert.alert('Error', msg)
       triggerHaptic('error')
     } finally {
@@ -123,13 +108,14 @@ export function MinimalistAssignSlotModal({
 
   const handleClearSlot = async () => {
     setLoading(true)
+    triggerHaptic('light')
     try {
       if (onClearSlotCustom) {
-        const slotId = existingSchedule?.id || `csched_${dayOfWeek}_${blockNumber}`
-        const res = await onClearSlotCustom(slotId, dayOfWeek, blockNumber)
+        const slotId = existingSchedule?.id || `csched_${initialDay}_${initialBlock}`
+        const res = await onClearSlotCustom(slotId, initialDay, initialBlock)
         if (res.error) throw res.error
       } else {
-        await personalStorage.clearScheduleSlot(dayOfWeek, blockNumber)
+        await personalStorage.clearScheduleSlot(initialDay, initialBlock)
       }
 
       triggerHaptic('success')
@@ -137,12 +123,21 @@ export function MinimalistAssignSlotModal({
       handleSmoothClose()
     } catch (err) {
       logger.error('Error limpiando bloque:', err)
+      Alert.alert('Error', 'No se pudo liberar el bloque.')
     } finally {
       setLoading(false)
     }
   }
 
   if (!modalVisible) return null
+
+  const dayName = SCHEDULE_DAYS.find((d) => d.num === initialDay)?.name || 'Día'
+  const blockDef = PERSONAL_SCHEDULE_BLOCKS.find((b) => b.block === initialBlock)
+  const slotSubtitle = blockDef
+    ? `${dayName} · Bloque ${initialBlock} (${blockDef.startTime} - ${blockDef.endTime})`
+    : dayName
+
+  const safeSubjects = Array.isArray(subjects) ? subjects.filter(Boolean) : []
 
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
@@ -151,179 +146,94 @@ export function MinimalistAssignSlotModal({
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
 
-        <Animated.View style={[styles.sheetContainer, { transform: [{ translateY: Animated.add(slideAnim, panY) }] }]}>
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+            { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
+          ]}
+        >
           {/* Header */}
           <View style={styles.sheetHeader} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
-            <Text style={styles.sheetTitle}>
-              {existingSchedule ? 'Editar Clase del Horario' : 'Asignar Clase'}
-            </Text>
-            <Pressable onPress={handleSmoothClose} hitSlop={12} style={styles.closeBtn}>
-              <X size={18} color="#A1A1AA" />
-            </Pressable>
+            <View style={styles.headerRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sheetTitle}>
+                  {existingSchedule ? 'Editar Clase' : 'Asignar Materia'}
+                </Text>
+                <Text style={styles.sheetSubtitle}>{slotSubtitle}</Text>
+              </View>
+
+              <Pressable onPress={handleSmoothClose} hitSlop={12} style={styles.closeBtn}>
+                <X size={18} color="#A1A1AA" />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
-            {/* Selector de Día */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>DÍA DE LA SEMANA</Text>
-              <View style={styles.daySelectorRow}>
-                {DAYS.map((d) => {
-                  const isSelected = dayOfWeek === d.num
+            {safeSubjects.length > 0 ? (
+              <View style={styles.subjectsList}>
+                {safeSubjects.map((s, idx) => {
+                  const isSelected = selectedSubjectId === s.id
+                  const isWhite = isWhiteColor(s.color)
+                  const isLast = idx === safeSubjects.length - 1
+
                   return (
                     <Pressable
-                      key={d.num}
-                      onPress={() => {
-                        triggerHaptic('selection')
-                        setDayOfWeek(d.num)
-                      }}
+                      key={s.id}
+                      onPress={() => handleSelectSubject(s.id)}
+                      disabled={loading}
                       style={[
-                        styles.dayPill,
-                        isSelected && styles.dayPillActive,
+                        styles.subjectRow,
+                        !isLast && styles.subjectRowBorder,
+                        isSelected && styles.subjectRowSelected,
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.dayPillText,
-                          isSelected && styles.dayPillTextActive,
-                        ]}
-                      >
-                        {d.name.slice(0, 3)}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </View>
-
-            {/* Selector de Bloque (Filas Abiertas y Continuas) */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>BLOQUE HORARIO (1H 30M)</Text>
-              <View style={styles.blocksList}>
-                {PERSONAL_SCHEDULE_BLOCKS.map((b, idx) => {
-                  const isSelected = blockNumber === b.block
-                  const isLast = idx === PERSONAL_SCHEDULE_BLOCKS.length - 1
-                  return (
-                    <Pressable
-                      key={b.block}
-                      onPress={() => {
-                        triggerHaptic('selection')
-                        setBlockNumber(b.block)
-                      }}
-                      style={[
-                        styles.blockRow,
-                        !isLast && styles.blockRowBorder,
-                        isSelected && styles.blockRowActive,
-                      ]}
-                    >
-                      <View style={styles.blockRowLeft}>
+                      <View style={styles.subjectLeft}>
                         <View
                           style={[
-                            styles.blockNumberBadge,
-                            isSelected && styles.blockNumberBadgeActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.blockNumberText,
-                              isSelected && styles.blockNumberTextActive,
-                            ]}
-                          >
-                            {b.block}
-                          </Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.blockLabelText,
-                            isSelected && styles.blockLabelTextActive,
-                          ]}
-                        >
-                          {b.label}
-                        </Text>
-                      </View>
-
-                      {isSelected && <Check size={16} color="#FFFFFF" strokeWidth={2.5} />}
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </View>
-
-            {/* Selector de Materia (Grid Abierta sin Cards Pesadas) */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>SELECCIONA LA MATERIA</Text>
-
-              {subjects.length > 0 ? (
-                <View style={styles.subjectsGrid}>
-                  {subjects.map((s) => {
-                    const isSelected = selectedSubjectId === s.id
-                    const isWhite = isWhiteColor(s.color)
-                    return (
-                      <Pressable
-                        key={s.id}
-                        onPress={() => {
-                          triggerHaptic('selection')
-                          setSelectedSubjectId(s.id)
-                        }}
-                        style={[
-                          styles.subjectChip,
-                          isSelected && styles.subjectChipSelected,
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.dot,
+                            styles.subjDot,
                             { backgroundColor: s.color || '#FFFFFF' },
                             isWhite && styles.whiteDotBorder,
                           ]}
                         />
-                        <Text
-                          style={[
-                            styles.subjectChipText,
-                            isSelected && styles.subjectChipTextSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {s.name}
-                        </Text>
-                      </Pressable>
-                    )
-                  })}
-                </View>
-              ) : (
-                <Text style={styles.emptySubjsNotice}>
-                  No tienes materias creadas. Primero crea tus materias desde la pestaña de Horario.
-                </Text>
-              )}
-            </View>
+                        <View style={styles.subjectInfo}>
+                          <Text style={[styles.subjectName, isSelected && styles.subjectNameSelected]} numberOfLines={1}>
+                            {s.name}
+                          </Text>
+                          {Boolean(s.teacher_name) && (
+                            <Text style={styles.subjectTeacher} numberOfLines={1}>
+                              {s.teacher_name}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
 
-            {/* Botones de Acción */}
-            <View style={styles.actionButtonsCol}>
+                      {isSelected && (
+                        <View style={styles.checkBadge}>
+                          <Check size={13} color="#FFFFFF" strokeWidth={2.8} />
+                        </View>
+                      )}
+                    </Pressable>
+                  )
+                })}
+              </View>
+            ) : (
+              <Text style={styles.emptySubjsNotice}>
+                No tienes materias registradas aún. Créalas primero desde el botón Materias.
+              </Text>
+            )}
+
+            {/* Acción de Liberar Bloque */}
+            {Boolean(existingSchedule) && (
               <Pressable
-                onPress={handleSave}
+                onPress={handleClearSlot}
                 disabled={loading}
-                style={styles.saveBtn}
+                style={styles.clearSlotBtn}
               >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#09090B" />
-                ) : (
-                  <Text style={styles.saveBtnText}>
-                    {existingSchedule ? 'Guardar Cambios' : 'Asignar al Horario'}
-                  </Text>
-                )}
+                <Trash2 size={13.5} color="#EF4444" />
+                <Text style={styles.clearSlotText}>Liberar hora (dejar libre)</Text>
               </Pressable>
-
-              {existingSchedule && (
-                <Pressable
-                  onPress={handleClearSlot}
-                  disabled={loading}
-                  style={styles.clearSlotBtn}
-                >
-                  <Trash2 size={14} color="#EF4444" />
-                  <Text style={styles.clearSlotText}>Dejar como Hora Libre</Text>
-                </Pressable>
-              )}
-            </View>
+            )}
           </ScrollView>
         </Animated.View>
       </View>
@@ -345,203 +255,127 @@ const styles = StyleSheet.create({
   },
   sheetContainer: {
     backgroundColor: '#0E0E11',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     borderTopWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.09)',
-    maxHeight: SCREEN_HEIGHT * 0.82,
+    maxHeight: SCREEN_HEIGHT * 0.55,
   },
   sheetHeader: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 14,
-    paddingHorizontal: 20,
-    position: 'relative',
+    paddingTop: 8,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
   },
   dragHandle: {
-    width: 36,
-    height: 4,
+    width: 32,
+    height: 3.5,
     borderRadius: 2,
     backgroundColor: '#3F3F46',
-    marginBottom: 12,
+    alignSelf: 'center',
+    marginBottom: 8,
   },
-  sheetTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  closeBtn: {
-    position: 'absolute',
-    right: 20,
-    top: 24,
-    padding: 4,
-  },
-  sheetScroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 36,
-  },
-  inputGroup: {
-    marginBottom: 20,
-    gap: 8,
-  },
-  label: {
-    color: '#71717A',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  daySelectorRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  dayPill: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  dayPillActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
-  },
-  dayPillText: {
-    color: '#71717A',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  dayPillTextActive: {
-    color: '#09090B',
-    fontWeight: '800',
-  },
-  blocksList: {
-    paddingHorizontal: 2,
-  },
-  blockRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
   },
-  blockRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  sheetTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
-  blockRowActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 10,
+  sheetSubtitle: {
+    color: '#71717A',
+    fontSize: 11.5,
+    fontWeight: '500',
+    marginTop: 1,
   },
-  blockRowLeft: {
+  closeBtn: {
+    padding: 4,
+  },
+  sheetScroll: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  subjectsList: {
+    paddingVertical: 2,
+  },
+  subjectRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderRadius: 8,
   },
-  blockNumberBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  subjectRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  subjectRowSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  subjectLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
+    flex: 1,
   },
-  blockNumberBadgeActive: {
-    backgroundColor: '#FFFFFF',
+  subjDot: {
+    width: 7.5,
+    height: 7.5,
+    borderRadius: 4,
   },
-  blockNumberText: {
-    color: '#71717A',
-    fontSize: 11,
-    fontWeight: '700',
+  subjectInfo: {
+    flex: 1,
+    gap: 1,
   },
-  blockNumberTextActive: {
-    color: '#09090B',
-    fontWeight: '800',
-  },
-  blockLabelText: {
-    color: '#A1A1AA',
+  subjectName: {
+    color: '#D4D4D8',
     fontSize: 13.5,
     fontWeight: '600',
+    letterSpacing: -0.2,
   },
-  blockLabelTextActive: {
+  subjectNameSelected: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  subjectsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  subjectTeacher: {
+    color: '#71717A',
+    fontSize: 11,
+    fontWeight: '500',
   },
-  subjectChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    gap: 7,
-  },
-  subjectChipSelected: {
+  checkBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  subjectChipText: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  subjectChipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  whiteDotBorder: WHITE_DOT_BORDER,
-  emptySubjsNotice: {
-    color: '#52525B',
-    fontSize: 12.5,
-    fontStyle: 'italic',
-    paddingVertical: 8,
-  },
-  actionButtonsCol: {
-    gap: 10,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  saveBtn: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  saveBtnText: {
-    color: '#09090B',
-    fontSize: 14,
-    fontWeight: '800',
   },
   clearSlotBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(239, 68, 68, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.18)',
+    paddingVertical: 9,
+    marginTop: 12,
+    marginBottom: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
   clearSlotText: {
     color: '#EF4444',
-    fontSize: 12.5,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
   },
+  emptySubjsNotice: {
+    color: '#52525B',
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 18,
+    fontStyle: 'italic',
+  },
+  whiteDotBorder: WHITE_DOT_BORDER,
 })

@@ -67,24 +67,6 @@ export interface SystemSettingsModalProps {
   onClearData: () => void
 }
 
-function parseDateString(
-  str?: string,
-  defaultYear?: number,
-  defaultMonth?: number,
-  defaultDay?: number
-): Date {
-  if (str) {
-    const parts = str.split('-').map((p) => parseInt(p, 10))
-    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-      return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0)
-    }
-  }
-  const y = defaultYear || new Date().getFullYear()
-  const m = defaultMonth !== undefined ? defaultMonth : 0
-  const d = defaultDay || 1
-  return new Date(y, m, d, 12, 0, 0)
-}
-
 function formatReadableDate(str?: string, fallback: string = ''): string {
   if (!str) return fallback
   try {
@@ -342,7 +324,6 @@ export function SystemSettingsModal({
                   activeDatePicker={activeDatePicker}
                   currentYear={currentYear}
                   formatReadableDate={formatReadableDate}
-                  parseDateString={parseDateString}
                   onToggleDatePicker={(key) =>
                     setActiveDatePicker(activeDatePicker === key ? null : key)
                   }
@@ -368,7 +349,6 @@ export function SystemSettingsModal({
                   activeDatePicker={activeDatePicker}
                   currentYear={currentYear}
                   formatReadableDate={formatReadableDate}
-                  parseDateString={parseDateString}
                   onToggleDatePicker={(key) =>
                     setActiveDatePicker(activeDatePicker === key ? null : key)
                   }

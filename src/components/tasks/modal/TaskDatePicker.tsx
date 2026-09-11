@@ -1,14 +1,29 @@
-import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, Animated, Platform } from 'react-native'
-import { GraduationCap, Calendar, Clock, ChevronRight } from 'lucide-react-native'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Animated,
+  Platform,
+  LayoutChangeEvent,
+} from 'react-native'
+import {
+  GraduationCap,
+  Calendar,
+  Clock,
+  ChevronRight,
+  MapPin,
+  User,
+} from 'lucide-react-native'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import type { Schedule, Subject } from '@/types/personal'
-import { isWhiteColor } from '@/constants/theme'
-import { DAYS_SHORT, MONTHS_SHORT } from '@/constants/dates'
+import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
+import { DAYS_SHORT, MONTHS_SHORT, DAYS_WITH_SHORT } from '@/constants/dates'
 import { triggerHaptic } from '@/lib/personalHaptics'
-import { DEFAULT_CLASS_START_TIME } from '@/constants/defaults'
 import { formatTime12h } from '@/lib/academicDateUtils'
-import { LAYOUT_EASE } from '@/constants/animations'
+import { LAYOUT_EASE, SPRING_SLIDE_INDICATOR } from '@/constants/animations'
+import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
 
 export interface TaskDatePickerProps {
   dueDate: string
@@ -46,17 +61,48 @@ export function TaskDatePicker({
   slideAnim,
   onClosePicker,
 }: TaskDatePickerProps) {
+  const currentDay = new Date().getDay()
   const [datePickerTab, setDatePickerTab] = useState<'class' | 'manual'>('class')
   const [selectedClassDay, setSelectedClassDay] = useState<number>(() => {
-    const currentDay = new Date().getDay()
-    return currentDay >= 1 && currentDay <= 5 ? currentDay : 1
+    const d = new Date().getDay()
+    return d >= 1 && d <= 5 ? d : 1
   })
   const [showNativeDatePicker, setShowNativeDatePicker] = useState(false)
   const [showNativeTimePicker, setShowNativeTimePicker] = useState(false)
 
-  const filteredDaySchedules = schedules
-    .filter((s) => s.day_of_week === selectedClassDay)
-    .sort((a, b) => (a.block_number || 0) - (b.block_number || 0))
+  // Segment Mode Slider
+  const [segmentContainerWidth, setSegmentContainerWidth] = useState(0)
+  const segmentPillWidth = segmentContainerWidth > 0 ? Math.max(0, (segmentContainerWidth - 6) / 2) : 0
+  const modeSlideAnim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (segmentPillWidth > 0) {
+      Animated.spring(modeSlideAnim, {
+        toValue: datePickerTab === 'class' ? 0 : segmentPillWidth,
+        ...SPRING_SLIDE_INDICATOR,
+      }).start()
+    }
+  }, [datePickerTab, segmentPillWidth, modeSlideAnim])
+
+  // Day Selector Slider
+  const [dayContainerWidth, setDayContainerWidth] = useState(0)
+  const dayPillWidth = dayContainerWidth > 0 ? Math.max(0, (dayContainerWidth - 6) / 5) : 0
+  const activeDayIndex = Math.max(0, DAYS_WITH_SHORT.findIndex((d) => d.num === selectedClassDay))
+  const daySlideAnim = useRef(new Animated.Value(activeDayIndex * dayPillWidth)).current
+
+  useEffect(() => {
+    if (dayPillWidth > 0) {
+      Animated.spring(daySlideAnim, {
+        toValue: activeDayIndex * dayPillWidth,
+        ...SPRING_SLIDE_INDICATOR,
+      }).start()
+    }
+  }, [activeDayIndex, dayPillWidth, daySlideAnim])
+
+  const daySchedules = useMemo(
+    () => schedules.filter((s) => s.day_of_week === selectedClassDay),
+    [schedules, selectedClassDay]
+  )
 
   return (
     <Animated.View
@@ -68,8 +114,28 @@ export function TaskDatePicker({
       <View style={styles.inlineMenu}>
         <Text style={styles.inlineMenuHeader}>Fecha de entrega</Text>
 
-        {/* Selector de Modo: Para Clase vs Manual (Estilo Unificado Zora) */}
-        <View style={styles.modeSegmentRow}>
+        {/* 1. Selector de Modo: Para Clase vs Manual (Estilo Segmented Control de Horario) */}
+        <View
+          style={styles.segmentedContainer}
+          onLayout={(e: LayoutChangeEvent) => {
+            const w = e.nativeEvent.layout.width
+            if (w > 0 && Math.abs(w - segmentContainerWidth) > 1) {
+              setSegmentContainerWidth(w)
+            }
+          }}
+        >
+          {segmentPillWidth > 0 && (
+            <Animated.View
+              style={[
+                styles.activeSegmentPill,
+                {
+                  width: segmentPillWidth,
+                  transform: [{ translateX: modeSlideAnim }],
+                },
+              ]}
+            />
+          )}
+
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
@@ -78,19 +144,16 @@ export function TaskDatePicker({
               setShowNativeDatePicker(false)
               setShowNativeTimePicker(false)
             }}
-            style={[
-              styles.modeSegmentBtn,
-              datePickerTab === 'class' && styles.modeSegmentBtnActive,
-            ]}
+            style={styles.segmentButton}
           >
             <GraduationCap
-              size={13}
-              color={datePickerTab === 'class' ? '#09090B' : '#71717A'}
+              size={13.5}
+              color={datePickerTab === 'class' ? '#09090B' : '#A1A1AA'}
             />
             <Text
               style={[
-                styles.modeSegmentText,
-                datePickerTab === 'class' && styles.modeSegmentTextActive,
+                styles.segmentButtonText,
+                datePickerTab === 'class' && styles.segmentButtonTextActive,
               ]}
             >
               Para clase
@@ -103,19 +166,16 @@ export function TaskDatePicker({
               LAYOUT_EASE(180)
               setDatePickerTab('manual')
             }}
-            style={[
-              styles.modeSegmentBtn,
-              datePickerTab === 'manual' && styles.modeSegmentBtnActive,
-            ]}
+            style={styles.segmentButton}
           >
             <Calendar
-              size={13}
-              color={datePickerTab === 'manual' ? '#09090B' : '#71717A'}
+              size={13.5}
+              color={datePickerTab === 'manual' ? '#09090B' : '#A1A1AA'}
             />
             <Text
               style={[
-                styles.modeSegmentText,
-                datePickerTab === 'manual' && styles.modeSegmentTextActive,
+                styles.segmentButtonText,
+                datePickerTab === 'manual' && styles.segmentButtonTextActive,
               ]}
             >
               Manual
@@ -123,101 +183,157 @@ export function TaskDatePicker({
           </Pressable>
         </View>
 
-        {/* MODO 1: MINI CALENDARIO / SELECCIÓN DE CLASE */}
+        {/* MODO 1: VISTA DE CLASES DEL DÍA (Idéntico a MinimalistDayView de Horario) */}
         {datePickerTab === 'class' && (
           <View style={styles.classPickerContainer}>
-            {/* Selector de Día de la Semana */}
-            <View style={styles.classDayBar}>
-              {[
-                { day: 1, label: 'Lun' },
-                { day: 2, label: 'Mar' },
-                { day: 3, label: 'Mié' },
-                { day: 4, label: 'Jue' },
-                { day: 5, label: 'Vie' },
-              ].map((d) => {
-                const isSelected = selectedClassDay === d.day
+            {/* Selector de Días Horizontal */}
+            <View
+              style={styles.daySelectorContainer}
+              onLayout={(e: LayoutChangeEvent) => {
+                const w = e.nativeEvent.layout.width
+                if (w > 0 && Math.abs(w - dayContainerWidth) > 1) {
+                  setDayContainerWidth(w)
+                }
+              }}
+            >
+              {dayPillWidth > 0 && (
+                <Animated.View
+                  style={[
+                    styles.activeDayIndicator,
+                    {
+                      width: dayPillWidth,
+                      transform: [{ translateX: daySlideAnim }],
+                    },
+                  ]}
+                />
+              )}
+
+              {DAYS_WITH_SHORT.map((d) => {
+                const isSelected = selectedClassDay === d.num
+                const isToday = currentDay === d.num
+
                 return (
                   <Pressable
-                    key={d.day}
+                    key={d.num}
                     onPress={() => {
                       triggerHaptic('selection')
                       LAYOUT_EASE(180)
-                      setSelectedClassDay(d.day)
+                      setSelectedClassDay(d.num)
                     }}
-                    style={[
-                      styles.classDayPill,
-                      isSelected && styles.classDayPillActive,
-                    ]}
+                    style={styles.dayPill}
                   >
                     <Text
                       style={[
-                        styles.classDayText,
-                        isSelected && styles.classDayTextActive,
+                        styles.dayPillText,
+                        isSelected && styles.dayPillTextActive,
+                        isToday && !isSelected && styles.dayPillTextToday,
                       ]}
                     >
-                      {d.label}
+                      {d.short}
                     </Text>
+                    {isToday && (
+                      <View
+                        style={[
+                          styles.todayDot,
+                          isSelected && styles.todayDotActive,
+                        ]}
+                      />
+                    )}
                   </Pressable>
                 )
               })}
             </View>
 
-            {/* Lista de Clases del Día Seleccionado */}
-            <View style={styles.classListContainer}>
-              {filteredDaySchedules.length === 0 ? (
-                <View style={styles.emptyClassesBox}>
-                  <Text style={styles.emptyClassesText}>
-                    Sin clases para este día
-                  </Text>
-                </View>
-              ) : (
-                filteredDaySchedules.map((sched) => {
-                  const subj =
-                    subjects.find((s) => s.id === sched.subject_id) ||
-                    sched.subject
-                  const isWhite = isWhiteColor(subj?.color)
+            {/* Lista Continua de 4 Bloques (Estilo MinimalistDayView) */}
+            <View style={styles.blocksList}>
+              {PERSONAL_SCHEDULE_BLOCKS.map((blockDef, idx) => {
+                const sched = daySchedules.find((s) => s.block_number === blockDef.block)
+                const subj = sched?.subject_id
+                  ? subjects.find((s) => s.id === sched.subject_id) || sched.subject
+                  : sched?.subject
+                const isAssigned = Boolean(subj)
+                const isWhite = isWhiteColor(subj?.color)
+                const isLast = idx === PERSONAL_SCHEDULE_BLOCKS.length - 1
 
-                  return (
-                    <Pressable
-                      key={sched.id || `${sched.day_of_week}_${sched.block_number}`}
-                      onPress={() => onSelectClass(sched, subj)}
-                      style={styles.classCardRow}
-                    >
-                      <View style={styles.classTimeBox}>
-                        <Clock size={11} color="#A1A1AA" />
-                        <Text style={styles.classTimeText}>
-                          {sched.start_time || DEFAULT_CLASS_START_TIME}
-                        </Text>
+                return (
+                  <Pressable
+                    key={blockDef.block}
+                    onPress={() => {
+                      if (isAssigned && sched) {
+                        triggerHaptic('selection')
+                        onSelectClass(sched, subj)
+                      }
+                    }}
+                    disabled={!isAssigned}
+                    style={[
+                      styles.classRow,
+                      !isLast && styles.classRowBorder,
+                      !isAssigned && styles.classRowDisabled,
+                    ]}
+                  >
+                    {/* Columna Izquierda: Hora y Bloque */}
+                    <View style={styles.timeCol}>
+                      <Text style={[styles.timeStartText, !isAssigned && styles.timeTextDisabled]}>
+                        {sched?.start_time || blockDef.startTime}
+                      </Text>
+                      <Text style={[styles.timeEndText, !isAssigned && styles.timeTextDisabled]}>
+                        {sched?.end_time || blockDef.endTime}
+                      </Text>
+                      <View style={styles.blockBadge}>
+                        <Text style={styles.blockBadgeText}>C{blockDef.block}</Text>
                       </View>
+                    </View>
 
-                      <View style={styles.classSubjectInfo}>
-                        <View style={styles.classSubjectTitleRow}>
-                          <View
-                            style={[
-                              styles.dot,
-                              { backgroundColor: subj?.color || '#FFFFFF' },
-                              isWhite && styles.whiteDotBorder,
-                            ]}
-                          />
-                          <Text
-                            style={styles.classSubjectName}
-                            numberOfLines={1}
-                          >
-                            {subj?.name || 'Materia'}
-                          </Text>
+                    {/* Columna Derecha: Información de la Materia */}
+                    <View style={styles.contentCol}>
+                      {isAssigned ? (
+                        <>
+                          <View style={styles.subjectHeaderRow}>
+                            <View style={styles.subjectRow}>
+                              <View
+                                style={[
+                                  styles.subjDot,
+                                  { backgroundColor: subj?.color || '#FFFFFF' },
+                                  isWhite && styles.whiteDotBorder,
+                                ]}
+                              />
+                              <Text style={styles.subjectTitle} numberOfLines={1}>
+                                {subj?.name || 'Materia'}
+                              </Text>
+                            </View>
+                            <ChevronRight size={13} color="#71717A" />
+                          </View>
+
+                          {/* Metadatos: Aula y Docente */}
+                          <View style={styles.metaRow}>
+                            {Boolean(sched?.classroom_room) && (
+                              <View style={styles.metaItem}>
+                                <MapPin size={11} color="#71717A" />
+                                <Text style={styles.metaText}>{sched!.classroom_room}</Text>
+                              </View>
+                            )}
+
+                            {Boolean(sched?.classroom_room) && Boolean(subj?.teacher_name) && (
+                              <Text style={styles.metaDot}>•</Text>
+                            )}
+
+                            {Boolean(subj?.teacher_name) && (
+                              <View style={styles.metaItem}>
+                                <User size={11} color="#71717A" />
+                                <Text style={styles.metaText}>{subj!.teacher_name}</Text>
+                              </View>
+                            )}
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.freeSlotWrapper}>
+                          <Text style={styles.freeTitle}>Hora Libre</Text>
                         </View>
-                        {sched.classroom_room && (
-                          <Text style={styles.classRoomText}>
-                            {sched.classroom_room}
-                          </Text>
-                        )}
-                      </View>
-
-                      <ChevronRight size={13} color="#52525B" />
-                    </Pressable>
-                  )
-                })
-              )}
+                      )}
+                    </View>
+                  </Pressable>
+                )
+              })}
             </View>
           </View>
         )}
@@ -366,7 +482,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     marginTop: 6,
-    gap: 10,
+    gap: 12,
   },
   inlineMenuHeader: {
     color: '#71717A',
@@ -375,119 +491,211 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 2,
   },
-  modeSegmentRow: {
+  segmentedContainer: {
     flexDirection: 'row',
-    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    padding: 3,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    position: 'relative',
+    height: 40,
+    alignItems: 'center',
+    overflow: 'hidden',
   },
-  modeSegmentBtn: {
+  activeSegmentPill: {
+    position: 'absolute',
+    left: 3,
+    top: 3,
+    bottom: 3,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  segmentButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     gap: 6,
+    height: '100%',
+    zIndex: 1,
   },
-  modeSegmentBtnActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  modeSegmentText: {
+  segmentButtonText: {
     color: '#71717A',
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '600',
   },
-  modeSegmentTextActive: {
+  segmentButtonTextActive: {
     color: '#09090B',
     fontWeight: '800',
   },
   classPickerContainer: {
     gap: 10,
   },
-  classDayBar: {
+  daySelectorContainer: {
     flexDirection: 'row',
-    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    padding: 3,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  classDayPill: {
-    flex: 1,
-    paddingVertical: 7,
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  classDayPillActive: {
+  activeDayIndicator: {
+    position: 'absolute',
+    top: 3,
+    bottom: 3,
+    left: 3,
     backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  classDayText: {
+  dayPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7.5,
+    borderRadius: 10,
+    gap: 4,
+    zIndex: 2,
+  },
+  dayPillText: {
     color: '#71717A',
     fontSize: 11.5,
     fontWeight: '600',
   },
-  classDayTextActive: {
+  dayPillTextActive: {
     color: '#09090B',
     fontWeight: '800',
   },
-  classListContainer: {
-    gap: 6,
-  },
-  emptyClassesBox: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  emptyClassesText: {
-    color: '#71717A',
-    fontSize: 12,
-  },
-  classCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 10,
-    padding: 10,
-    gap: 10,
-  },
-  classTimeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  classTimeText: {
-    color: '#D4D4D8',
-    fontSize: 11,
+  dayPillTextToday: {
+    color: '#FFFFFF',
     fontWeight: '700',
   },
-  classSubjectInfo: {
-    flex: 1,
-    gap: 2,
+  todayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#10B981',
   },
-  classSubjectTitleRow: {
+  todayDotActive: {
+    backgroundColor: '#09090B',
+  },
+  blocksList: {
+    paddingHorizontal: 2,
+  },
+  classRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  classRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  classRowDisabled: {
+    opacity: 0.45,
+  },
+  timeCol: {
+    width: 52,
+    alignItems: 'flex-start',
+    gap: 1.5,
+    paddingTop: 1,
+  },
+  timeStartText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  timeEndText: {
+    color: '#71717A',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  timeTextDisabled: {
+    color: '#52525B',
+  },
+  blockBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+    marginTop: 2,
+  },
+  blockBadgeText: {
+    color: '#71717A',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  contentCol: {
+    flex: 1,
+    gap: 3,
+  },
+  subjectHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  subjectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  subjDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  whiteDotBorder: WHITE_DOT_BORDER,
+  subjectTitle: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    flex: 1,
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  classSubjectName: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3.5,
   },
-  classRoomText: {
+  metaText: {
     color: '#71717A',
     fontSize: 11,
+    fontWeight: '500',
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  metaDot: {
+    color: '#3F3F46',
+    fontSize: 10,
   },
-  whiteDotBorder: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+  freeSlotWrapper: {
+    paddingVertical: 4,
+    justifyContent: 'center',
+  },
+  freeTitle: {
+    color: '#52525B',
+    fontSize: 13,
+    fontWeight: '600',
   },
   nativePickerContainer: {
     gap: 10,
@@ -500,17 +708,17 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 9,
     gap: 8,
   },
   nativePickerBtnActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: '#FFFFFF',
   },
   nativeBtnInfo: {
     flex: 1,

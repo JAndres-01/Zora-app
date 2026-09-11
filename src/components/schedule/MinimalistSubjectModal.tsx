@@ -278,7 +278,7 @@ export function MinimalistSubjectModal({
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>NOMBRE DE LA MATERIA *</Text>
                 <View style={styles.inputWrapper}>
-                  <BookOpen size={15} color="#71717A" style={styles.inputIcon} />
+                  <BookOpen size={13.5} color="#71717A" style={styles.inputIcon} />
                   <TextInput
                     placeholder="Ej. Cálculo Multivariable, Física..."
                     placeholderTextColor="#71717A"
@@ -293,7 +293,7 @@ export function MinimalistSubjectModal({
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>PROFESOR / DOCENTE</Text>
                 <View style={styles.inputWrapper}>
-                  <User size={15} color="#71717A" style={styles.inputIcon} />
+                  <User size={13.5} color="#71717A" style={styles.inputIcon} />
                   <TextInput
                     placeholder="Ej. Ing. Carlos Mendoza"
                     placeholderTextColor="#71717A"
@@ -327,7 +327,7 @@ export function MinimalistSubjectModal({
                       >
                         {isSelected && (
                           <Check
-                            size={14}
+                            size={11}
                             color={isWhite ? '#09090B' : '#FFFFFF'}
                             strokeWidth={3}
                           />
@@ -350,12 +350,12 @@ export function MinimalistSubjectModal({
                   <>
                     {editingSubject ? (
                       <>
-                        <Check size={16} color="#09090B" strokeWidth={2.8} />
+                        <Check size={14} color="#09090B" strokeWidth={2.8} />
                         <Text style={styles.saveBtnText}>Guardar Cambios</Text>
                       </>
                     ) : (
                       <>
-                        <Plus size={16} color="#09090B" strokeWidth={2.8} />
+                        <Plus size={14} color="#09090B" strokeWidth={2.8} />
                         <Text style={styles.saveBtnText}>Añadir Materia</Text>
                       </>
                     )}
@@ -412,14 +412,14 @@ export function MinimalistSubjectModal({
                             hitSlop={8}
                             style={styles.actionIconBtn}
                           >
-                            <Pencil size={15} color="#A1A1AA" />
+                            <Pencil size={13.5} color="#A1A1AA" />
                           </Pressable>
                           <Pressable
                             onPress={() => handleDeleteSubject(s.id, s.name)}
                             hitSlop={8}
                             style={styles.actionIconBtn}
                           >
-                            <Trash2 size={15} color="#EF4444" />
+                            <Trash2 size={13.5} color="#EF4444" />
                           </Pressable>
                         </View>
                       </View>
@@ -453,24 +453,24 @@ const styles = StyleSheet.create({
   },
   sheetContainer: {
     backgroundColor: '#0E0E11',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     borderTopWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.09)',
-    maxHeight: SCREEN_HEIGHT * 0.88,
+    maxHeight: SCREEN_HEIGHT * 0.65,
   },
   sheetHeader: {
-    paddingTop: 12,
-    paddingBottom: 14,
-    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
   },
   dragHandle: {
-    width: 36,
-    height: 4,
+    width: 32,
+    height: 3.5,
     borderRadius: 2,
     backgroundColor: '#3F3F46',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -479,26 +479,26 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   sheetSubtitle: {
     color: '#71717A',
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 1,
   },
   closeBtn: {
     padding: 4,
   },
   sheetScroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 36,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   formSection: {
-    gap: 12,
-    paddingBottom: 16,
+    gap: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
@@ -506,35 +506,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 2,
   },
   sectionHeader: {
-    color: '#71717A',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  cancelEditBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  cancelEditBtnText: {
-    color: '#A1A1AA',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  label: {
     color: '#71717A',
     fontSize: 9.5,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  cancelEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  cancelEditBtnText: {
+    color: '#A1A1AA',
+    fontSize: 10.5,
+    fontWeight: '600',
+  },
+  inputGroup: {
+    gap: 4,
+  },
+  label: {
+    color: '#71717A',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -542,30 +543,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.035)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    height: 46,
-    gap: 8,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 38,
+    gap: 7,
   },
   inputIcon: {
-    marginRight: 2,
+    marginRight: 0,
   },
   textInput: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
+    paddingVertical: 0,
   },
   colorPaletteRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   colorCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -576,10 +578,10 @@ const styles = StyleSheet.create({
   colorCircleSelected: {
     transform: [{ scale: 1.15 }],
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.4,
+    shadowRadius: 2,
+    elevation: 3,
   },
   saveBtn: {
     flexDirection: 'row',
@@ -587,28 +589,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 13,
-    marginTop: 4,
+    borderRadius: 10,
+    height: 38,
+    marginTop: 2,
   },
   saveBtnText: {
     color: '#09090B',
-    fontSize: 13.5,
-    fontWeight: '800',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   listSection: {
-    marginTop: 16,
-    gap: 10,
-    marginBottom: 24,
+    marginTop: 10,
+    gap: 6,
+    marginBottom: 16,
   },
   subjectsList: {
-    paddingHorizontal: 2,
+    paddingHorizontal: 0,
   },
   subjectRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   subjectRowBorder: {
     borderBottomWidth: 1,
@@ -616,48 +618,48 @@ const styles = StyleSheet.create({
   },
   subjectRowEditing: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
+    borderRadius: 8,
+    paddingHorizontal: 6,
   },
   subjectLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flex: 1,
   },
   subjDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
+    width: 7.5,
+    height: 7.5,
+    borderRadius: 4,
   },
   subjectInfo: {
     flex: 1,
-    gap: 2,
+    gap: 1,
   },
   subjectName: {
     color: '#FFFFFF',
-    fontSize: 14.5,
-    fontWeight: '700',
+    fontSize: 13.5,
+    fontWeight: '600',
     letterSpacing: -0.2,
   },
   subjectTeacher: {
     color: '#71717A',
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '500',
   },
   subjectActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   actionIconBtn: {
-    padding: 6,
+    padding: 4,
   },
   emptyListNotice: {
     color: '#52525B',
-    fontSize: 12.5,
+    fontSize: 12,
     textAlign: 'center',
-    paddingVertical: 16,
+    paddingVertical: 12,
     fontStyle: 'italic',
   },
   whiteDotBorder: WHITE_DOT_BORDER,

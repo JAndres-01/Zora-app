@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -10,15 +10,13 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  PanResponder,
   Platform,
 } from 'react-native'
 import type { Subject } from '@/types/personal'
-import { X, Plus, Trash2, BookOpen, Check, User, Pencil, RotateCcw } from 'lucide-react-native'
+import { X, Trash2, Check, ArrowLeft } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { personalStorage } from '@/lib/personalStorage'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
-import { APPLE_EASING } from '@/constants/animations'
 import { generateId } from '@/lib/idGenerator'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
@@ -227,6 +225,7 @@ export function MinimalistSubjectModal({
   if (!modalVisible) return null
 
   const safeSubjects = Array.isArray(localSubjects) ? localSubjects.filter(Boolean) : []
+  const hasInput = name.trim().length > 0 || Boolean(editingSubject)
 
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
@@ -245,132 +244,106 @@ export function MinimalistSubjectModal({
           <View style={styles.sheetHeader} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
-              <View>
-                <Text style={styles.sheetTitle}>Gestionar Materias</Text>
-                <Text style={styles.sheetSubtitle}>
-                  {editingSubject ? 'Editando materia' : `${safeSubjects.length} registradas`}
-                </Text>
-              </View>
+              {editingSubject ? (
+                <Pressable
+                  onPress={handleCancelEdit}
+                  hitSlop={12}
+                  style={styles.backTitleBtn}
+                >
+                  <ArrowLeft size={17} color="#FFFFFF" />
+                  <Text style={styles.sheetTitle}>Editar Materia</Text>
+                </Pressable>
+              ) : (
+                <View>
+                  <Text style={styles.sheetTitle}>Gestionar Materias</Text>
+                  <Text style={styles.sheetSubtitle}>
+                    {safeSubjects.length === 1 ? '1 registrada' : `${safeSubjects.length} registradas`}
+                  </Text>
+                </View>
+              )}
 
-              <Pressable onPress={handleSmoothClose} hitSlop={12} style={styles.closeBtn}>
-                <X size={18} color="#A1A1AA" />
-              </Pressable>
+              <View style={styles.headerRightActions}>
+                {hasInput && (
+                  <Pressable
+                    onPress={handleSaveSubject}
+                    disabled={loading}
+                    hitSlop={12}
+                    style={styles.saveHeaderBtn}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#09090B" />
+                    ) : (
+                      <Text style={styles.saveHeaderBtnText}>
+                        {editingSubject ? 'Guardar' : 'Añadir'}
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
+
+                <Pressable onPress={handleSmoothClose} hitSlop={12} style={styles.closeBtn}>
+                  <X size={18} color="#A1A1AA" />
+                </Pressable>
+              </View>
             </View>
           </View>
 
-          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
-            {/* Formulario Abierto (Sin Card Externa) */}
-            <View style={styles.formSection}>
-              <View style={styles.boxHeaderRow}>
-                <Text style={styles.sectionHeader}>
-                  {editingSubject ? 'EDITAR MATERIA' : 'NUEVA MATERIA'}
-                </Text>
+          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Input Limpio de Nombre */}
+            <TextInput
+              placeholder="Ej. Cálculo Multivariable, Física..."
+              placeholderTextColor="#52525B"
+              value={name}
+              onChangeText={setName}
+              style={styles.cleanNameInput}
+            />
 
-                {Boolean(editingSubject) && (
-                  <Pressable onPress={handleCancelEdit} style={styles.cancelEditBtn}>
-                    <RotateCcw size={12} color="#A1A1AA" />
-                    <Text style={styles.cancelEditBtnText}>Cancelar</Text>
-                  </Pressable>
-                )}
-              </View>
+            {/* Input Limpio de Profesor / Detalles */}
+            <TextInput
+              placeholder="Profesor (opcional)..."
+              placeholderTextColor="#52525B"
+              value={teacher}
+              onChangeText={setTeacher}
+              style={styles.cleanTeacherInput}
+            />
 
-              {/* Nombre de la Materia */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>NOMBRE DE LA MATERIA *</Text>
-                <View style={styles.inputWrapper}>
-                  <BookOpen size={13.5} color="#71717A" style={styles.inputIcon} />
-                  <TextInput
-                    placeholder="Ej. Cálculo Multivariable, Física..."
-                    placeholderTextColor="#71717A"
-                    value={name}
-                    onChangeText={setName}
-                    style={styles.textInput}
-                  />
-                </View>
-              </View>
-
-              {/* Profesor / Docente */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>PROFESOR / DOCENTE</Text>
-                <View style={styles.inputWrapper}>
-                  <User size={13.5} color="#71717A" style={styles.inputIcon} />
-                  <TextInput
-                    placeholder="Ej. Ing. Carlos Mendoza"
-                    placeholderTextColor="#71717A"
-                    value={teacher}
-                    onChangeText={setTeacher}
-                    style={styles.textInput}
-                  />
-                </View>
-              </View>
-
-              {/* Selector de Color */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>COLOR IDENTIFICADOR</Text>
-                <View style={styles.colorPaletteRow}>
-                  {DISTINCT_PALETTE.map((color) => {
-                    const isSelected = selectedColor === color
-                    const isWhite = color === '#FFFFFF'
-                    return (
-                      <Pressable
-                        key={color}
-                        onPress={() => {
-                          triggerHaptic('selection')
-                          setSelectedColor(color)
-                        }}
-                        style={[
-                          styles.colorCircle,
-                          { backgroundColor: color },
-                          isWhite && styles.whiteColorBorder,
-                          isSelected && styles.colorCircleSelected,
-                        ]}
-                      >
-                        {isSelected && (
-                          <Check
-                            size={11}
-                            color={isWhite ? '#09090B' : '#FFFFFF'}
-                            strokeWidth={3}
-                          />
-                        )}
-                      </Pressable>
-                    )
-                  })}
-                </View>
-              </View>
-
-              {/* Botón Guardar */}
-              <Pressable
-                onPress={handleSaveSubject}
-                disabled={loading}
-                style={styles.saveBtn}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#09090B" />
-                ) : (
-                  <>
-                    {editingSubject ? (
-                      <>
-                        <Check size={14} color="#09090B" strokeWidth={2.8} />
-                        <Text style={styles.saveBtnText}>Guardar Cambios</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={14} color="#09090B" strokeWidth={2.8} />
-                        <Text style={styles.saveBtnText}>Añadir Materia</Text>
-                      </>
+            {/* Paleta de Colores Sutil */}
+            <View style={styles.colorPaletteRow}>
+              {DISTINCT_PALETTE.map((color) => {
+                const isSelected = selectedColor === color
+                const isWhite = color === '#FFFFFF'
+                return (
+                  <Pressable
+                    key={color}
+                    onPress={() => {
+                      triggerHaptic('selection')
+                      setSelectedColor(color)
+                    }}
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: color },
+                      isWhite && styles.whiteColorBorder,
+                      isSelected && styles.colorCircleSelected,
+                    ]}
+                  >
+                    {isSelected && (
+                      <Check
+                        size={11}
+                        color={isWhite ? '#09090B' : '#FFFFFF'}
+                        strokeWidth={3}
+                      />
                     )}
-                  </>
-                )}
-              </Pressable>
+                  </Pressable>
+                )
+              })}
             </View>
 
-            {/* Lista Abierta de Materias Registradas */}
-            <View style={styles.listSection}>
-              <Text style={styles.sectionHeader}>
-                MATERIAS REGISTRADAS ({safeSubjects.length})
-              </Text>
+            {/* Lista de Materias Registradas */}
+            {safeSubjects.length > 0 && (
+              <View style={styles.listSection}>
+                <Text style={styles.sectionHeader}>
+                  REGISTRADAS ({safeSubjects.length})
+                </Text>
 
-              {safeSubjects.length > 0 ? (
                 <View style={styles.subjectsList}>
                   {safeSubjects.map((s, idx) => {
                     const isEditing = editingSubject?.id === s.id
@@ -378,8 +351,9 @@ export function MinimalistSubjectModal({
                     const isLast = idx === safeSubjects.length - 1
 
                     return (
-                      <View
+                      <Pressable
                         key={s.id}
+                        onPress={() => handleStartEdit(s)}
                         style={[
                           styles.subjectRow,
                           !isLast && styles.subjectRowBorder,
@@ -395,7 +369,7 @@ export function MinimalistSubjectModal({
                             ]}
                           />
                           <View style={styles.subjectInfo}>
-                            <Text style={styles.subjectName} numberOfLines={1}>
+                            <Text style={[styles.subjectName, isEditing && styles.subjectNameEditing]} numberOfLines={1}>
                               {s.name}
                             </Text>
                             {Boolean(s.teacher_name) && (
@@ -406,32 +380,22 @@ export function MinimalistSubjectModal({
                           </View>
                         </View>
 
-                        <View style={styles.subjectActions}>
-                          <Pressable
-                            onPress={() => handleStartEdit(s)}
-                            hitSlop={8}
-                            style={styles.actionIconBtn}
-                          >
-                            <Pencil size={13.5} color="#A1A1AA" />
-                          </Pressable>
-                          <Pressable
-                            onPress={() => handleDeleteSubject(s.id, s.name)}
-                            hitSlop={8}
-                            style={styles.actionIconBtn}
-                          >
-                            <Trash2 size={13.5} color="#EF4444" />
-                          </Pressable>
-                        </View>
-                      </View>
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation()
+                            handleDeleteSubject(s.id, s.name)
+                          }}
+                          hitSlop={12}
+                          style={styles.actionIconBtn}
+                        >
+                          <Trash2 size={14} color="#71717A" />
+                        </Pressable>
+                      </Pressable>
                     )
                   })}
                 </View>
-              ) : (
-                <Text style={styles.emptyListNotice}>
-                  No tienes materias registradas aún. Completa el formulario superior para añadir tu primera materia.
-                </Text>
-              )}
-            </View>
+              </View>
+            )}
           </ScrollView>
         </Animated.View>
       </View>
@@ -477,6 +441,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  backTitleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sheetTitle: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -489,80 +458,49 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 1,
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  saveHeaderBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 13,
+    paddingVertical: 5.5,
+    borderRadius: 9,
+  },
+  saveHeaderBtnText: {
+    color: '#09090B',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   closeBtn: {
     padding: 4,
   },
   sheetScroll: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
-  formSection: {
-    gap: 8,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  boxHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  cleanNameInput: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingVertical: 6,
     marginBottom: 2,
   },
-  sectionHeader: {
-    color: '#71717A',
-    fontSize: 9.5,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  cancelEditBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  cancelEditBtnText: {
-    color: '#A1A1AA',
-    fontSize: 10.5,
-    fontWeight: '600',
-  },
-  inputGroup: {
-    gap: 4,
-  },
-  label: {
-    color: '#71717A',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.035)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    height: 38,
-    gap: 7,
-  },
-  inputIcon: {
-    marginRight: 0,
-  },
-  textInput: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-    paddingVertical: 0,
+  cleanTeacherInput: {
+    color: '#D4D4D8',
+    fontSize: 13.5,
+    lineHeight: 18,
+    paddingVertical: 4,
+    marginBottom: 10,
   },
   colorPaletteRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: 4,
+    paddingBottom: 14,
   },
   colorCircle: {
     width: 24,
@@ -583,25 +521,20 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    height: 38,
-    marginTop: 2,
-  },
-  saveBtnText: {
-    color: '#09090B',
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
   listSection: {
-    marginTop: 10,
+    marginTop: 4,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
     gap: 6,
     marginBottom: 16,
+  },
+  sectionHeader: {
+    color: '#71717A',
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   subjectsList: {
     paddingHorizontal: 0,
@@ -614,10 +547,10 @@ const styles = StyleSheet.create({
   },
   subjectRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
   },
   subjectRowEditing: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: 8,
     paddingHorizontal: 6,
   },
@@ -642,25 +575,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.2,
   },
+  subjectNameEditing: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   subjectTeacher: {
     color: '#71717A',
     fontSize: 11,
     fontWeight: '500',
   },
-  subjectActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   actionIconBtn: {
-    padding: 4,
-  },
-  emptyListNotice: {
-    color: '#52525B',
-    fontSize: 12,
-    textAlign: 'center',
-    paddingVertical: 12,
-    fontStyle: 'italic',
+    padding: 6,
   },
   whiteDotBorder: WHITE_DOT_BORDER,
 })

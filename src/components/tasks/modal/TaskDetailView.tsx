@@ -73,7 +73,7 @@ export function TaskDetailView({
   return (
     <>
       {/* ZONA SUPERIOR COMPLETA CON GESTO DE DESLIZAR */}
-      <View collapsable={false} {...panHandlers}>
+      <View collapsable={false} style={styles.headerPanArea} {...panHandlers}>
         {/* Tirador Superior Grande */}
         <View style={styles.dragHandleTopArea}>
           <View style={styles.dragHandle} />
@@ -310,6 +310,9 @@ export function TaskDetailView({
 }
 
 const styles = StyleSheet.create({
+  headerPanArea: {
+    backgroundColor: 'transparent',
+  },
   dragHandleTopArea: {
     paddingTop: 12,
     paddingBottom: 10,

@@ -249,6 +249,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 14,
     paddingHorizontal: 20,
+    backgroundColor: 'transparent',
   },
   dragHandle: {
     width: 36,

@@ -332,7 +332,7 @@ export function MinimalistTaskModal({
   // Gesto PanResponder para arrastrar hacia abajo y cerrar
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
@@ -353,7 +353,7 @@ export function MinimalistTaskModal({
       },
       onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 60 || gestureState.vy > 0.35) {
+        if (gestureState.dy > 50 || gestureState.vy > 0.3) {
           handleSmoothClose()
         } else {
           Animated.spring(panY, {
@@ -897,6 +897,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'transparent',
     position: 'relative',
   },
   headerRow: {

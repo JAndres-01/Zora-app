@@ -459,6 +459,7 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     paddingBottom: 10,
+    backgroundColor: 'transparent',
   },
   dragHandle: {
     width: 36,

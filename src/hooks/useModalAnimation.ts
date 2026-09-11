@@ -35,8 +35,8 @@ export function useModalAnimation({
   visible,
   onClose,
   onClosed,
-  dismissThreshold = 70,
-  dismissVelocity = 0.45,
+  dismissThreshold = 50,
+  dismissVelocity = 0.3,
 }: UseModalAnimationOptions): UseModalAnimationReturn {
   const [modalVisible, setModalVisible] = useState(visible)
   const isClosingRef = useRef(false)
@@ -152,7 +152,7 @@ export function useModalAnimation({
   // Gesto PanResponder para arrastrar hacia abajo y cerrar
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
@@ -173,8 +173,8 @@ export function useModalAnimation({
       },
       onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        const threshold = dismissThresholdRef.current ?? 60
-        const velocity = dismissVelocityRef.current ?? 0.35
+        const threshold = dismissThresholdRef.current ?? 50
+        const velocity = dismissVelocityRef.current ?? 0.3
         if (gestureState.dy > threshold || gestureState.vy > velocity) {
           handleSmoothClose()
         } else {

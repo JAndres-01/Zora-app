@@ -162,21 +162,22 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       if (cachedScheds.length > 0) setClassSchedules(cachedScheds)
     })
 
-    // 2. Verificar sesión actual en Supabase
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+    // 2. Verificar sesión actual en Supabase (no bloqueante para inicio instantáneo)
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       if (!isMounted) return
       setSession(currentSession)
       setUser(currentSession?.user || null)
+      setIsLoading(false)
 
       if (currentSession?.user) {
-        const profileData = await fetchUserProfile(currentSession.user.id)
-        if (isMounted) {
-          setRole(profileData.role)
-          syncClassTasks()
-          syncClassSchedule()
-        }
+        fetchUserProfile(currentSession.user.id).then((profileData) => {
+          if (isMounted) {
+            setRole(profileData.role)
+            syncClassTasks()
+            syncClassSchedule()
+          }
+        })
       }
-      setIsLoading(false)
     })
 
     // 3. Escuchar cambios de estado de autenticación

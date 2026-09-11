@@ -39,12 +39,15 @@ interface LiveStatusResult {
   subheadline: string
 }
 
-export function calculateLiveClassStatus(schedulesToday: Schedule[]): LiveStatusResult {
+export function calculateLiveClassStatus(
+  schedulesToday: Schedule[],
+  simulatedMinutes?: number
+): LiveStatusResult {
   const now = new Date()
   const day = now.getDay() // 0: Dom, 1: Lun ... 6: Sáb
 
-  // Fin de semana
-  if (day === 0 || day === 6) {
+  // Si hay simulación activa, ignorar bloqueo de fin de semana para pruebas
+  if (simulatedMinutes === undefined && (day === 0 || day === 6)) {
     return {
       status: 'weekend',
       activeSchedule: null,
@@ -57,7 +60,7 @@ export function calculateLiveClassStatus(schedulesToday: Schedule[]): LiveStatus
     }
   }
 
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  const currentMinutes = simulatedMinutes !== undefined ? simulatedMinutes : (now.getHours() * 60 + now.getMinutes())
   const schoolStart = timeToMinutes(DEFAULT_CLASS_START_TIME)
   const schoolEnd = timeToMinutes('13:00')
 
@@ -111,9 +114,9 @@ export function calculateLiveClassStatus(schedulesToday: Schedule[]): LiveStatus
           nextSchedule: nextSched || null,
           minutesRemaining,
           progressPercentage: Math.min(100, Math.max(0, progress)),
-          badgeText: 'Clase en Vivo',
+          badgeText: 'En curso',
           headline: sched.subject.name,
-          subheadline: `Quedan ${minutesRemaining} min • Termina a las ${blockDef.endTime}`,
+          subheadline: `${minutesRemaining} min restantes • Termina ${blockDef.endTime}`,
         }
       } else {
         return {
@@ -122,9 +125,9 @@ export function calculateLiveClassStatus(schedulesToday: Schedule[]): LiveStatus
           nextSchedule: nextSched || null,
           minutesRemaining,
           progressPercentage: Math.min(100, Math.max(0, progress)),
-          badgeText: 'Clase Libre',
-          headline: 'Hora Libre / Autoestudio',
-          subheadline: `Termina a las ${blockDef.endTime} (${minutesRemaining} min restantes)`,
+          badgeText: 'Hora libre',
+          headline: 'Autoestudio',
+          subheadline: `Hasta las ${blockDef.endTime} (${minutesRemaining} min)`,
         }
       }
     }
@@ -136,8 +139,8 @@ export function calculateLiveClassStatus(schedulesToday: Schedule[]): LiveStatus
     nextSchedule: null,
     minutesRemaining: 0,
     progressPercentage: 0,
-    badgeText: 'Clase Libre',
-    headline: 'Hora Libre',
-    subheadline: 'Sin materia asignada en este horario',
+    badgeText: 'Libre',
+    headline: 'Sin clases',
+    subheadline: 'No hay materia programada',
   }
 }

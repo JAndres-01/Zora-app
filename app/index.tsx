@@ -1,11 +1,12 @@
 import { Redirect } from 'expo-router'
 import { useClassAuth } from '@/context/ClassAuthContext'
+import { MinimalistSkeletonSplash } from '@/components/common/MinimalistSkeletonSplash'
 
 export default function Index() {
   const { isConnected, isLoading } = useClassAuth()
 
   if (isLoading) {
-    return null
+    return <MinimalistSkeletonSplash />
   }
 
   if (!isConnected) {

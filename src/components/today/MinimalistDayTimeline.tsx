@@ -1,4 +1,4 @@
-import { useRef, memo } from 'react'
+import { useRef, useEffect, memo } from 'react'
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native'
 import type { Schedule, Task } from '@/types/personal'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
@@ -9,6 +9,7 @@ import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 interface MinimalistDayTimelineProps {
   schedulesToday: Schedule[]
   tasks?: Task[]
+  simulatedMinutes?: number
   onToggleTask?: (taskId: string, currentStatus: string) => void
   onOpenTaskDetail?: (task: Task) => void
 }
@@ -83,11 +84,49 @@ const TimelineTaskLine = memo(function TimelineTaskLine({
 export const MinimalistDayTimeline = memo(function MinimalistDayTimeline({
   schedulesToday = [],
   tasks = [],
+  simulatedMinutes,
   onToggleTask,
   onOpenTaskDetail,
 }: MinimalistDayTimelineProps) {
   const now = new Date()
-  const currentMins = now.getHours() * 60 + now.getMinutes()
+  const currentMins = simulatedMinutes !== undefined ? simulatedMinutes : (now.getHours() * 60 + now.getMinutes())
+
+  const pulseAnim = useRef(new Animated.Value(1)).current
+  const pulseOpacity = useRef(new Animated.Value(0.4)).current
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulseAnim, {
+            toValue: 1.85,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseOpacity, {
+            toValue: 0,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseOpacity, {
+            toValue: 0.5,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.delay(300),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [pulseAnim, pulseOpacity])
 
   return (
     <View style={styles.container}>
@@ -144,8 +183,16 @@ export const MinimalistDayTimeline = memo(function MinimalistDayTimeline({
                 <Text style={styles.blockNumText}>C{blockDef.block}</Text>
               </View>
 
-              {/* Indicador de Línea Vertical */}
+              {/* Indicador de Línea Vertical Continua */}
               <View style={styles.lineCol}>
+                {index < PERSONAL_SCHEDULE_BLOCKS.length - 1 && (
+                  <View
+                    style={[
+                      styles.verticalLine,
+                      isPast && styles.verticalLinePast,
+                    ]}
+                  />
+                )}
                 <View
                   style={[
                     styles.lineDot,
@@ -155,14 +202,6 @@ export const MinimalistDayTimeline = memo(function MinimalistDayTimeline({
                     isWhite && styles.whiteDotBorder,
                   ]}
                 />
-                {index < PERSONAL_SCHEDULE_BLOCKS.length - 1 && (
-                  <View
-                    style={[
-                      styles.verticalLine,
-                      isPast && styles.verticalLinePast,
-                    ]}
-                  />
-                )}
               </View>
 
               {/* Información de la Clase con Resalte en Bloque Actual */}
@@ -185,8 +224,17 @@ export const MinimalistDayTimeline = memo(function MinimalistDayTimeline({
                         {sched.subject.name}
                       </Text>
                       {isCurrent && (
-                        <View style={styles.nowBadge}>
-                          <Text style={styles.nowBadgeText}>En curso</Text>
+                        <View style={styles.livePulseContainer}>
+                          <Animated.View
+                            style={[
+                              styles.livePulseRing,
+                              {
+                                transform: [{ scale: pulseAnim }],
+                                opacity: pulseOpacity,
+                              },
+                            ]}
+                          />
+                          <View style={styles.livePulseCenter} />
                         </View>
                       )}
                     </View>
@@ -263,9 +311,10 @@ const styles = StyleSheet.create({
     opacity: 0.42,
   },
   timeCol: {
-    width: 46,
+    width: 44,
     alignItems: 'flex-start',
-    paddingTop: 2,
+    justifyContent: 'center',
+    paddingVertical: 1,
   },
   timeText: {
     color: '#FFFFFF',
@@ -287,31 +336,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   lineCol: {
-    width: 22,
+    width: 20,
     alignItems: 'center',
-    paddingTop: 5,
+    justifyContent: 'flex-start',
     position: 'relative',
+    alignSelf: 'stretch',
   },
   lineDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
     backgroundColor: '#3F3F46',
+    marginTop: 10,
+    zIndex: 2,
   },
   whiteDotBorder: WHITE_DOT_BORDER,
   lineDotCurrent: {
-    backgroundColor: '#FFFFFF',
-    transform: [{ scale: 1.25 }],
+    transform: [{ scale: 1.15 }],
   },
   lineDotPast: {
     backgroundColor: '#27272A',
   },
   verticalLine: {
     position: 'absolute',
-    top: 15,
-    bottom: -16,
-    width: 1.2,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    top: 10,
+    bottom: -12,
+    width: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    zIndex: 1,
   },
   verticalLinePast: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -320,15 +372,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingLeft: 8,
     gap: 3,
-    paddingTop: 1,
+    paddingVertical: 4,
+    justifyContent: 'center',
   },
   contentColCurrent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    padding: 10,
-    marginLeft: -4,
-    borderLeftWidth: 2,
-    borderLeftColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   subjectHeaderRow: {
     flexDirection: 'row',
@@ -338,24 +391,34 @@ const styles = StyleSheet.create({
   },
   subjectTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13.5,
+    fontWeight: '600',
     letterSpacing: -0.2,
     flex: 1,
   },
   subjectTitlePast: {
     color: '#A1A1AA',
   },
-  nowBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 6,
+  livePulseContainer: {
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  nowBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
+  livePulseRing: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+  },
+  livePulseCenter: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    zIndex: 2,
   },
   metaRow: {
     flexDirection: 'row',

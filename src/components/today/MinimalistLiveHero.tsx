@@ -7,9 +7,13 @@ import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 
 interface MinimalistLiveHeroProps {
   schedulesToday: Schedule[]
+  simulatedMinutes?: number
 }
 
-export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesToday = [] }: MinimalistLiveHeroProps) {
+export const MinimalistLiveHero = memo(function MinimalistLiveHero({
+  schedulesToday = [],
+  simulatedMinutes,
+}: MinimalistLiveHeroProps) {
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
@@ -21,8 +25,8 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesTo
   }, [])
 
   const liveData = useMemo(
-    () => calculateLiveClassStatus(schedulesToday),
-    [schedulesToday, tick]
+    () => calculateLiveClassStatus(schedulesToday, simulatedMinutes),
+    [schedulesToday, simulatedMinutes, tick]
   )
 
   const isLive = liveData.status === 'active'
@@ -37,9 +41,9 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesTo
         isLive && styles.heroContainerLive,
       ]}
     >
-      {/* Cabecera del Hero: Estado en Vivo + Horario */}
+      {/* Fila superior: Indicador de Estado y Horario */}
       <View style={styles.topRow}>
-        <View style={styles.badgeRow}>
+        <View style={styles.statusGroup}>
           <View
             style={[
               styles.pulseDot,
@@ -52,13 +56,13 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesTo
               isLive ? styles.badgeTextLive : styles.badgeTextDefault,
             ]}
           >
-            {liveData.badgeText.toUpperCase()}
+            {liveData.badgeText}
           </Text>
         </View>
 
         {activeSched && (
           <View style={styles.timeTag}>
-            <Clock size={11} color="#A1A1AA" />
+            <Clock size={10.5} color="#71717A" />
             <Text style={styles.timeTagText}>
               {activeSched.start_time} - {activeSched.end_time}
             </Text>
@@ -66,7 +70,7 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesTo
         )}
       </View>
 
-      {/* Titular Principal / Nombre de Materia */}
+      {/* Título de la Materia */}
       <View style={styles.titleRow}>
         {activeSched?.subject && (
           <View
@@ -82,18 +86,18 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesTo
         </Text>
       </View>
 
-      {/* Metadatos: Aula, Docente y Subtítulo */}
+      {/* Detalles: Aula, Docente y Tiempo restante */}
       <View style={styles.detailsRow}>
         {Boolean(activeSched?.classroom_room) && (
           <View style={styles.detailItem}>
-            <MapPin size={11.5} color="#71717A" />
+            <MapPin size={11} color="#71717A" />
             <Text style={styles.detailText}>{activeSched!.classroom_room}</Text>
           </View>
         )}
 
         {Boolean(activeSched?.subject?.teacher_name) && (
           <View style={styles.detailItem}>
-            <User size={11.5} color="#71717A" />
+            <User size={11} color="#71717A" />
             <Text style={styles.detailText}>{activeSched!.subject!.teacher_name}</Text>
           </View>
         )}
@@ -101,7 +105,7 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesTo
         <Text style={styles.subheadline}>{liveData.subheadline}</Text>
       </View>
 
-      {/* Barra de Progreso Fina Integrada */}
+      {/* Barra de Progreso Minimalista */}
       {isLive && (
         <View style={styles.progressBarBg}>
           <View
@@ -118,32 +122,31 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({ schedulesTo
 
 const styles = StyleSheet.create({
   heroContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 20,
+    backgroundColor: '#121215',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.07)',
-    padding: 16,
-    gap: 10,
-    overflow: 'hidden',
+    padding: 14,
+    gap: 9,
   },
   heroContainerLive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.035)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#131317',
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  badgeRow: {
+  statusGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6.5,
+    gap: 6,
   },
   pulseDot: {
-    width: 6.5,
-    height: 6.5,
-    borderRadius: 3.25,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   pulseDotLive: {
     backgroundColor: '#10B981',
@@ -152,12 +155,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#52525B',
   },
   badgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    letterSpacing: 0.7,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   badgeTextLive: {
-    color: '#10B981',
+    color: '#D4D4D8',
   },
   badgeTextDefault: {
     color: '#71717A',
@@ -165,16 +168,16 @@ const styles = StyleSheet.create({
   timeTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 7,
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
   },
   timeTagText: {
-    color: '#D4D4D8',
-    fontSize: 11,
-    fontWeight: '600',
+    color: '#A1A1AA',
+    fontSize: 10.5,
+    fontWeight: '500',
   },
   titleRow: {
     flexDirection: 'row',

@@ -26,6 +26,7 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 import { DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
 import { formatTime12h } from '@/lib/academicDateUtils'
 import { logger } from '@/lib/logger'
+import { formatTaskTypeLabel } from './TaskTypePicker'
 
 export interface TaskDetailViewProps {
   task: Task | null
@@ -166,7 +167,9 @@ export function TaskDetailView({
                 ) : (
                   <Users size={11} color="#38BDF8" />
                 )}
-                <Text style={styles.detailMetaText}>{task?.type}</Text>
+                <Text style={styles.detailMetaText}>
+                  {formatTaskTypeLabel(task?.type)}
+                </Text>
               </View>
             )}
 

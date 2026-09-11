@@ -32,7 +32,7 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 import { personalStorage } from '@/lib/personalStorage'
 import { MinimalistPdfViewerModal } from '@/components/common/MinimalistPdfViewerModal'
 import { MinimalistImageViewerModal } from '@/components/common/MinimalistImageViewerModal'
-import { APPLE_EASING, SPRING_PANEL_CONFIG } from '@/constants/animations'
+import { APPLE_EASING, SPRING_PANEL_CONFIG, LAYOUT_EASE } from '@/constants/animations'
 import { isWhiteColor } from '@/constants/theme'
 import { useClassAuth } from '@/context/ClassAuthContext'
 import { DAYS_SHORT } from '@/constants/dates'
@@ -41,7 +41,7 @@ import { formatTime12h } from '@/lib/academicDateUtils'
 import { TaskDetailView } from './modal/TaskDetailView'
 import { TaskSubjectPicker } from './modal/TaskSubjectPicker'
 import { TaskDatePicker } from './modal/TaskDatePicker'
-import { TaskTypePicker } from './modal/TaskTypePicker'
+import { TaskTypePicker, formatTaskTypeLabel } from './modal/TaskTypePicker'
 import { TaskAttachmentSection } from './modal/TaskAttachmentSection'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { DEFAULT_CLASS_START_TIME } from '@/constants/defaults'
@@ -579,6 +579,7 @@ export function MinimalistTaskModal({
         <Animated.View
           style={[
             styles.sheetContainer,
+            currentView === 'form' && styles.sheetContainerForm,
             {
               paddingBottom: Math.max(insets.bottom, 16) + 8,
               transform: [
@@ -641,6 +642,7 @@ export function MinimalistTaskModal({
 
               <ScrollView
                 style={styles.sheetScroll}
+                contentContainerStyle={styles.sheetScrollContent}
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
@@ -677,6 +679,7 @@ export function MinimalistTaskModal({
                     onPress={() => {
                       triggerHaptic('selection')
                       Keyboard.dismiss()
+                      LAYOUT_EASE(180)
                       setActivePicker(activePicker === 'subject' ? null : 'subject')
                     }}
                     style={[
@@ -709,6 +712,7 @@ export function MinimalistTaskModal({
                     onPress={() => {
                       triggerHaptic('selection')
                       Keyboard.dismiss()
+                      LAYOUT_EASE(180)
                       setActivePicker(activePicker === 'date' ? null : 'date')
                     }}
                     style={[
@@ -733,6 +737,7 @@ export function MinimalistTaskModal({
                     onPress={() => {
                       triggerHaptic('selection')
                       Keyboard.dismiss()
+                      LAYOUT_EASE(180)
                       setActivePicker(activePicker === 'type' ? null : 'type')
                     }}
                     style={[
@@ -747,7 +752,7 @@ export function MinimalistTaskModal({
                         taskType !== 'individual' && styles.attrPillTextActive,
                       ]}
                     >
-                      {taskType}
+                      {formatTaskTypeLabel(taskType)}
                     </Text>
                     <ChevronDown size={12} color="#71717A" />
                   </Pressable>
@@ -796,6 +801,7 @@ export function MinimalistTaskModal({
                     subjects={subjects}
                     selectedSubjectId={selectedSubjectId}
                     onSelectSubject={(id) => {
+                      LAYOUT_EASE(180)
                       setSelectedSubjectId(id)
                       setActivePicker(null)
                     }}
@@ -808,12 +814,18 @@ export function MinimalistTaskModal({
                   <TaskDatePicker
                     dueDate={dueDate}
                     onSelectDueDate={setDueDate}
-                    onSelectClass={handleSelectClass}
+                    onSelectClass={(sched, subj) => {
+                      LAYOUT_EASE(180)
+                      handleSelectClass(sched, subj)
+                    }}
                     schedules={schedules}
                     subjects={subjects}
                     fadeAnim={pickerFadeAnim}
                     slideAnim={pickerSlideAnim}
-                    onClosePicker={() => setActivePicker(null)}
+                    onClosePicker={() => {
+                      LAYOUT_EASE(180)
+                      setActivePicker(null)
+                    }}
                   />
                 )}
 
@@ -821,6 +833,7 @@ export function MinimalistTaskModal({
                   <TaskTypePicker
                     taskType={taskType}
                     onSelectType={(t) => {
+                      LAYOUT_EASE(180)
                       setTaskType(t)
                       setActivePicker(null)
                     }}
@@ -885,6 +898,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.09)',
     maxHeight: '92%',
   },
+  sheetContainerForm: {
+    height: '88%',
+  },
   dragHandle: {
     width: 52,
     height: 5,
@@ -930,8 +946,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   sheetScroll: {
+    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  sheetScrollContent: {
+    paddingBottom: 32,
   },
   cleanTitleInput: {
     color: '#FFFFFF',

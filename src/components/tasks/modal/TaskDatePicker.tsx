@@ -8,6 +8,7 @@ import { DAYS_SHORT, MONTHS_SHORT } from '@/constants/dates'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { DEFAULT_CLASS_START_TIME } from '@/constants/defaults'
 import { formatTime12h } from '@/lib/academicDateUtils'
+import { LAYOUT_EASE } from '@/constants/animations'
 
 export interface TaskDatePickerProps {
   dueDate: string
@@ -70,6 +71,7 @@ export function TaskDatePicker({
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
+              LAYOUT_EASE(180)
               setDatePickerTab('class')
               setShowNativeDatePicker(false)
               setShowNativeTimePicker(false)
@@ -96,6 +98,7 @@ export function TaskDatePicker({
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
+              LAYOUT_EASE(180)
               setDatePickerTab('manual')
             }}
             style={[
@@ -136,6 +139,7 @@ export function TaskDatePicker({
                     key={d.day}
                     onPress={() => {
                       triggerHaptic('selection')
+                      LAYOUT_EASE(180)
                       setSelectedClassDay(d.day)
                     }}
                     style={[
@@ -224,6 +228,7 @@ export function TaskDatePicker({
               <Pressable
                 onPress={() => {
                   triggerHaptic('light')
+                  LAYOUT_EASE(180)
                   if (!dueDate) {
                     const now = new Date()
                     now.setHours(23, 59, 0, 0)
@@ -250,6 +255,7 @@ export function TaskDatePicker({
               <Pressable
                 onPress={() => {
                   triggerHaptic('light')
+                  LAYOUT_EASE(180)
                   if (!dueDate) {
                     const now = new Date()
                     now.setHours(23, 59, 0, 0)

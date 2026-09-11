@@ -9,6 +9,11 @@ export interface TaskTypePickerProps {
   slideAnim: Animated.Value
 }
 
+export function formatTaskTypeLabel(type?: TaskType | string | null): string {
+  if (!type) return 'Individual'
+  return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+}
+
 export function TaskTypePicker({
   taskType,
   onSelectType,
@@ -43,7 +48,7 @@ export function TaskTypePicker({
                   taskType === t && styles.typeOptionTextActive,
                 ]}
               >
-                {t}
+                {formatTaskTypeLabel(t)}
               </Text>
             </Pressable>
           ))}

@@ -1,13 +1,13 @@
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
-import { Calendar } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 
 export type SemesterPickerType = 'fall_start' | 'fall_end' | 'spring_start' | 'spring_end'
 
 export interface SemesterConfigCardProps {
   title: string
-  color: string
+  subtitle?: string
+  color?: string
   startKey: SemesterPickerType
   endKey: SemesterPickerType
   startDate: string
@@ -28,7 +28,7 @@ export interface SemesterConfigCardProps {
 
 export function SemesterConfigCard({
   title,
-  color,
+  subtitle,
   startKey,
   endKey,
   startDate,
@@ -56,46 +56,46 @@ export function SemesterConfigCard({
   const defaultDay = isStartActive ? startDefaultDay : endDefaultDay
 
   return (
-    <View style={styles.semesterConfigBox}>
-      <View style={styles.semesterTitleRow}>
-        <Calendar size={14} color={color} />
-        <Text style={styles.semesterBoxTitle}>{title}</Text>
-      </View>
+    <View style={styles.container}>
+      <View style={styles.row}>
+        <View style={styles.labelCol}>
+          <Text style={styles.titleText}>{title}</Text>
+          {Boolean(subtitle) && <Text style={styles.subtitleText}>{subtitle}</Text>}
+        </View>
 
-      <View style={styles.datesPillsRow}>
-        <Pressable
-          onPress={() => {
-            triggerHaptic('light')
-            onToggleDatePicker(startKey)
-          }}
-          style={[styles.datePillBtn, isStartActive && styles.datePillBtnActive]}
-        >
-          <Text style={styles.datePillLabel}>Inicio</Text>
-          <Text style={styles.datePillValue}>
-            {formatReadableDate(startDate, defaultStartText)}
-          </Text>
-        </Pressable>
+        <View style={styles.chipsRow}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light')
+              onToggleDatePicker(startKey)
+            }}
+            style={[styles.dateChip, isStartActive && styles.dateChipActive]}
+          >
+            <Text style={[styles.dateChipText, isStartActive && styles.dateChipTextActive]}>
+              {formatReadableDate(startDate, defaultStartText)}
+            </Text>
+          </Pressable>
 
-        <Text style={styles.datePillArrow}>→</Text>
+          <Text style={styles.arrowText}>—</Text>
 
-        <Pressable
-          onPress={() => {
-            triggerHaptic('light')
-            onToggleDatePicker(endKey)
-          }}
-          style={[styles.datePillBtn, isEndActive && styles.datePillBtnActive]}
-        >
-          <Text style={styles.datePillLabel}>Fin</Text>
-          <Text style={styles.datePillValue}>
-            {formatReadableDate(endDate, defaultEndText)}
-          </Text>
-        </Pressable>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light')
+              onToggleDatePicker(endKey)
+            }}
+            style={[styles.dateChip, isEndActive && styles.dateChipActive]}
+          >
+            <Text style={[styles.dateChipText, isEndActive && styles.dateChipTextActive]}>
+              {formatReadableDate(endDate, defaultEndText)}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {isAnyActive && (
-        <View style={styles.inlinePickerContainer}>
-          <Text style={styles.inlinePickerHeader}>
-            {isStartActive ? `Fecha de Inicio (${title.split(' ')[0]})` : `Fecha de Fin (${title.split(' ')[0]})`}
+        <View style={styles.pickerWrapper}>
+          <Text style={styles.pickerHeader}>
+            {isStartActive ? `Fecha de inicio (${title})` : `Fecha de fin (${title})`}
           </Text>
           <DateTimePicker
             value={parseDateString(activeDateValue, currentYear, defaultMonth, defaultDay)}
@@ -117,73 +117,72 @@ export function SemesterConfigCard({
 }
 
 const styles = StyleSheet.create({
-  semesterConfigBox: {
-    backgroundColor: '#121214',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 14,
-    padding: 12,
-    gap: 10,
+  container: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  semesterTitleRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  semesterBoxTitle: {
-    color: '#E4E4E7',
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  datesPillsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  datePillBtn: {
+  labelCol: {
     flex: 1,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: 'center',
   },
-  datePillBtnActive: {
-    borderColor: '#FFFFFF',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  datePillLabel: {
-    color: '#71717A',
-    fontSize: 9.5,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  datePillValue: {
+  titleText: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
-  datePillArrow: {
-    color: '#52525B',
-    fontSize: 12,
-    fontWeight: '700',
+  subtitleText: {
+    color: '#71717A',
+    fontSize: 11.5,
+    marginTop: 1.5,
   },
-  inlinePickerContainer: {
-    backgroundColor: '#18181B',
-    borderRadius: 12,
-    padding: 8,
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateChip: {
+    backgroundColor: '#27272A',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#3F3F46',
+  },
+  dateChipActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: '#FFFFFF',
+  },
+  dateChipText: {
+    color: '#E4E4E7',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  arrowText: {
+    color: '#71717A',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pickerWrapper: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
   },
-  inlinePickerHeader: {
+  pickerHeader: {
     color: '#A1A1AA',
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 11.5,
+    fontWeight: '500',
     marginBottom: 6,
   },
 })

@@ -186,233 +186,257 @@ export function SystemSettingsModal({
             </View>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.settingsSheetScroll}>
-            {/* Sección: Cuenta y Perfil */}
-            <View style={styles.settingsSection}>
-              <Text style={styles.sectionHeaderTitle}>Cuenta y Perfil</Text>
-
-              {/* Nombre de Estudiante (Permanente) */}
-              <View style={styles.itemRow}>
-                <User size={18} color="#A1A1AA" style={styles.itemIcon} />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Nombre de estudiante</Text>
-                  <Text style={styles.itemSubtitle}>{profile?.full_name || DEFAULT_STUDENT_NAME}</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={styles.settingsSheetScroll}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Sección 1: Cuenta y Perfil */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionLabel}>Cuenta y Perfil</Text>
+              <View style={styles.groupedList}>
+                {/* Nombre de Estudiante */}
+                <View style={styles.listRow}>
+                  <View style={styles.iconBox}>
+                    <User size={16} color="#A1A1AA" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Nombre de estudiante</Text>
+                    <Text style={styles.rowSubtitle}>{profile?.full_name || DEFAULT_STUDENT_NAME}</Text>
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.hairlineDivider} />
+                <View style={styles.rowDivider} />
 
-              {/* Credencial Digital */}
-              <Pressable
-                onPress={() => {
-                  handleClose(() => {
-                    if (profile?.student_credential_url) {
-                      onOpenCredential()
-                    } else {
-                      onUploadCredential()
-                    }
-                  })
-                }}
-                style={({ pressed }) => [styles.itemRowPressable, pressed && styles.rowPressed]}
-              >
-                <IdCard size={18} color="#A1A1AA" style={styles.itemIcon} />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Credencial digital</Text>
-                  <Text style={styles.itemSubtitle}>
-                    {profile?.student_credential_url
-                      ? profile.student_credential_name || 'Credencial vinculada'
-                      : 'Sin credencial vinculada'}
-                  </Text>
-                </View>
-                <View style={styles.timeValueRow}>
-                  <Text style={styles.timeValueText}>
-                    {profile?.student_credential_url ? 'Ver' : 'Subir'}
-                  </Text>
-                  <ChevronRight size={14} color="#71717A" />
-                </View>
-              </Pressable>
-            </View>
-
-            <View style={styles.sectionDivider} />
-
-            {/* Sección: Recordatorios Automáticos */}
-            <View style={styles.settingsSection}>
-              <Text style={styles.sectionHeaderTitle}>Recordatorios Automáticos</Text>
-
-              {/* Aviso de Entregas */}
-              <View style={styles.itemRow}>
-                <Bell size={18} color="#A1A1AA" style={styles.itemIcon} />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Aviso de entregas</Text>
-                  <Text style={styles.itemSubtitle}>Notificar la noche anterior a la hora elegida</Text>
-                </View>
-                <Switch
-                  value={advanceReminderEnabled}
-                  onValueChange={onToggleAdvanceReminder}
-                  trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                  thumbColor={advanceReminderEnabled ? '#09090B' : '#71717A'}
-                  ios_backgroundColor="#27272A"
-                />
-              </View>
-
-              {/* Selector de Hora */}
-              {advanceReminderEnabled && (
-                <>
-                  <View style={styles.hairlineDivider} />
-                  <Pressable
-                    onPress={onOpenTimeModal}
-                    style={({ pressed }) => [styles.itemRowPressable, pressed && styles.rowPressed]}
-                  >
-                    <Clock size={18} color="#A1A1AA" style={styles.itemIcon} />
-                    <View style={styles.itemContent}>
-                      <Text style={styles.itemTitle}>Hora del recordatorio</Text>
-                      <Text style={styles.itemSubtitle}>Momento del aviso previo a la entrega</Text>
-                    </View>
-                    <View style={styles.timeValueRow}>
-                      <Text style={styles.timeValueText}>
-                        {formatTimeDisplay(advanceReminderTime)}
-                      </Text>
-                      <ChevronRight size={14} color="#71717A" />
-                    </View>
-                  </Pressable>
-                </>
-              )}
-
-              <View style={styles.hairlineDivider} />
-
-              {/* Aviso de Próxima Clase */}
-              <View style={styles.itemRow}>
-                <BookOpen size={18} color="#A1A1AA" style={styles.itemIcon} />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Aviso de próxima clase</Text>
-                  <Text style={styles.itemSubtitle}>10 min antes con el nombre de la materia</Text>
-                </View>
-                <Switch
-                  value={classReminderEnabled}
-                  onValueChange={onToggleClassReminder}
-                  trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                  thumbColor={classReminderEnabled ? '#09090B' : '#71717A'}
-                  ios_backgroundColor="#27272A"
-                />
+                {/* Credencial Digital */}
+                <Pressable
+                  onPress={() => {
+                    handleClose(() => {
+                      if (profile?.student_credential_url) {
+                        onOpenCredential()
+                      } else {
+                        onUploadCredential()
+                      }
+                    })
+                  }}
+                  style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
+                >
+                  <View style={styles.iconBox}>
+                    <IdCard size={16} color="#A1A1AA" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Credencial digital</Text>
+                    <Text style={styles.rowSubtitle}>
+                      {profile?.student_credential_url
+                        ? profile.student_credential_name || 'Credencial vinculada'
+                        : 'Sin credencial vinculada'}
+                    </Text>
+                  </View>
+                  <View style={styles.trailingActionRow}>
+                    <Text style={styles.trailingActionText}>
+                      {profile?.student_credential_url ? 'Ver' : 'Subir'}
+                    </Text>
+                    <ChevronRight size={14} color="#71717A" />
+                  </View>
+                </Pressable>
               </View>
             </View>
 
-            <View style={styles.sectionDivider} />
+            {/* Sección 2: Notificaciones y Avisos */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionLabel}>Notificaciones y Avisos</Text>
+              <View style={styles.groupedList}>
+                {/* Aviso de Entregas */}
+                <View style={styles.listRow}>
+                  <View style={styles.iconBox}>
+                    <Bell size={16} color="#A1A1AA" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Aviso de entregas</Text>
+                    <Text style={styles.rowSubtitle}>Notificar la noche anterior</Text>
+                  </View>
+                  <Switch
+                    value={advanceReminderEnabled}
+                    onValueChange={onToggleAdvanceReminder}
+                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
+                    thumbColor={advanceReminderEnabled ? '#09090B' : '#71717A'}
+                    ios_backgroundColor="#27272A"
+                  />
+                </View>
 
-            {/* Sección: Periodos de Semestre */}
-            <View style={styles.settingsSection}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionHeaderTitle}>Periodos de Semestre</Text>
+                {/* Hora de Recordatorio (Expandible si activo) */}
+                {advanceReminderEnabled && (
+                  <>
+                    <View style={styles.rowDivider} />
+                    <Pressable
+                      onPress={onOpenTimeModal}
+                      style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
+                    >
+                      <View style={styles.iconBox}>
+                        <Clock size={16} color="#A1A1AA" />
+                      </View>
+                      <View style={styles.rowMain}>
+                        <Text style={styles.rowTitle}>Hora del aviso</Text>
+                      </View>
+                      <View style={styles.trailingActionRow}>
+                        <Text style={styles.trailingValueText}>
+                          {formatTimeDisplay(advanceReminderTime)}
+                        </Text>
+                        <ChevronRight size={14} color="#71717A" />
+                      </View>
+                    </Pressable>
+                  </>
+                )}
+
+                <View style={styles.rowDivider} />
+
+                {/* Aviso de Próxima Clase */}
+                <View style={styles.listRow}>
+                  <View style={styles.iconBox}>
+                    <BookOpen size={16} color="#A1A1AA" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Aviso de próxima clase</Text>
+                    <Text style={styles.rowSubtitle}>10 min antes de iniciar</Text>
+                  </View>
+                  <Switch
+                    value={classReminderEnabled}
+                    onValueChange={onToggleClassReminder}
+                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
+                    thumbColor={classReminderEnabled ? '#09090B' : '#71717A'}
+                    ios_backgroundColor="#27272A"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Sección 3: Periodos de Semestre */}
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeaderFlex}>
+                <Text style={styles.sectionLabel}>Periodos de Semestre</Text>
                 <Pressable
                   onPress={onResetSemesterDates}
                   hitSlop={8}
-                  style={({ pressed }) => [styles.resetPresetBtn, pressed && styles.rowPressed]}
+                  style={({ pressed }) => [styles.resetActionBtn, pressed && styles.rowPressed]}
                 >
                   <RotateCcw size={11} color="#71717A" />
-                  <Text style={styles.resetPresetText}>Restablecer</Text>
+                  <Text style={styles.resetActionText}>Restablecer</Text>
                 </Pressable>
               </View>
 
-              {/* Semestre Otoño (Ago - Dic) */}
-              <SemesterConfigCard
-                title="Otoño (Agosto - Diciembre)"
-                color="#FF6B00"
-                startKey="fall_start"
-                endKey="fall_end"
-                startDate={fallStart}
-                endDate={fallEnd}
-                defaultStartText="01 Ago"
-                defaultEndText="31 Dic"
-                startDefaultMonth={7}
-                endDefaultMonth={11}
-                startDefaultDay={1}
-                endDefaultDay={31}
-                activeDatePicker={activeDatePicker}
-                currentYear={currentYear}
-                formatReadableDate={formatReadableDate}
-                parseDateString={parseDateString}
-                onToggleDatePicker={(key) =>
-                  setActiveDatePicker(activeDatePicker === key ? null : key)
-                }
-                onUpdateDate={onUpdateSemesterDate}
-              />
-
-              {/* Semestre Primavera (Feb - Jun) */}
-              <SemesterConfigCard
-                title="Primavera (Febrero - Junio)"
-                color="#34D399"
-                startKey="spring_start"
-                endKey="spring_end"
-                startDate={springStart}
-                endDate={springEnd}
-                defaultStartText="01 Feb"
-                defaultEndText="30 Jun"
-                startDefaultMonth={1}
-                endDefaultMonth={5}
-                startDefaultDay={1}
-                endDefaultDay={30}
-                activeDatePicker={activeDatePicker}
-                currentYear={currentYear}
-                formatReadableDate={formatReadableDate}
-                parseDateString={parseDateString}
-                onToggleDatePicker={(key) =>
-                  setActiveDatePicker(activeDatePicker === key ? null : key)
-                }
-                onUpdateDate={onUpdateSemesterDate}
-              />
-            </View>
-
-            <View style={styles.sectionDivider} />
-
-            {/* Sección: Experiencia y Respuesta */}
-            <View style={styles.settingsSection}>
-              <Text style={styles.sectionHeaderTitle}>Experiencia y Respuesta</Text>
-
-              {/* Respuesta Háptica */}
-              <View style={styles.itemRow}>
-                <Smartphone size={18} color="#A1A1AA" style={styles.itemIcon} />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Vibración háptica</Text>
-                  <Text style={styles.itemSubtitle}>Retroalimentación táctil nativa</Text>
-                </View>
-                <Switch
-                  value={hapticsEnabled}
-                  onValueChange={onToggleHaptics}
-                  trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                  thumbColor={hapticsEnabled ? '#09090B' : '#71717A'}
-                  ios_backgroundColor="#27272A"
+              <View style={styles.groupedList}>
+                <SemesterConfigCard
+                  title="Otoño"
+                  subtitle="Agosto — Diciembre"
+                  color="#FF6B00"
+                  startKey="fall_start"
+                  endKey="fall_end"
+                  startDate={fallStart}
+                  endDate={fallEnd}
+                  defaultStartText="01 Ago"
+                  defaultEndText="31 Dic"
+                  startDefaultMonth={7}
+                  endDefaultMonth={11}
+                  startDefaultDay={1}
+                  endDefaultDay={31}
+                  activeDatePicker={activeDatePicker}
+                  currentYear={currentYear}
+                  formatReadableDate={formatReadableDate}
+                  parseDateString={parseDateString}
+                  onToggleDatePicker={(key) =>
+                    setActiveDatePicker(activeDatePicker === key ? null : key)
+                  }
+                  onUpdateDate={onUpdateSemesterDate}
                 />
-              </View>
 
-              <View style={styles.hairlineDivider} />
+                <View style={styles.rowDivider} />
 
-              {/* Animación Festiva */}
-              <View style={styles.itemRow}>
-                <Sparkles size={18} color="#A1A1AA" style={styles.itemIcon} />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemTitle}>Animación festiva</Text>
-                  <Text style={styles.itemSubtitle}>Confetti al completar entregas</Text>
-                </View>
-                <Switch
-                  value={confettiEnabled}
-                  onValueChange={onToggleConfetti}
-                  trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                  thumbColor={confettiEnabled ? '#09090B' : '#71717A'}
-                  ios_backgroundColor="#27272A"
+                <SemesterConfigCard
+                  title="Primavera"
+                  subtitle="Febrero — Junio"
+                  color="#34D399"
+                  startKey="spring_start"
+                  endKey="spring_end"
+                  startDate={springStart}
+                  endDate={springEnd}
+                  defaultStartText="01 Feb"
+                  defaultEndText="30 Jun"
+                  startDefaultMonth={1}
+                  endDefaultMonth={5}
+                  startDefaultDay={1}
+                  endDefaultDay={30}
+                  activeDatePicker={activeDatePicker}
+                  currentYear={currentYear}
+                  formatReadableDate={formatReadableDate}
+                  parseDateString={parseDateString}
+                  onToggleDatePicker={(key) =>
+                    setActiveDatePicker(activeDatePicker === key ? null : key)
+                  }
+                  onUpdateDate={onUpdateSemesterDate}
                 />
               </View>
             </View>
 
-            <View style={styles.sectionDivider} />
+            {/* Sección 4: Experiencia */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionLabel}>Experiencia</Text>
+              <View style={styles.groupedList}>
+                {/* Vibración Háptica */}
+                <View style={styles.listRow}>
+                  <View style={styles.iconBox}>
+                    <Smartphone size={16} color="#A1A1AA" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Vibración háptica</Text>
+                    <Text style={styles.rowSubtitle}>Retroalimentación táctil nativa</Text>
+                  </View>
+                  <Switch
+                    value={hapticsEnabled}
+                    onValueChange={onToggleHaptics}
+                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
+                    thumbColor={hapticsEnabled ? '#09090B' : '#71717A'}
+                    ios_backgroundColor="#27272A"
+                  />
+                </View>
 
-            {/* Restablecer Datos */}
-            <Pressable
-              onPress={onClearData}
-              style={({ pressed }) => [styles.clearRow, pressed && styles.rowPressed]}
-            >
-              <Trash2 size={16} color="#EF4444" />
-              <Text style={styles.clearBtnText}>Restablecer Datos Locales</Text>
-            </Pressable>
+                <View style={styles.rowDivider} />
+
+                {/* Animación Festiva */}
+                <View style={styles.listRow}>
+                  <View style={styles.iconBox}>
+                    <Sparkles size={16} color="#A1A1AA" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Animación festiva</Text>
+                    <Text style={styles.rowSubtitle}>Confetti al completar tareas</Text>
+                  </View>
+                  <Switch
+                    value={confettiEnabled}
+                    onValueChange={onToggleConfetti}
+                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
+                    thumbColor={confettiEnabled ? '#09090B' : '#71717A'}
+                    ios_backgroundColor="#27272A"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Sección 5: Datos Locales */}
+            <View style={styles.sectionContainer}>
+              <View style={styles.groupedList}>
+                <Pressable
+                  onPress={onClearData}
+                  style={({ pressed }) => [styles.dangerRow, pressed && styles.rowPressed]}
+                >
+                  <View style={styles.iconBox}>
+                    <Trash2 size={16} color="#EF4444" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.dangerRowText}>Restablecer datos locales</Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
 
             <Text style={styles.versionText}>Zora v2.0</Text>
           </ScrollView>
@@ -434,13 +458,13 @@ const styles = StyleSheet.create({
   },
   settingsSheetContainer: {
     backgroundColor: '#121214',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
     paddingTop: 12,
-    maxHeight: '82%',
+    maxHeight: '85%',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#23232A',
   },
   dragHandle: {
     width: 36,
@@ -448,29 +472,30 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: '#3F3F46',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   sheetHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
+    paddingHorizontal: 4,
   },
   modalTitle: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '700',
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   modalSubtitle: {
     color: '#71717A',
-    fontSize: 12.5,
+    fontSize: 12,
     marginTop: 2,
   },
   modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#18181B',
     borderWidth: 1,
     borderColor: '#27272A',
@@ -478,113 +503,121 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   settingsSheetScroll: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  settingsSection: {
-    backgroundColor: '#18181B',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#27272A',
-    padding: 16,
-    gap: 12,
+  scrollContent: {
+    gap: 16,
+    paddingBottom: 16,
   },
-  sectionHeaderTitle: {
-    color: '#71717A',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  sectionContainer: {
+    gap: 6,
   },
-  sectionHeaderRow: {
+  sectionHeaderFlex: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 4,
   },
-  resetPresetBtn: {
+  sectionLabel: {
+    color: '#71717A',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+    paddingHorizontal: 4,
+  },
+  resetActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  resetPresetText: {
+  resetActionText: {
     color: '#71717A',
-    fontSize: 10.5,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  groupedList: {
+    backgroundColor: '#18181B',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#23232A',
+    overflow: 'hidden',
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  listRowPressable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dangerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  dangerRowText: {
+    color: '#EF4444',
+    fontSize: 13.5,
     fontWeight: '600',
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  itemRowPressable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
   },
   rowPressed: {
-    opacity: 0.7,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
-  itemIcon: {
-    width: 18,
+  iconBox: {
+    width: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  itemContent: {
+  rowMain: {
     flex: 1,
   },
-  itemTitle: {
+  rowTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
+    letterSpacing: -0.1,
   },
-  itemSubtitle: {
+  rowSubtitle: {
     color: '#71717A',
     fontSize: 11.5,
-    marginTop: 2,
+    marginTop: 1.5,
   },
-  timeValueRow: {
+  trailingActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  timeValueText: {
+  trailingActionText: {
+    color: '#A1A1AA',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  trailingValueText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '600',
   },
-  hairlineDivider: {
+  rowDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  sectionDivider: {
-    height: 16,
-  },
-  clearRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  clearBtnText: {
-    color: '#EF4444',
-    fontSize: 13.5,
-    fontWeight: '700',
+    backgroundColor: '#23232A',
+    marginLeft: 48,
   },
   versionText: {
     color: '#3F3F46',
-    fontSize: 11.5,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 8,
   },
 })

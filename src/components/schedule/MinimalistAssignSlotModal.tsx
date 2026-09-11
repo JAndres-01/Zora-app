@@ -153,7 +153,7 @@ export function MinimalistAssignSlotModal({
           ]}
         >
           {/* Header */}
-          <View style={styles.sheetHeader} {...panResponder.panHandlers}>
+          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>

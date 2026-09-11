@@ -67,7 +67,7 @@ export function TasksSubjectFilterModal({
             { transform: [{ translateY: Animated.add(menuSlideAnim, panY) }] },
           ]}
         >
-          <View style={styles.menuHeader} {...panResponder.panHandlers}>
+          <View style={styles.menuHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <Text style={styles.menuTitle}>Filtrar por Materia</Text>
           </View>

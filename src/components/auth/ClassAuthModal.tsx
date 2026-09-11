@@ -195,7 +195,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
             },
           ]}
         >
-          <View {...panResponder.panHandlers}>
+          <View style={styles.headerPanArea} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
 
             {/* Cabecera Minimalista */}
@@ -365,6 +365,11 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderWidth: 1,
     borderColor: '#27272A',
+  },
+  headerPanArea: {
+    paddingTop: 4,
+    paddingBottom: 2,
+    backgroundColor: 'transparent',
   },
   dragHandle: {
     width: 36,

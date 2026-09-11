@@ -303,7 +303,7 @@ export function MinimalistCredentialModal({
           ]}
         >
           {/* Header con PanResponder Handle */}
-          <View style={styles.headerSection} {...panResponder.panHandlers}>
+          <View style={styles.headerSection} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
 
             <View style={styles.headerTopRow}>

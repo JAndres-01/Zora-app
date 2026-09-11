@@ -153,17 +153,28 @@ export function useModalAnimation({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 6 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+      },
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+      },
+      onPanResponderGrant: () => {
+        panY.stopAnimation()
+        panY.setValue(0)
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
           panY.setValue(gestureState.dy)
+        } else {
+          panY.setValue(0)
         }
       },
+      onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        const threshold = dismissThresholdRef.current ?? 100
-        const velocity = dismissVelocityRef.current ?? 0.6
+        const threshold = dismissThresholdRef.current ?? 60
+        const velocity = dismissVelocityRef.current ?? 0.35
         if (gestureState.dy > threshold || gestureState.vy > velocity) {
           handleSmoothClose()
         } else {
@@ -174,6 +185,14 @@ export function useModalAnimation({
             useNativeDriver: true,
           }).start()
         }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(panY, {
+          toValue: 0,
+          stiffness: 400,
+          damping: 25,
+          useNativeDriver: true,
+        }).start()
       },
     })
   ).current

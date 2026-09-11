@@ -73,7 +73,7 @@ export function TaskDetailView({
   return (
     <>
       {/* ZONA SUPERIOR COMPLETA CON GESTO DE DESLIZAR */}
-      <View {...panHandlers}>
+      <View collapsable={false} {...panHandlers}>
         {/* Tirador Superior Grande */}
         <View style={styles.dragHandleTopArea}>
           <View style={styles.dragHandle} />

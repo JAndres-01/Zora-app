@@ -333,16 +333,27 @@ export function MinimalistTaskModal({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 6 && Math.abs(gestureState.dx) < 10
+        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+      },
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+      },
+      onPanResponderGrant: () => {
+        panY.stopAnimation()
+        panY.setValue(0)
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
           panY.setValue(gestureState.dy)
+        } else {
+          panY.setValue(0)
         }
       },
+      onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 90 || gestureState.vy > 0.6) {
+        if (gestureState.dy > 60 || gestureState.vy > 0.35) {
           handleSmoothClose()
         } else {
           Animated.spring(panY, {
@@ -352,6 +363,14 @@ export function MinimalistTaskModal({
             useNativeDriver: true,
           }).start()
         }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(panY, {
+          toValue: 0,
+          damping: 25,
+          stiffness: 400,
+          useNativeDriver: true,
+        }).start()
       },
     })
   ).current
@@ -581,7 +600,7 @@ export function MinimalistTaskModal({
           {/* MODO FORMULARIO (CREAR / EDITAR) */}
           {currentView === 'form' && (
             <>
-              <View style={styles.sheetHeader} {...panResponder.panHandlers}>
+              <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
                 <View style={styles.dragHandle} />
                 <View style={styles.headerRow}>
                   {mode === 'detail' ? (

@@ -130,8 +130,6 @@ export function SystemSettingsModal({
     onClosed: () => {
       setActiveDatePicker(null)
     },
-    dismissThreshold: 90,
-    dismissVelocity: 0.45,
   })
 
   return (
@@ -153,7 +151,7 @@ export function SystemSettingsModal({
           ]}
         >
           {/* Tirador Superior y Cabecera */}
-          <View {...panResponder.panHandlers}>
+          <View style={styles.headerPanArea} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
 
             <View style={styles.sheetHeader}>
@@ -441,6 +439,11 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     borderWidth: 1,
     borderColor: '#23232A',
+  },
+  headerPanArea: {
+    paddingTop: 4,
+    paddingBottom: 2,
+    backgroundColor: 'transparent',
   },
   dragHandle: {
     width: 36,

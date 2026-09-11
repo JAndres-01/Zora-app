@@ -139,3 +139,14 @@ jest.mock('react-native/Libraries/Interaction/InteractionManager', () => ({
   clearInteractionHandle: () => {},
   setDeadline: () => {},
 }))
+
+// Mock Expo Share Intent
+jest.mock('expo-share-intent', () => ({
+  useShareIntent: jest.fn(() => ({
+    hasShareIntent: false,
+    shareIntent: { files: null, text: null, webUrl: null, type: null },
+    resetShareIntent: jest.fn(),
+    isReady: true,
+    error: null,
+  })),
+}))

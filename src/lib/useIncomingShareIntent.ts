@@ -36,7 +36,7 @@ function deriveCleanTitle(fileName?: string | null, metaTitle?: string | null, t
 export function useIncomingShareIntent() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent({
     debug: false,
-    resetOnBackground: true,
+    resetOnBackground: false,
     disabled: Platform.OS === 'web',
   })
 
@@ -51,7 +51,7 @@ export function useIncomingShareIntent() {
     if (!hasShareIntent || !shareIntent) return
 
     const currentKey = JSON.stringify({
-      files: shareIntent.files?.map((f) => f.path || f.fileName),
+      files: shareIntent.files?.map((f: any) => f.path || f.filePath || f.contentUri || f.fileName),
       text: shareIntent.text,
       webUrl: shareIntent.webUrl,
       type: shareIntent.type,
@@ -64,34 +64,47 @@ export function useIncomingShareIntent() {
     let suggestedTitle = ''
     let description = ''
 
-    // Procesar archivos (PDFs, Imágenes, Documentos)
+    // Procesar archivos (PDFs, Imágenes, Documentos de Office, etc.)
     if (shareIntent.files && shareIntent.files.length > 0) {
-      shareIntent.files.forEach((file, index) => {
+      shareIntent.files.forEach((file: any, index: number) => {
+        const filePath = file.path || file.filePath || file.contentUri
+        if (!filePath) return
+
         const isImage =
           file.mimeType?.startsWith('image/') ||
-          Boolean(file.path?.match(/\.(jpeg|jpg|png|webp|gif|heic)$/i))
+          Boolean(filePath.match(/\.(jpeg|jpg|png|webp|gif|heic|bmp|svg)$/i))
 
         const isPdf =
           file.mimeType?.includes('pdf') ||
-          Boolean(file.path?.match(/\.pdf$/i))
+          Boolean(filePath.match(/\.pdf$/i))
 
-        const cleanName = file.fileName || (isImage ? `Imagen ${index + 1}` : isPdf ? `Documento PDF ${index + 1}` : `Archivo ${index + 1}`)
+        const cleanName =
+          file.fileName ||
+          (isImage
+            ? `Imagen ${index + 1}`
+            : isPdf
+            ? `Documento PDF ${index + 1}`
+            : `Archivo ${index + 1}`)
 
         attachments.push({
           id: generateId('share_att'),
           file_name: cleanName,
-          file_url: file.path,
+          file_url: filePath,
           file_type: isImage ? 'image' : 'document',
           size_bytes: file.size || undefined,
         })
       })
 
-      // Sugerir título a partir del primer archivo
-      suggestedTitle = deriveCleanTitle(shareIntent.files[0].fileName, shareIntent.meta?.title, shareIntent.text)
+      // Sugerir título a partir del primer archivo compartido
+      const firstFile: any = shareIntent.files[0]
+      const firstFileName =
+        firstFile?.fileName ||
+        (firstFile?.path ? firstFile.path.split('/').pop() : null)
+      suggestedTitle = deriveCleanTitle(firstFileName, shareIntent.meta?.title, null)
     }
 
     // Procesar URL / Enlaces web
-    const candidateUrl = shareIntent.webUrl || (shareIntent.text?.startsWith('http') ? shareIntent.text : null)
+    const candidateUrl = shareIntent.webUrl || (shareIntent.text?.startsWith('http') ? shareIntent.text.trim() : null)
     if (candidateUrl && !attachments.some((a) => a.file_url === candidateUrl)) {
       attachments.push({
         id: generateId('share_link'),
@@ -102,15 +115,25 @@ export function useIncomingShareIntent() {
       if (!suggestedTitle) {
         suggestedTitle = shareIntent.meta?.title || ''
       }
+      if (!description) {
+        description = candidateUrl
+      }
     }
 
-    // Procesar texto / notas compartidas
+    // Procesar texto / notas compartidas (directo a la descripción de la tarea)
     if (shareIntent.text && !shareIntent.text.startsWith('http')) {
+      const trimmedText = shareIntent.text.trim()
+      description = trimmedText
+
       if (!suggestedTitle) {
-        suggestedTitle = deriveCleanTitle(null, shareIntent.meta?.title, shareIntent.text)
-      }
-      if (shareIntent.text !== suggestedTitle) {
-        description = shareIntent.text
+        if (shareIntent.meta?.title && shareIntent.meta.title.trim()) {
+          suggestedTitle = shareIntent.meta.title.trim()
+        } else {
+          const firstLine = trimmedText.split('\n')[0].trim()
+          if (firstLine.length > 0 && firstLine.length <= 45 && !firstLine.startsWith('http')) {
+            suggestedTitle = firstLine
+          }
+        }
       }
     }
 
@@ -146,7 +169,7 @@ export function useIncomingShareIntent() {
             })
           }
 
-          const cleanTitle = title || deriveCleanTitle(name, null, text)
+          const cleanTitle = title || (text ? (text.length <= 45 ? text : '') : deriveCleanTitle(name, null, null))
           if (attachments.length > 0 || cleanTitle || text) {
             triggerHaptic('medium')
             setIncomingAttachments(attachments)

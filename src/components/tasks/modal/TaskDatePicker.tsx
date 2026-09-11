@@ -65,9 +65,11 @@ export function TaskDatePicker({
         transform: [{ translateY: slideAnim }],
       }}
     >
-      <View style={styles.inlineDateMenu}>
-        {/* Selector de Modo: Para Clase vs Manual */}
-        <View style={styles.dateSegmentedRow}>
+      <View style={styles.inlineMenu}>
+        <Text style={styles.inlineMenuHeader}>Fecha de entrega</Text>
+
+        {/* Selector de Modo: Para Clase vs Manual (Estilo Unificado Zora) */}
+        <View style={styles.modeSegmentRow}>
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
@@ -77,21 +79,21 @@ export function TaskDatePicker({
               setShowNativeTimePicker(false)
             }}
             style={[
-              styles.dateSegmentBtn,
-              datePickerTab === 'class' && styles.dateSegmentBtnActive,
+              styles.modeSegmentBtn,
+              datePickerTab === 'class' && styles.modeSegmentBtnActive,
             ]}
           >
             <GraduationCap
               size={13}
-              color={datePickerTab === 'class' ? '#FFFFFF' : '#71717A'}
+              color={datePickerTab === 'class' ? '#09090B' : '#71717A'}
             />
             <Text
               style={[
-                styles.dateSegmentText,
-                datePickerTab === 'class' && styles.dateSegmentTextActive,
+                styles.modeSegmentText,
+                datePickerTab === 'class' && styles.modeSegmentTextActive,
               ]}
             >
-              Para Clase
+              Para clase
             </Text>
           </Pressable>
 
@@ -102,18 +104,18 @@ export function TaskDatePicker({
               setDatePickerTab('manual')
             }}
             style={[
-              styles.dateSegmentBtn,
-              datePickerTab === 'manual' && styles.dateSegmentBtnActive,
+              styles.modeSegmentBtn,
+              datePickerTab === 'manual' && styles.modeSegmentBtnActive,
             ]}
           >
             <Calendar
               size={13}
-              color={datePickerTab === 'manual' ? '#FFFFFF' : '#71717A'}
+              color={datePickerTab === 'manual' ? '#09090B' : '#71717A'}
             />
             <Text
               style={[
-                styles.dateSegmentText,
-                datePickerTab === 'manual' && styles.dateSegmentTextActive,
+                styles.modeSegmentText,
+                datePickerTab === 'manual' && styles.modeSegmentTextActive,
               ]}
             >
               Manual
@@ -165,7 +167,7 @@ export function TaskDatePicker({
               {filteredDaySchedules.length === 0 ? (
                 <View style={styles.emptyClassesBox}>
                   <Text style={styles.emptyClassesText}>
-                    Sin clases configuradas para este día
+                    Sin clases para este día
                   </Text>
                 </View>
               ) : (
@@ -182,7 +184,7 @@ export function TaskDatePicker({
                       style={styles.classCardRow}
                     >
                       <View style={styles.classTimeBox}>
-                        <Clock size={11} color="#818CF8" />
+                        <Clock size={11} color="#A1A1AA" />
                         <Text style={styles.classTimeText}>
                           {sched.start_time || DEFAULT_CLASS_START_TIME}
                         </Text>
@@ -211,7 +213,7 @@ export function TaskDatePicker({
                         )}
                       </View>
 
-                      <ChevronRight size={13} color="#71717A" />
+                      <ChevronRight size={13} color="#52525B" />
                     </Pressable>
                   )
                 })
@@ -242,7 +244,7 @@ export function TaskDatePicker({
                   showNativeDatePicker && styles.nativePickerBtnActive,
                 ]}
               >
-                <Calendar size={15} color={showNativeDatePicker ? '#818CF8' : '#A1A1AA'} />
+                <Calendar size={14} color={showNativeDatePicker ? '#FFFFFF' : '#71717A'} />
                 <View style={styles.nativeBtnInfo}>
                   <Text style={styles.nativeBtnLabel}>Fecha</Text>
                   <Text style={styles.nativeBtnValue} numberOfLines={1}>
@@ -269,7 +271,7 @@ export function TaskDatePicker({
                   showNativeTimePicker && styles.nativePickerBtnActive,
                 ]}
               >
-                <Clock size={15} color={showNativeTimePicker ? '#818CF8' : '#A1A1AA'} />
+                <Clock size={14} color={showNativeTimePicker ? '#FFFFFF' : '#71717A'} />
                 <View style={styles.nativeBtnInfo}>
                   <Text style={styles.nativeBtnLabel}>Hora</Text>
                   <Text style={styles.nativeBtnValue} numberOfLines={1}>
@@ -357,42 +359,47 @@ export function TaskDatePicker({
 }
 
 const styles = StyleSheet.create({
-  inlineDateMenu: {
+  inlineMenu: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     marginTop: 6,
-    gap: 12,
+    gap: 10,
   },
-  dateSegmentedRow: {
+  inlineMenuHeader: {
+    color: '#71717A',
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  modeSegmentRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 10,
-    padding: 3,
-    gap: 4,
+    gap: 6,
   },
-  dateSegmentBtn: {
+  modeSegmentBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7.5,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     gap: 6,
   },
-  dateSegmentBtnActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  modeSegmentBtnActive: {
+    backgroundColor: '#FFFFFF',
   },
-  dateSegmentText: {
+  modeSegmentText: {
     color: '#71717A',
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
   },
-  dateSegmentTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  modeSegmentTextActive: {
+    color: '#09090B',
+    fontWeight: '800',
   },
   classPickerContainer: {
     gap: 10,
@@ -409,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   classDayPillActive: {
-    backgroundColor: '#818CF8',
+    backgroundColor: '#FFFFFF',
   },
   classDayText: {
     color: '#71717A',
@@ -417,14 +424,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   classDayTextActive: {
-    color: '#FFFFFF',
+    color: '#09090B',
     fontWeight: '800',
   },
   classListContainer: {
     gap: 6,
   },
   emptyClassesBox: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   emptyClassesText: {
@@ -434,7 +441,9 @@ const styles = StyleSheet.create({
   classCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 10,
     padding: 10,
     gap: 10,
@@ -443,13 +452,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(129, 140, 248, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 6,
   },
   classTimeText: {
-    color: '#818CF8',
+    color: '#D4D4D8',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -481,11 +490,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   nativePickerContainer: {
-    gap: 12,
+    gap: 10,
   },
   nativeButtonsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   nativePickerBtn: {
     flex: 1,
@@ -493,15 +502,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 10,
+    paddingVertical: 9,
+    gap: 8,
   },
   nativePickerBtnActive: {
-    backgroundColor: 'rgba(129, 140, 248, 0.12)',
-    borderColor: '#818CF8',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   nativeBtnInfo: {
     flex: 1,
@@ -509,19 +518,19 @@ const styles = StyleSheet.create({
   },
   nativeBtnLabel: {
     color: '#71717A',
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
   },
   nativeBtnValue: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   nativePickerBox: {
     backgroundColor: '#18181B',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -546,7 +555,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   dateOptionClearBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,

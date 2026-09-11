@@ -47,29 +47,29 @@ export function MinimalistVitalStats() {
     return calculateAcademicVitalStats(tasks, subjects)
   }, [tasks, subjects])
 
-  // Determinar color y estado dinámico
-  const statusConfig = useMemo(() => {
-    if (stats.totalTasksCount === 0) {
-      return { label: 'Sin tareas', color: '#71717A', stroke: '#3F3F46' }
+  const strokeColor = useMemo(() => {
+    if (stats.totalTasksCount === 0 || stats.completionRate === 0) {
+      return '#27272A'
     }
-    if (stats.completionRate >= 80) {
-      return { label: 'Al día', color: '#34D399', stroke: '#34D399' }
-    }
-    if (stats.completionRate >= 50) {
-      return { label: 'En progreso', color: '#38BDF8', stroke: '#38BDF8' }
-    }
-    return { label: 'Por atender', color: '#F59E0B', stroke: '#F59E0B' }
+    if (stats.completionRate >= 80) return '#34D399'
+    if (stats.completionRate >= 50) return '#38BDF8'
+    return '#F59E0B'
   }, [stats.completionRate, stats.totalTasksCount])
 
   useEffect(() => {
     animProgress.setValue(0)
+    const targetProgress =
+      stats.totalTasksCount === 0 || stats.completionRate === 0
+        ? 0
+        : Math.max(0.04, stats.completionRate / 100)
+
     Animated.timing(animProgress, {
-      toValue: Math.max(0.02, stats.completionRate / 100),
+      toValue: targetProgress,
       duration: 750,
       easing: APPLE_EASING,
       useNativeDriver: false,
     }).start()
-  }, [stats.completionRate])
+  }, [stats.completionRate, stats.totalTasksCount])
 
   const strokeDashoffset = animProgress.interpolate({
     inputRange: [0, 1],
@@ -84,13 +84,6 @@ export function MinimalistVitalStats() {
           <Award size={13.5} color="#FFFFFF" strokeWidth={2.2} />
           <Text style={styles.sectionTitle} numberOfLines={1}>
             Progreso Académico
-          </Text>
-        </View>
-
-        <View style={[styles.statusBadge, { borderColor: `${statusConfig.color}33` }]}>
-          <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
-          <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>
-            {statusConfig.label}
           </Text>
         </View>
       </View>
@@ -115,7 +108,7 @@ export function MinimalistVitalStats() {
                 cx={RING_SIZE / 2}
                 cy={RING_SIZE / 2}
                 r={RADIUS}
-                stroke={statusConfig.stroke}
+                stroke={strokeColor}
                 strokeWidth={STROKE_WIDTH}
                 strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
                 strokeDashoffset={strokeDashoffset}
@@ -192,26 +185,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FAFAFA',
     letterSpacing: -0.2,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#18181B',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    letterSpacing: -0.1,
   },
   contentBody: {
     flexDirection: 'row',

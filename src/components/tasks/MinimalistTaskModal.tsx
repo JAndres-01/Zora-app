@@ -579,7 +579,6 @@ export function MinimalistTaskModal({
         <Animated.View
           style={[
             styles.sheetContainer,
-            currentView === 'form' && styles.sheetContainerForm,
             {
               paddingBottom: Math.max(insets.bottom, 16) + 8,
               transform: [
@@ -762,6 +761,7 @@ export function MinimalistTaskModal({
                     <Pressable
                       onPress={() => {
                         triggerHaptic('selection')
+                        LAYOUT_EASE(180)
                         setPublishToClass(!publishToClass)
                       }}
                       style={[
@@ -898,9 +898,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.09)',
     maxHeight: '92%',
   },
-  sheetContainerForm: {
-    height: '88%',
-  },
   dragHandle: {
     width: 52,
     height: 5,
@@ -946,12 +943,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   sheetScroll: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
   },
   sheetScrollContent: {
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   cleanTitleInput: {
     color: '#FFFFFF',

@@ -35,8 +35,8 @@ export function useModalAnimation({
   visible,
   onClose,
   onClosed,
-  dismissThreshold = 100,
-  dismissVelocity = 0.6,
+  dismissThreshold = 70,
+  dismissVelocity = 0.45,
 }: UseModalAnimationOptions): UseModalAnimationReturn {
   const [modalVisible, setModalVisible] = useState(visible)
   const isClosingRef = useRef(false)

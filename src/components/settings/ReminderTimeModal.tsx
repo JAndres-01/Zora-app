@@ -8,7 +8,7 @@ import {
   Animated,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { X, Check } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { APPLE_EASING } from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { SCREEN_HEIGHT } from '@/constants/layout'
@@ -42,6 +42,8 @@ export function ReminderTimeModal({
     modalVisible,
     fadeAnim,
     slideAnim,
+    panY,
+    panResponder,
     handleSmoothClose: handleClose,
   } = useModalAnimation({
     visible,
@@ -66,19 +68,18 @@ export function ReminderTimeModal({
             styles.timeSheetContainer,
             {
               paddingBottom: Math.max(insets.bottom, 20) + 12,
-              transform: [{ translateY: slideAnim }],
+              transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
         >
-          <View style={styles.dragHandle} />
-          <View style={styles.timeSheetHeader}>
-            <View>
-              <Text style={styles.modalTitle}>Hora del Recordatorio</Text>
-              <Text style={styles.modalSubtitle}>Aviso previo la noche antes de la entrega</Text>
+          <View {...panResponder.panHandlers}>
+            <View style={styles.dragHandle} />
+            <View style={styles.timeSheetHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Hora del Recordatorio</Text>
+                <Text style={styles.modalSubtitle}>Aviso previo la noche antes de la entrega</Text>
+              </View>
             </View>
-            <Pressable onPress={handleClose} hitSlop={12} style={styles.modalCloseBtn}>
-              <X size={18} color="#A1A1AA" />
-            </Pressable>
           </View>
 
           <View style={styles.hoursList}>

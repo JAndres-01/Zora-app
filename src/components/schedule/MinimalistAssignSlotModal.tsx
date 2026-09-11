@@ -12,7 +12,7 @@ import {
 import type { Subject, Schedule } from '@/types/personal'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
 import { SCHEDULE_DAYS } from '@/constants/dates'
-import { X, Check, Trash2 } from 'lucide-react-native'
+import { Check, Trash2 } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { personalStorage } from '@/lib/personalStorage'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
@@ -162,10 +162,6 @@ export function MinimalistAssignSlotModal({
                 </Text>
                 <Text style={styles.sheetSubtitle}>{slotSubtitle}</Text>
               </View>
-
-              <Pressable onPress={handleSmoothClose} hitSlop={12} style={styles.closeBtn}>
-                <X size={18} color="#A1A1AA" />
-              </Pressable>
             </View>
           </View>
 
@@ -225,14 +221,18 @@ export function MinimalistAssignSlotModal({
 
             {/* Acción de Liberar Bloque */}
             {Boolean(existingSchedule) && (
-              <Pressable
-                onPress={handleClearSlot}
-                disabled={loading}
-                style={styles.clearSlotBtn}
-              >
-                <Trash2 size={13.5} color="#EF4444" />
-                <Text style={styles.clearSlotText}>Liberar hora (dejar libre)</Text>
-              </Pressable>
+              <View style={styles.clearSlotContainer}>
+                <Pressable
+                  onPress={handleClearSlot}
+                  disabled={loading}
+                  style={({ pressed }) => [styles.clearSlotBtn, pressed && styles.clearSlotBtnPressed]}
+                >
+                  <View style={styles.iconBox}>
+                    <Trash2 size={16} color="#EF4444" />
+                  </View>
+                  <Text style={styles.clearSlotText}>Liberar hora (dejar libre)</Text>
+                </Pressable>
+              </View>
             )}
           </ScrollView>
         </Animated.View>
@@ -262,17 +262,17 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.55,
   },
   sheetHeader: {
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingTop: 10,
+    paddingBottom: 14,
     paddingHorizontal: 16,
   },
   dragHandle: {
-    width: 32,
-    height: 3.5,
+    width: 36,
+    height: 4,
     borderRadius: 2,
     backgroundColor: '#3F3F46',
     alignSelf: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   headerRow: {
     flexDirection: 'row',
@@ -290,9 +290,6 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '500',
     marginTop: 1,
-  },
-  closeBtn: {
-    padding: 4,
   },
   sheetScroll: {
     paddingHorizontal: 16,
@@ -354,20 +351,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  clearSlotContainer: {
+    backgroundColor: '#18181B',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#23232A',
+    overflow: 'hidden',
+    marginTop: 12,
+    marginBottom: 6,
+  },
   clearSlotBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  clearSlotBtnPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  iconBox: {
+    width: 20,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    marginTop: 12,
-    marginBottom: 4,
-    borderRadius: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
   clearSlotText: {
     color: '#EF4444',
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '600',
   },
   emptySubjsNotice: {

@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Schedule } from '@/types/personal'
-import { X, Check, Clock, Paperclip, ChevronRight } from 'lucide-react-native'
+import { Check, Clock, Paperclip, ChevronRight } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { getActiveAcademicWeek, isTaskForAcademicDay, formatTime12h } from '@/lib/academicDateUtils'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
@@ -122,10 +122,6 @@ export function MinimalistDayTasksModal({
                     : `${sortedDayTasks.length} pendiente${sortedDayTasks.length === 1 ? '' : 's'} para este día`}
                 </Text>
               </View>
-
-              <Pressable onPress={handleSmoothClose} hitSlop={12} style={styles.closeBtn}>
-                <X size={18} color="#A1A1AA" />
-              </Pressable>
             </View>
           </View>
 

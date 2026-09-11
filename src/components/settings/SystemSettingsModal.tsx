@@ -15,7 +15,6 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  X,
   ChevronRight,
   Bell,
   Clock,
@@ -162,9 +161,6 @@ export function SystemSettingsModal({
                 <Text style={styles.modalTitle}>Ajustes del Sistema</Text>
                 <Text style={styles.modalSubtitle}>Preferencias de la aplicación</Text>
               </View>
-              <Pressable onPress={handleClose} hitSlop={12} style={styles.modalCloseBtn}>
-                <X size={18} color="#A1A1AA" />
-              </Pressable>
             </View>
           </View>
 

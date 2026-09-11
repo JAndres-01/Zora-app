@@ -44,6 +44,8 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
     modalVisible,
     fadeAnim,
     slideAnim,
+    panY,
+    panResponder,
     handleSmoothClose: handleClose,
   } = useModalAnimation({
     visible,
@@ -58,7 +60,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
   }, [visible])
 
   useEffect(() => {
-    if (!visible) return
+    if (!modalVisible) return
 
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
@@ -66,7 +68,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
     const showSub = Keyboard.addListener(showEvent, (e) => {
       const kbHeight = e.endCoordinates.height
       const duration = e.duration && e.duration > 0 ? e.duration : 220
-      const targetOffset = -Math.max(0, kbHeight - insets.bottom - 20)
+      const targetOffset = -Math.max(0, kbHeight - insets.bottom - 40)
 
       Animated.timing(keyboardTranslateY, {
         toValue: targetOffset,
@@ -91,10 +93,9 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
       showSub.remove()
       hideSub.remove()
     }
-  }, [visible, insets.bottom])
+  }, [modalVisible, insets.bottom, keyboardTranslateY])
 
   const handleSubmit = async () => {
-    setErrorMessage(null)
     const trimmedEmail = email.trim()
     const trimmedPass = password.trim()
 
@@ -188,15 +189,19 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
             styles.sheetContainer,
             {
               paddingBottom: Math.max(insets.bottom, 20) + 16,
-              transform: [{ translateY: Animated.add(slideAnim, keyboardTranslateY) }],
+              transform: [
+                { translateY: Animated.add(Animated.add(slideAnim, panY), keyboardTranslateY) },
+              ],
             },
           ]}
         >
-          <View style={styles.dragHandle} />
+          <View {...panResponder.panHandlers}>
+            <View style={styles.dragHandle} />
 
-          {/* Cabecera Minimalista */}
-          <View style={styles.sheetHeader}>
-            <Text style={styles.modalTitle}>Feed de Clase</Text>
+            {/* Cabecera Minimalista */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.modalTitle}>Feed de Clase</Text>
+            </View>
           </View>
 
           {/* ESTADO 1: USUARIO YA CONECTADO (Sin cards, lista plana monocromática) */}

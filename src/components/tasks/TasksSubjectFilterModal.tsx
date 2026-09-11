@@ -15,6 +15,8 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { APPLE_EASING } from '@/constants/animations'
 
+import { useModalAnimation } from '@/hooks/useModalAnimation'
+
 export interface TasksSubjectFilterModalProps {
   visible: boolean
   subjects: Subject[]
@@ -32,73 +34,17 @@ export function TasksSubjectFilterModal({
   onSelectSubject,
   onClose,
 }: TasksSubjectFilterModalProps) {
-  const [modalVisible, setModalVisible] = useState(visible)
-  const menuFadeAnim = useRef(new Animated.Value(visible ? 1 : 0)).current
-  const menuSlideAnim = useRef(new Animated.Value(visible ? 0 : SCREEN_HEIGHT)).current
-
-  if (visible && !modalVisible) {
-    setModalVisible(true)
-  }
-
-  useEffect(() => {
-    if (visible) {
-      menuFadeAnim.setValue(0)
-      menuSlideAnim.setValue(SCREEN_HEIGHT)
-
-      Animated.parallel([
-        Animated.timing(menuFadeAnim, {
-          toValue: 1,
-          duration: 200,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.spring(menuSlideAnim, {
-          toValue: 0,
-          stiffness: 480,
-          damping: 32,
-          mass: 0.8,
-          useNativeDriver: true,
-        }),
-      ]).start()
-    } else if (modalVisible) {
-      Animated.parallel([
-        Animated.timing(menuFadeAnim, {
-          toValue: 0,
-          duration: 180,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.timing(menuSlideAnim, {
-          toValue: SCREEN_HEIGHT,
-          duration: 220,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setModalVisible(false)
-      })
-    }
-  }, [visible, modalVisible])
-
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(menuFadeAnim, {
-        toValue: 0,
-        duration: 180,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-      Animated.timing(menuSlideAnim, {
-        toValue: SCREEN_HEIGHT,
-        duration: 220,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose()
-      setModalVisible(false)
-    })
-  }
+  const {
+    modalVisible,
+    fadeAnim: menuFadeAnim,
+    slideAnim: menuSlideAnim,
+    panY,
+    panResponder,
+    handleSmoothClose: handleClose,
+  } = useModalAnimation({
+    visible,
+    onClose,
+  })
 
   const handleSelect = (id: string) => {
     triggerHaptic('selection')
@@ -118,15 +64,12 @@ export function TasksSubjectFilterModal({
         <Animated.View
           style={[
             styles.menuSheet,
-            { transform: [{ translateY: menuSlideAnim }] },
+            { transform: [{ translateY: Animated.add(menuSlideAnim, panY) }] },
           ]}
         >
-          <View style={styles.menuHeader}>
+          <View style={styles.menuHeader} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <Text style={styles.menuTitle}>Filtrar por Materia</Text>
-            <Pressable onPress={handleClose} hitSlop={12} style={styles.menuCloseBtn}>
-              <X size={18} color="#A1A1AA" />
-            </Pressable>
           </View>
 
           <ScrollView style={styles.menuList} showsVerticalScrollIndicator={false}>

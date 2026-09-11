@@ -16,7 +16,7 @@ import { MinimalistTaskModal, TaskModalMode } from '@/components/tasks/Minimalis
 import { MinimalistConfetti } from '@/components/effects/MinimalistConfetti'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
-import { Plus, Eye, EyeOff } from 'lucide-react-native'
+import { Plus } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import {
   cancelTaskReminder,
@@ -35,7 +35,6 @@ export default function TodayScreen() {
 
   const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
   const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
-  const [isSimulatingLive, setIsSimulatingLive] = useState(false)
   const [schedulesToday, setSchedulesToday] = useState<Schedule[]>(() => {
     const todayNum = new Date().getDay() === 0 ? 7 : new Date().getDay()
     const classScheds = personalStorage.getCachedClassSchedulesWithSubjects()
@@ -168,45 +167,17 @@ export default function TodayScreen() {
               <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
             </View>
 
-            <View style={styles.headerActions}>
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  setIsSimulatingLive((prev) => !prev)
-                }}
-                style={[
-                  styles.headerPreviewBtn,
-                  isSimulatingLive && styles.headerPreviewBtnActive,
-                ]}
-                hitSlop={8}
-              >
-                {isSimulatingLive ? (
-                  <EyeOff size={13} color="#FFFFFF" strokeWidth={2.4} />
-                ) : (
-                  <Eye size={13} color="#A1A1AA" strokeWidth={2.4} />
-                )}
-                <Text
-                  style={[
-                    styles.headerPreviewBtnText,
-                    isSimulatingLive && styles.headerPreviewBtnTextActive,
-                  ]}
-                >
-                  {isSimulatingLive ? 'En vivo (ON)' : 'Probar'}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('medium')
-                  setActiveTask(null)
-                  setTaskModalMode('create')
-                }}
-                style={styles.headerAddBtn}
-              >
-                <Plus size={14} color="#09090B" strokeWidth={2.8} />
-                <Text style={styles.headerAddBtnText}>Tarea</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() => {
+                triggerHaptic('medium')
+                setActiveTask(null)
+                setTaskModalMode('create')
+              }}
+              style={styles.headerAddBtn}
+            >
+              <Plus size={14} color="#09090B" strokeWidth={2.8} />
+              <Text style={styles.headerAddBtnText}>Tarea</Text>
+            </Pressable>
           </View>
         </View>
 
@@ -233,26 +204,7 @@ export default function TodayScreen() {
             ],
           }}
         >
-          <MinimalistLiveHero
-            schedulesToday={
-              isSimulatingLive && schedulesToday.length === 0 && subjects.length > 0
-                ? [
-                    {
-                      id: 'sim_1',
-                      day_of_week: 1,
-                      block_number: 1,
-                      start_time: '07:00',
-                      end_time: '08:30',
-                      classroom_room: 'C1',
-                      subject_id: subjects[0].id,
-                      subject: subjects[0],
-                      created_at: new Date().toISOString(),
-                    },
-                  ]
-                : schedulesToday
-            }
-            simulatedMinutes={isSimulatingLive ? 450 : undefined}
-          />
+          <MinimalistLiveHero schedulesToday={schedulesToday} />
         </Animated.View>
 
         {/* Card 1: Bloque de Tareas Próximas */}
@@ -314,25 +266,8 @@ export default function TodayScreen() {
           }}
         >
           <MinimalistDayTimeline
-            schedulesToday={
-              isSimulatingLive && schedulesToday.length === 0 && subjects.length > 0
-                ? [
-                    {
-                      id: 'sim_1',
-                      day_of_week: 1,
-                      block_number: 1,
-                      start_time: '07:00',
-                      end_time: '08:30',
-                      classroom_room: 'C1',
-                      subject_id: subjects[0].id,
-                      subject: subjects[0],
-                      created_at: new Date().toISOString(),
-                    },
-                  ]
-                : schedulesToday
-            }
+            schedulesToday={schedulesToday}
             tasks={tasks}
-            simulatedMinutes={isSimulatingLive ? 450 : undefined}
             onToggleTask={handleToggleTaskStatus}
             onOpenTaskDetail={(t) => {
               triggerHaptic('light')
@@ -391,35 +326,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     marginTop: 2,
     fontWeight: '500',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerPreviewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  headerPreviewBtnActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  headerPreviewBtnText: {
-    color: '#A1A1AA',
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  headerPreviewBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   headerAddBtn: {
     flexDirection: 'row',

@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native'
 import type { Subject } from '@/types/personal'
-import { X, Trash2, Check, ArrowLeft } from 'lucide-react-native'
+import { Trash2, Check, ArrowLeft } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { personalStorage } from '@/lib/personalStorage'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
@@ -262,8 +262,8 @@ export function MinimalistSubjectModal({
                 </View>
               )}
 
-              <View style={styles.headerRightActions}>
-                {hasInput && (
+              {hasInput && (
+                <View style={styles.headerRightActions}>
                   <Pressable
                     onPress={handleSaveSubject}
                     disabled={loading}
@@ -278,12 +278,8 @@ export function MinimalistSubjectModal({
                       </Text>
                     )}
                   </Pressable>
-                )}
-
-                <Pressable onPress={handleSmoothClose} hitSlop={12} style={styles.closeBtn}>
-                  <X size={18} color="#A1A1AA" />
-                </Pressable>
-              </View>
+                </View>
+              )}
             </View>
           </View>
 

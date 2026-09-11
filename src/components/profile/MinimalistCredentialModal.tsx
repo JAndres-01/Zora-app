@@ -17,7 +17,6 @@ import * as FileSystem from 'expo-file-system/legacy'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   IdCard,
-  X,
   Share2,
   RefreshCw,
   Trash2,
@@ -324,14 +323,6 @@ export function MinimalistCredentialModal({
                   </Text>
                 </View>
               </View>
-
-              <Pressable
-                onPress={handleClose}
-                hitSlop={12}
-                style={styles.closeBtn}
-              >
-                <X size={18} color="#A1A1AA" strokeWidth={2.4} />
-              </Pressable>
             </View>
           </View>
 

@@ -733,6 +733,30 @@ export function MinimalistTaskModal({
                     <ChevronDown size={12} color="#71717A" />
                   </Pressable>
 
+                  {/* Selector de Destino: Clase / Personal (Solo visible para Admin en modo crear) */}
+                  {isAdmin && mode === 'create' && (
+                    <Pressable
+                      onPress={() => {
+                        triggerHaptic('selection')
+                        setPublishToClass(!publishToClass)
+                      }}
+                      style={[
+                        styles.attrPill,
+                        publishToClass && styles.attrPillActive,
+                      ]}
+                    >
+                      <Globe size={13} color={publishToClass ? '#FFFFFF' : '#71717A'} />
+                      <Text
+                        style={[
+                          styles.attrPillText,
+                          publishToClass && styles.attrPillTextActive,
+                        ]}
+                      >
+                        {publishToClass ? 'Para la clase' : 'Personal'}
+                      </Text>
+                    </Pressable>
+                  )}
+
                   {/* Fotos / Galería / Documento */}
                   <Pressable onPress={handleTakePhoto} style={styles.attrIconPill}>
                     <Camera size={15} color="#A1A1AA" />
@@ -795,35 +819,6 @@ export function MinimalistTaskModal({
                   onOpenImage={setSelectedLightboxImage}
                   onOpenPdf={setViewingPdf}
                 />
-
-                {/* Switch Sutil de Publicar en la Clase (Solo visible para Admin en modo crear) */}
-                {isAdmin && mode === 'create' && (
-                  <Pressable
-                    onPress={() => {
-                      triggerHaptic('light')
-                      setPublishToClass(!publishToClass)
-                    }}
-                    style={[
-                      styles.publishClassToggle,
-                      publishToClass && styles.publishClassToggleActive,
-                    ]}
-                  >
-                    <View style={styles.publishClassToggleLeft}>
-                      <Globe size={16} color={publishToClass ? '#60A5FA' : '#71717A'} />
-                      <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[styles.publishClassToggleTitle, publishToClass && styles.publishClassToggleTitleActive]}>
-                          Publicar para la clase
-                        </Text>
-                        <Text style={styles.publishClassToggleSub}>
-                          Los estudiantes recibirán esta tarea en su feed
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={[styles.miniSwitch, publishToClass && styles.miniSwitchActive]}>
-                      <View style={[styles.miniSwitchKnob, publishToClass && styles.miniSwitchKnobActive]} />
-                    </View>
-                  </Pressable>
-                )}
               </ScrollView>
             </>
           )}
@@ -983,61 +978,5 @@ const styles = StyleSheet.create({
   whiteDotBorder: {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  publishClassToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 14,
-  },
-  publishClassToggleActive: {
-    borderColor: 'rgba(59, 130, 246, 0.35)',
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
-  },
-  publishClassToggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  publishClassToggleTitle: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  publishClassToggleTitleActive: {
-    color: '#60A5FA',
-    fontWeight: '700',
-  },
-  publishClassToggleSub: {
-    color: '#71717A',
-    fontSize: 11,
-  },
-  miniSwitch: {
-    width: 36,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#27272A',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  miniSwitchActive: {
-    backgroundColor: '#3B82F6',
-  },
-  miniSwitchKnob: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#71717A',
-  },
-  miniSwitchKnobActive: {
-    backgroundColor: '#FFFFFF',
-    alignSelf: 'flex-end',
   },
 })

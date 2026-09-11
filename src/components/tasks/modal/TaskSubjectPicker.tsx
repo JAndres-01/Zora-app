@@ -24,6 +24,8 @@ export function TaskSubjectPicker({
       style={{
         opacity: fadeAnim,
         transform: [{ translateY: slideAnim }],
+        overflow: 'hidden',
+        borderRadius: 16,
       }}
     >
       <View style={styles.inlineMenu}>
@@ -85,6 +87,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     marginTop: 6,
     gap: 6,
+    overflow: 'hidden',
   },
   inlineMenuHeader: {
     color: '#71717A',

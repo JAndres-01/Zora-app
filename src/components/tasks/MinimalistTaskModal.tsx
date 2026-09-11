@@ -158,13 +158,14 @@ export function MinimalistTaskModal({
       Animated.parallel([
         Animated.timing(pickerFadeAnim, {
           toValue: 1,
-          duration: 160,
+          duration: 110,
           useNativeDriver: true,
         }),
         Animated.spring(pickerSlideAnim, {
           toValue: 0,
-          stiffness: 500,
-          damping: 28,
+          stiffness: 850,
+          damping: 34,
+          mass: 0.35,
           useNativeDriver: true,
         }),
       ]).start()
@@ -678,7 +679,7 @@ export function MinimalistTaskModal({
                     onPress={() => {
                       triggerHaptic('selection')
                       Keyboard.dismiss()
-                      LAYOUT_EASE(180)
+                      LAYOUT_EASE(130)
                       setActivePicker(activePicker === 'subject' ? null : 'subject')
                     }}
                     style={[
@@ -711,7 +712,7 @@ export function MinimalistTaskModal({
                     onPress={() => {
                       triggerHaptic('selection')
                       Keyboard.dismiss()
-                      LAYOUT_EASE(180)
+                      LAYOUT_EASE(130)
                       setActivePicker(activePicker === 'date' ? null : 'date')
                     }}
                     style={[
@@ -736,7 +737,7 @@ export function MinimalistTaskModal({
                     onPress={() => {
                       triggerHaptic('selection')
                       Keyboard.dismiss()
-                      LAYOUT_EASE(180)
+                      LAYOUT_EASE(130)
                       setActivePicker(activePicker === 'type' ? null : 'type')
                     }}
                     style={[
@@ -761,7 +762,7 @@ export function MinimalistTaskModal({
                     <Pressable
                       onPress={() => {
                         triggerHaptic('selection')
-                        LAYOUT_EASE(180)
+                        LAYOUT_EASE(130)
                         setPublishToClass(!publishToClass)
                       }}
                       style={[
@@ -796,51 +797,53 @@ export function MinimalistTaskModal({
                 </ScrollView>
 
                 {/* Subcomponentes de Selección */}
-                {activePicker === 'subject' && (
-                  <TaskSubjectPicker
-                    subjects={subjects}
-                    selectedSubjectId={selectedSubjectId}
-                    onSelectSubject={(id) => {
-                      LAYOUT_EASE(180)
-                      setSelectedSubjectId(id)
-                      setActivePicker(null)
-                    }}
-                    fadeAnim={pickerFadeAnim}
-                    slideAnim={pickerSlideAnim}
-                  />
-                )}
+                <View style={styles.pickerSectionWrapper}>
+                  {activePicker === 'subject' && (
+                    <TaskSubjectPicker
+                      subjects={subjects}
+                      selectedSubjectId={selectedSubjectId}
+                      onSelectSubject={(id) => {
+                        LAYOUT_EASE(130)
+                        setSelectedSubjectId(id)
+                        setActivePicker(null)
+                      }}
+                      fadeAnim={pickerFadeAnim}
+                      slideAnim={pickerSlideAnim}
+                    />
+                  )}
 
-                {activePicker === 'date' && (
-                  <TaskDatePicker
-                    dueDate={dueDate}
-                    onSelectDueDate={setDueDate}
-                    onSelectClass={(sched, subj) => {
-                      LAYOUT_EASE(180)
-                      handleSelectClass(sched, subj)
-                    }}
-                    schedules={schedules}
-                    subjects={subjects}
-                    fadeAnim={pickerFadeAnim}
-                    slideAnim={pickerSlideAnim}
-                    onClosePicker={() => {
-                      LAYOUT_EASE(180)
-                      setActivePicker(null)
-                    }}
-                  />
-                )}
+                  {activePicker === 'date' && (
+                    <TaskDatePicker
+                      dueDate={dueDate}
+                      onSelectDueDate={setDueDate}
+                      onSelectClass={(sched, subj) => {
+                        LAYOUT_EASE(130)
+                        handleSelectClass(sched, subj)
+                      }}
+                      schedules={schedules}
+                      subjects={subjects}
+                      fadeAnim={pickerFadeAnim}
+                      slideAnim={pickerSlideAnim}
+                      onClosePicker={() => {
+                        LAYOUT_EASE(130)
+                        setActivePicker(null)
+                      }}
+                    />
+                  )}
 
-                {activePicker === 'type' && (
-                  <TaskTypePicker
-                    taskType={taskType}
-                    onSelectType={(t) => {
-                      LAYOUT_EASE(180)
-                      setTaskType(t)
-                      setActivePicker(null)
-                    }}
-                    fadeAnim={pickerFadeAnim}
-                    slideAnim={pickerSlideAnim}
-                  />
-                )}
+                  {activePicker === 'type' && (
+                    <TaskTypePicker
+                      taskType={taskType}
+                      onSelectType={(t) => {
+                        LAYOUT_EASE(130)
+                        setTaskType(t)
+                        setActivePicker(null)
+                      }}
+                      fadeAnim={pickerFadeAnim}
+                      slideAnim={pickerSlideAnim}
+                    />
+                  )}
+                </View>
 
                 {/* Adjuntos del Formulario */}
                 <TaskAttachmentSection
@@ -1014,5 +1017,8 @@ const styles = StyleSheet.create({
   whiteDotBorder: {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  pickerSectionWrapper: {
+    overflow: 'hidden',
   },
 })

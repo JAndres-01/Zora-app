@@ -70,6 +70,14 @@ export function TaskDatePicker({
   const [showNativeDatePicker, setShowNativeDatePicker] = useState(false)
   const [showNativeTimePicker, setShowNativeTimePicker] = useState(false)
 
+  // Fast Snappy Spring Config
+  const FAST_SPRING = {
+    stiffness: 750,
+    damping: 36,
+    mass: 0.38,
+    useNativeDriver: true,
+  } as const
+
   // Segment Mode Slider
   const [segmentContainerWidth, setSegmentContainerWidth] = useState(0)
   const segmentPillWidth = segmentContainerWidth > 0 ? Math.max(0, (segmentContainerWidth - 6) / 2) : 0
@@ -79,7 +87,7 @@ export function TaskDatePicker({
     if (segmentPillWidth > 0) {
       Animated.spring(modeSlideAnim, {
         toValue: datePickerTab === 'class' ? 0 : segmentPillWidth,
-        ...SPRING_SLIDE_INDICATOR,
+        ...FAST_SPRING,
       }).start()
     }
   }, [datePickerTab, segmentPillWidth, modeSlideAnim])
@@ -94,7 +102,7 @@ export function TaskDatePicker({
     if (dayPillWidth > 0) {
       Animated.spring(daySlideAnim, {
         toValue: activeDayIndex * dayPillWidth,
-        ...SPRING_SLIDE_INDICATOR,
+        ...FAST_SPRING,
       }).start()
     }
   }, [activeDayIndex, dayPillWidth, daySlideAnim])
@@ -109,6 +117,8 @@ export function TaskDatePicker({
       style={{
         opacity: fadeAnim,
         transform: [{ translateY: slideAnim }],
+        overflow: 'hidden',
+        borderRadius: 16,
       }}
     >
       <View style={styles.inlineMenu}>
@@ -139,7 +149,7 @@ export function TaskDatePicker({
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
-              LAYOUT_EASE(180)
+              LAYOUT_EASE(130)
               setDatePickerTab('class')
               setShowNativeDatePicker(false)
               setShowNativeTimePicker(false)
@@ -163,7 +173,7 @@ export function TaskDatePicker({
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
-              LAYOUT_EASE(180)
+              LAYOUT_EASE(130)
               setDatePickerTab('manual')
             }}
             style={styles.segmentButton}
@@ -217,7 +227,7 @@ export function TaskDatePicker({
                     key={d.num}
                     onPress={() => {
                       triggerHaptic('selection')
-                      LAYOUT_EASE(180)
+                      LAYOUT_EASE(130)
                       setSelectedClassDay(d.num)
                     }}
                     style={styles.dayPill}
@@ -271,7 +281,7 @@ export function TaskDatePicker({
                       !isAssigned && styles.classRowDisabled,
                     ]}
                   >
-                    {/* Columna Izquierda: Hora y Bloque */}
+                    {/* Columna Izquierda: Hora */}
                     <View style={styles.timeCol}>
                       <Text style={[styles.timeStartText, !isAssigned && styles.timeTextDisabled]}>
                         {sched?.start_time || blockDef.startTime}
@@ -279,9 +289,6 @@ export function TaskDatePicker({
                       <Text style={[styles.timeEndText, !isAssigned && styles.timeTextDisabled]}>
                         {sched?.end_time || blockDef.endTime}
                       </Text>
-                      <View style={styles.blockBadge}>
-                        <Text style={styles.blockBadgeText}>C{blockDef.block}</Text>
-                      </View>
                     </View>
 
                     {/* Columna Derecha: Información de la Materia */}
@@ -346,7 +353,7 @@ export function TaskDatePicker({
               <Pressable
                 onPress={() => {
                   triggerHaptic('light')
-                  LAYOUT_EASE(180)
+                  LAYOUT_EASE(130)
                   if (!dueDate) {
                     const now = new Date()
                     now.setHours(23, 59, 0, 0)
@@ -373,7 +380,7 @@ export function TaskDatePicker({
               <Pressable
                 onPress={() => {
                   triggerHaptic('light')
-                  LAYOUT_EASE(180)
+                  LAYOUT_EASE(130)
                   if (!dueDate) {
                     const now = new Date()
                     now.setHours(23, 59, 0, 0)
@@ -536,6 +543,7 @@ const styles = StyleSheet.create({
   },
   classPickerContainer: {
     gap: 10,
+    overflow: 'hidden',
   },
   daySelectorContainer: {
     flexDirection: 'row',
@@ -594,10 +602,11 @@ const styles = StyleSheet.create({
   },
   blocksList: {
     paddingHorizontal: 2,
+    overflow: 'hidden',
   },
   classRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: 10,
     gap: 12,
   },
@@ -609,10 +618,10 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   timeCol: {
-    width: 52,
+    width: 48,
     alignItems: 'flex-start',
+    justifyContent: 'center',
     gap: 1.5,
-    paddingTop: 1,
   },
   timeStartText: {
     color: '#FFFFFF',
@@ -628,20 +637,9 @@ const styles = StyleSheet.create({
   timeTextDisabled: {
     color: '#52525B',
   },
-  blockBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 5,
-    marginTop: 2,
-  },
-  blockBadgeText: {
-    color: '#71717A',
-    fontSize: 9,
-    fontWeight: '700',
-  },
   contentCol: {
     flex: 1,
+    justifyContent: 'center',
     gap: 3,
   },
   subjectHeaderRow: {

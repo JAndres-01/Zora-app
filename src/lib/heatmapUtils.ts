@@ -53,7 +53,7 @@ export function generateHeatmapGrid(
   const completionsMap = new Map<string, number>()
   tasks.forEach((t) => {
     if (t.status === 'completed') {
-      const taskDateStr = t.updated_at || t.created_at || t.due_date
+      const taskDateStr = t.completed_at || t.updated_at || t.due_date || t.created_at
       if (taskDateStr) {
         try {
           const td = new Date(taskDateStr)

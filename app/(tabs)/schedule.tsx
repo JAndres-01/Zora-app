@@ -156,8 +156,11 @@ export default function ScheduleScreen() {
   }, [])
 
   const handleToggleTaskStatus = useCallback(async (taskId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed'
-    if (newStatus === 'completed') {
+    const newStatus: 'pending' | 'completed' = currentStatus === 'completed' ? 'pending' : 'completed'
+    const isCompleted = newStatus === 'completed'
+    const nowIso = new Date().toISOString()
+
+    if (isCompleted) {
       cancelTaskReminder(taskId)
     } else {
       const taskObj = tasks.find((t) => t.id === taskId)
@@ -168,10 +171,23 @@ export default function ScheduleScreen() {
     }
 
     const updatedTasks = tasks.map((t) =>
-      t.id === taskId ? { ...t, status: newStatus as 'pending' | 'completed' } : t
+      t.id === taskId
+        ? {
+            ...t,
+            status: newStatus,
+            completed_at: isCompleted ? nowIso : null,
+            updated_at: nowIso,
+          }
+        : t
     )
     setTasks(updatedTasks)
-    await personalStorage.setTasks(updatedTasks)
+
+    if (taskId.startsWith('class_')) {
+      const classTaskId = taskId.replace('class_', '')
+      await personalStorage.setClassTaskStatus(classTaskId, newStatus)
+    } else {
+      await personalStorage.setTasks(updatedTasks)
+    }
   }, [tasks])
 
   const handleOpenTaskDetailFromModal = useCallback((task: Task) => {

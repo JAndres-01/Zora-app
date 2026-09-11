@@ -88,9 +88,11 @@ export default function TodayScreen() {
   }, [loadData])
 
   const handleToggleTaskStatus = useCallback(async (taskId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed'
+    const newStatus: 'pending' | 'completed' = currentStatus === 'completed' ? 'pending' : 'completed'
+    const isCompleted = newStatus === 'completed'
+    const nowIso = new Date().toISOString()
 
-    if (newStatus === 'completed') {
+    if (isCompleted) {
       cancelTaskReminder(taskId)
       const prefs = await personalStorage.getPreferences()
       if (prefs.confetti_enabled) {
@@ -106,13 +108,31 @@ export default function TodayScreen() {
     }
 
     const updatedTasks = tasks.map((t) =>
-      t.id === taskId ? { ...t, status: newStatus as 'pending' | 'completed' } : t
+      t.id === taskId
+        ? {
+            ...t,
+            status: newStatus,
+            completed_at: isCompleted ? nowIso : null,
+            updated_at: nowIso,
+          }
+        : t
     )
     setTasks(updatedTasks)
-    await personalStorage.setTasks(updatedTasks)
+
+    if (taskId.startsWith('class_')) {
+      const classTaskId = taskId.replace('class_', '')
+      await personalStorage.setClassTaskStatus(classTaskId, newStatus)
+    } else {
+      await personalStorage.setTasks(updatedTasks)
+    }
 
     if (activeTask && activeTask.id === taskId) {
-      setActiveTask({ ...activeTask, status: newStatus as 'pending' | 'completed' })
+      setActiveTask({
+        ...activeTask,
+        status: newStatus,
+        completed_at: isCompleted ? nowIso : null,
+        updated_at: nowIso,
+      })
     }
   }, [tasks, activeTask])
 

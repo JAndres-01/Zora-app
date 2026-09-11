@@ -165,4 +165,30 @@ describe('personalStorage Local-First Engine', () => {
     expect(allTasks[0].subject?.name).toBe('Inteligencia Artificial')
     expect(allTasks[0].subject?.color).toBe('#EC4899')
   })
+
+  test('asigna completed_at automáticamente al completar y limpia al volver a pending', async () => {
+    const task: Task = {
+      id: 'task-complete-test',
+      title: 'Ensayo de Filosofía',
+      status: 'pending',
+      created_at: '2026-08-01T10:00:00.000Z',
+    }
+
+    await personalStorage.saveTask(task)
+    let tasks = personalStorage.getCachedTasks()
+    expect(tasks[0].completed_at).toBeFalsy()
+
+    // Completar tarea
+    await personalStorage.toggleTaskStatus('task-complete-test')
+    tasks = personalStorage.getCachedTasks()
+    expect(tasks[0].status).toBe('completed')
+    expect(tasks[0].completed_at).toBeTruthy()
+    expect(new Date(tasks[0].completed_at!).getFullYear()).toBeGreaterThanOrEqual(2025)
+
+    // Revertir a pendiente
+    await personalStorage.toggleTaskStatus('task-complete-test')
+    tasks = personalStorage.getCachedTasks()
+    expect(tasks[0].status).toBe('pending')
+    expect(tasks[0].completed_at).toBeNull()
+  })
 })

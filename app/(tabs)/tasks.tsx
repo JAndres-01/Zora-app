@@ -188,9 +188,18 @@ export default function TasksScreen() {
           duration: 120,
         },
       })
+      const isCompleted = nextStatus === 'completed'
+      const nowIso = new Date().toISOString()
       setTasks((prevTasks) => {
         const updated = prevTasks.map((t) =>
-          t.id === taskId ? { ...t, status: nextStatus as 'pending' | 'completed' } : t
+          t.id === taskId
+            ? {
+                ...t,
+                status: nextStatus as 'pending' | 'completed',
+                completed_at: isCompleted ? nowIso : null,
+                updated_at: nowIso,
+              }
+            : t
         )
         const target = updated.find((t) => t.id === taskId)
         if (target) {
@@ -201,7 +210,14 @@ export default function TasksScreen() {
         return updated
       })
       setActiveTask((prev) =>
-        prev?.id === taskId ? { ...prev, status: nextStatus as 'pending' | 'completed' } : prev
+        prev?.id === taskId
+          ? {
+              ...prev,
+              status: nextStatus as 'pending' | 'completed',
+              completed_at: isCompleted ? nowIso : null,
+              updated_at: nowIso,
+            }
+          : prev
       )
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

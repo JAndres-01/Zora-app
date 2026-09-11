@@ -51,6 +51,7 @@ export interface Task {
   type?: TaskType
   status: TaskStatus
   due_date?: string | null
+  completed_at?: string | null
   attachments?: TaskAttachment[]
   is_class_task?: boolean
   class_task_id?: string
@@ -84,6 +85,7 @@ export interface ClassTask {
 
 export interface ClassTaskLocalState {
   completed: boolean
+  completed_at?: string | null
   deleted_locally: boolean
   is_locally_edited: boolean
   local_overrides?: {

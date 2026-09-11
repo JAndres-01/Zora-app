@@ -87,7 +87,8 @@ function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[]
 function mapClassTasksToTaskObjects(
   classTasks: ClassTask[],
   subjects: Subject[],
-  classStatuses: Record<string, TaskStatus>
+  classStatuses: Record<string, TaskStatus>,
+  classStates?: Record<string, ClassTaskLocalState>
 ): Task[] {
   const result: Task[] = []
 
@@ -108,13 +109,21 @@ function mapClassTasksToTaskObjects(
       color: '#3B82F6',
     }
 
+    const localState = classStates?.[ct.id]
+    const status: TaskStatus = localState
+      ? localState.completed ? 'completed' : 'pending'
+      : classStatuses[ct.id] || 'pending'
+
+    const completedAt = localState?.completed_at || (status === 'completed' ? ct.updated_at || ct.created_at : null)
+
     result.push({
       id: `class_${ct.id}`,
       title: ct.title,
       description: ct.description || null,
       type: ct.type,
-      status: classStatuses[ct.id] || 'pending',
+      status,
       due_date: ct.due_date,
+      completed_at: completedAt,
       attachments: ct.attachments || [],
       is_class_task: true,
       class_task_id: ct.id,
@@ -167,8 +176,9 @@ export const personalStorage = {
     const tasks = _tasksCache || []
     const classTasks = _classTasksCache || []
     const classStatuses = _classTaskStatusesCache || {}
+    const classStates = _classTaskStatesCache || {}
 
-    const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses)
+    const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses, classStates)
 
     const localTasksWithSub = tasks.map((t) => ({
       ...t,
@@ -394,14 +404,20 @@ export const personalStorage = {
   },
 
   async getTasksWithSubjects(): Promise<Task[]> {
-    const [tasks, subjects, classTasks, classStatuses] = await Promise.all([
+    const [tasks, subjects, classTasks, classStatuses, classStates] = await Promise.all([
       this.getTasks(),
       this.getSubjects(),
       this.getClassTasksCache(),
       this.getClassTaskStatuses(),
+      this.getClassTaskLocalStates(),
     ])
 
-    const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses)
+    const mappedClassTasks = mapClassTasksToTaskObjects(
+      classTasks,
+      subjects,
+      classStatuses,
+      classStates
+    )
 
     const localTasksWithSub = tasks.map((t) => ({
       ...t,
@@ -415,7 +431,16 @@ export const personalStorage = {
   async setTasks(tasks: Task[]): Promise<void> {
     // Filtrar tareas de clase para guardar solo tareas locales en KEYS.TASKS
     const onlyLocalTasks = tasks.filter((t) => !t.is_class_task)
-    const safeList = sortTasksByDueDate(Array.isArray(onlyLocalTasks) ? onlyLocalTasks : [])
+    const normalizedTasks = onlyLocalTasks.map((t) => {
+      if (t.status === 'completed' && !t.completed_at) {
+        return { ...t, completed_at: t.updated_at || new Date().toISOString() }
+      }
+      if (t.status === 'pending' && t.completed_at) {
+        return { ...t, completed_at: null }
+      }
+      return t
+    })
+    const safeList = sortTasksByDueDate(Array.isArray(normalizedTasks) ? normalizedTasks : [])
     _tasksCache = [...safeList]
     notifyListeners()
     try {
@@ -436,16 +461,58 @@ export const personalStorage = {
     }
     const list = await this.getTasks()
     const index = list.findIndex((t) => t.id === task.id)
+    const normalizedTask: Task = {
+      ...task,
+      completed_at:
+        task.status === 'completed'
+          ? task.completed_at || new Date().toISOString()
+          : null,
+      updated_at: new Date().toISOString(),
+    }
     let updated: Task[]
     if (index >= 0) {
       updated = [...list]
-      updated[index] = task
+      updated[index] = normalizedTask
     } else {
-      updated = [task, ...list]
+      updated = [normalizedTask, ...list]
     }
     const sorted = sortTasksByDueDate(updated)
     await this.setTasks(sorted)
     return sorted
+  },
+
+  async toggleTaskStatus(taskId: string, targetStatus?: TaskStatus): Promise<Task[]> {
+    if (taskId.startsWith('class_')) {
+      const classTaskId = taskId.replace('class_', '')
+      const states = await this.getClassTaskLocalStates()
+      const currentState = states[classTaskId]?.completed ? 'completed' : 'pending'
+      const newStatus: TaskStatus = targetStatus
+        ? targetStatus
+        : currentState === 'completed'
+        ? 'pending'
+        : 'completed'
+      await this.setClassTaskStatus(classTaskId, newStatus)
+      return this.getTasksWithSubjects()
+    }
+
+    const tasks = await this.getTasks()
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return this.getTasksWithSubjects()
+
+    const newStatus: TaskStatus = targetStatus
+      ? targetStatus
+      : task.status === 'completed'
+      ? 'pending'
+      : 'completed'
+
+    const nowIso = new Date().toISOString()
+    const updatedTask: Task = {
+      ...task,
+      status: newStatus,
+      completed_at: newStatus === 'completed' ? nowIso : null,
+      updated_at: nowIso,
+    }
+    return this.saveTask(updatedTask)
   },
 
   async removeTask(taskId: string): Promise<Task[]> {
@@ -567,8 +634,10 @@ export const personalStorage = {
   },
 
   async setClassTaskStatus(classTaskId: string, status: TaskStatus): Promise<void> {
+    const isCompleted = status === 'completed'
     await this.setClassTaskLocalState(classTaskId, {
-      completed: status === 'completed',
+      completed: isCompleted,
+      completed_at: isCompleted ? new Date().toISOString() : null,
     })
   },
 

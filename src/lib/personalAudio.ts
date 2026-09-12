@@ -167,7 +167,7 @@ export async function playSound(effect: SoundEffect): Promise<void> {
         if (player.playing && typeof player.pause === 'function') {
           player.pause()
         }
-        if (player.currentTime > 0 && typeof player.seekTo === 'function') {
+        if (typeof player.seekTo === 'function') {
           await player.seekTo(0).catch(() => {})
         }
         player.play()

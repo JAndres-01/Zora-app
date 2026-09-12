@@ -446,7 +446,7 @@ export function MinimalistTaskModal({
             created_at: new Date().toISOString(),
           }
         }
-      } else if (mode === 'edit' && task) {
+      } else if (task && (mode === 'edit' || currentView === 'form')) {
         savedTaskObj = {
           ...task,
           ...payload,
@@ -454,8 +454,8 @@ export function MinimalistTaskModal({
           updated_at: new Date().toISOString(),
         }
         if (task.is_class_task && isAdmin) {
-          const classTaskId = task.id.replace('class_', '')
-          await updateClassTask(classTaskId, {
+          const rawClassId = task.class_task_id || (task.id.startsWith('class_') ? task.id.replace('class_', '') : task.id)
+          await updateClassTask(rawClassId, {
             title: title.trim(),
             description: description.trim() || null,
             subject_name: selectedSubj?.name || task.subject?.name || 'General',
@@ -597,6 +597,40 @@ export function MinimalistTaskModal({
 
   const selectedSubject = subjects.find((s) => s.id === selectedSubjectId)
   const isFormSubjWhite = isWhiteColor(selectedSubject?.color)
+  const canModify = !task?.is_class_task || isAdmin
+
+  const handleStartEditing = () => {
+    if (!task) return
+    triggerHaptic('light')
+    setTitle(task.title || '')
+    setDescription(task.description || '')
+    setSelectedSubjectId(task.subject_id || null)
+    setTaskType(task.type || 'individual')
+    setDueDate(task.due_date || '')
+    setAttachments(Array.isArray(task.attachments) ? [...task.attachments] : [])
+    setActivePicker(null)
+    setCurrentView('form')
+  }
+
+  const handleDeleteFromDetail = () => {
+    if (!task) return
+    triggerHaptic('warning')
+    Alert.alert('Eliminar tarea', '¿Estás seguro de que deseas eliminar esta tarea?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          handleSmoothClose({ silent: true })
+          if (onDeleteTask) {
+            await onDeleteTask(task.id)
+          } else {
+            await personalStorage.removeTask(task.id)
+          }
+        },
+      },
+    ])
+  }
 
   if (!modalVisible) return null
 
@@ -625,6 +659,10 @@ export function MinimalistTaskModal({
             <TaskDetailView
               task={task}
               panHandlers={panResponder.panHandlers}
+              canModify={canModify}
+              onToggleStatus={onToggleStatus}
+              onEdit={handleStartEditing}
+              onDelete={handleDeleteFromDetail}
               onOpenImage={setSelectedLightboxImage}
               onOpenPdf={setViewingPdf}
             />

@@ -1,5 +1,5 @@
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
-import type { Task, Subject } from '@/types/personal'
+import type { Task, Subject, ClassTask } from '@/types/personal'
 
 describe('personalStorage Local-First Engine', () => {
   beforeEach(async () => {
@@ -190,5 +190,46 @@ describe('personalStorage Local-First Engine', () => {
     tasks = personalStorage.getCachedTasks()
     expect(tasks[0].status).toBe('pending')
     expect(tasks[0].completed_at).toBeNull()
+  })
+
+  it('permite marcar como completada y desmarcar privadamente una tarea de clase', async () => {
+    const classTask: ClassTask = {
+      id: 'class_mtz0el8h_pb317tnj5o',
+      publisher_id: 'user_test',
+      publisher_name: 'Profesor Test',
+      title: 'Proyecto Grupal de Física',
+      type: 'proyecto',
+      due_date: '2026-08-15T18:00:00.000Z',
+      created_at: '2026-08-01T10:00:00.000Z',
+      subject_name: 'Física',
+    }
+
+    await personalStorage.setClassTasksCache([classTask])
+
+    let tasks = personalStorage.getCachedTasksWithSubjects()
+    expect(tasks.length).toBe(1)
+    expect(tasks[0].id).toBe('class_mtz0el8h_pb317tnj5o')
+    expect(tasks[0].status).toBe('pending')
+
+    // Completar tarea de clase usando toggleTaskStatus con ID con prefijo
+    await personalStorage.toggleTaskStatus('class_mtz0el8h_pb317tnj5o')
+    tasks = personalStorage.getCachedTasksWithSubjects()
+    expect(tasks[0].status).toBe('completed')
+    expect(tasks[0].completed_at).toBeTruthy()
+
+    // Desmarcar tarea de clase
+    await personalStorage.toggleTaskStatus('class_mtz0el8h_pb317tnj5o')
+    tasks = personalStorage.getCachedTasksWithSubjects()
+    expect(tasks[0].status).toBe('pending')
+
+    // Completar usando saveTask
+    await personalStorage.saveTask({ ...tasks[0], status: 'completed' })
+    tasks = personalStorage.getCachedTasksWithSubjects()
+    expect(tasks[0].status).toBe('completed')
+
+    // Eliminar localmente tarea de clase
+    await personalStorage.removeTask('class_mtz0el8h_pb317tnj5o')
+    tasks = personalStorage.getCachedTasksWithSubjects()
+    expect(tasks.length).toBe(0)
   })
 })

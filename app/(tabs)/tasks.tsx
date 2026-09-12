@@ -198,8 +198,8 @@ export default function TasksScreen() {
       })
       const isCompleted = nextStatus === 'completed'
       const nowIso = new Date().toISOString()
-      setTasks((prevTasks) => {
-        const updated = prevTasks.map((t) =>
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
           t.id === taskId
             ? {
                 ...t,
@@ -209,14 +209,7 @@ export default function TasksScreen() {
               }
             : t
         )
-        const target = updated.find((t) => t.id === taskId)
-        if (target) {
-          personalStorage.saveTask(target)
-        } else {
-          personalStorage.setTasks(updated)
-        }
-        return updated
-      })
+      )
       setActiveTask((prev) =>
         prev?.id === taskId
           ? {
@@ -227,12 +220,27 @@ export default function TasksScreen() {
             }
           : prev
       )
+
+      if (taskId.startsWith('class_')) {
+        const classTaskId = taskId.replace('class_', '')
+        await personalStorage.setClassTaskStatus(classTaskId, nextStatus)
+      } else {
+        const target = tasksRef.current.find((t) => t.id === taskId)
+        if (target) {
+          await personalStorage.saveTask({
+            ...target,
+            status: nextStatus,
+            completed_at: isCompleted ? nowIso : null,
+            updated_at: nowIso,
+          })
+        }
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   )
 
-  const { deleteClassTask } = useClassAuth()
+  const { isAdmin, deleteClassTask } = useClassAuth()
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
@@ -245,12 +253,16 @@ export default function TasksScreen() {
 
       if (taskId.startsWith('class_')) {
         const classTaskId = taskId.replace('class_', '')
-        await deleteClassTask(classTaskId)
+        if (isAdmin) {
+          await deleteClassTask(classTaskId)
+        } else {
+          await personalStorage.setClassTaskLocalState(classTaskId, { deleted_locally: true })
+        }
       } else {
         await personalStorage.removeTask(taskId)
       }
     },
-    [deleteClassTask]
+    [isAdmin, deleteClassTask]
   )
 
   // Filtrado de Tareas

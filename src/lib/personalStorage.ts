@@ -94,6 +94,12 @@ function mapClassTasksToTaskObjects(
   const result: Task[] = []
 
   for (const ct of classTasks) {
+    const rawClassId = ct.id.startsWith('class_') ? ct.id.replace('class_', '') : ct.id
+    const finalId = `class_${rawClassId}`
+
+    const localState = classStates?.[rawClassId] || classStates?.[finalId] || classStates?.[ct.id]
+    if (localState?.deleted_locally) continue
+
     const isOfficialUpdated = Boolean(
       ct.updated_at &&
       ct.created_at &&
@@ -110,15 +116,11 @@ function mapClassTasksToTaskObjects(
       color: '#3B82F6',
     }
 
-    const localState = classStates?.[ct.id]
     const status: TaskStatus = localState
-      ? localState.completed ? 'completed' : 'pending'
-      : classStatuses[ct.id] || 'pending'
+      ? (localState.completed ? 'completed' : 'pending')
+      : (classStatuses[rawClassId] || classStatuses[finalId] || classStatuses[ct.id] || 'pending')
 
     const completedAt = localState?.completed_at || (status === 'completed' ? ct.updated_at || ct.created_at : null)
-
-    const rawClassId = ct.id.startsWith('class_') ? ct.id.replace('class_', '') : ct.id
-    const finalId = `class_${rawClassId}`
 
     result.push({
       id: finalId,
@@ -459,8 +461,9 @@ export const personalStorage = {
   },
 
   async saveTask(task: Task): Promise<Task[]> {
-    if (task.is_class_task && task.class_task_id) {
-      await this.setClassTaskStatus(task.class_task_id, task.status)
+    if (task.is_class_task) {
+      const classId = task.class_task_id || (task.id.startsWith('class_') ? task.id.replace('class_', '') : task.id)
+      await this.setClassTaskStatus(classId, task.status)
       return this.getTasksWithSubjects()
     }
     const list = await this.getTasks()
@@ -489,7 +492,7 @@ export const personalStorage = {
     if (taskId.startsWith('class_')) {
       const classTaskId = taskId.replace('class_', '')
       const states = await this.getClassTaskLocalStates()
-      const currentState = states[classTaskId]?.completed ? 'completed' : 'pending'
+      const currentState = (states[classTaskId]?.completed || states[`class_${classTaskId}`]?.completed) ? 'completed' : 'pending'
       const newStatus: TaskStatus = targetStatus
         ? targetStatus
         : currentState === 'completed'
@@ -588,8 +591,10 @@ export const personalStorage = {
     classTaskId: string,
     partial: Partial<ClassTaskLocalState>
   ): Promise<void> {
+    const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
+    const prefixedId = `class_${rawId}`
     const current = await this.getClassTaskLocalStates()
-    const existing: ClassTaskLocalState = current[classTaskId] || {
+    const existing: ClassTaskLocalState = current[rawId] || current[prefixedId] || current[classTaskId] || {
       completed: false,
       deleted_locally: false,
       is_locally_edited: false,
@@ -600,7 +605,11 @@ export const personalStorage = {
       local_overrides:
         partial.local_overrides !== undefined ? partial.local_overrides : existing.local_overrides,
     }
-    const updated = { ...current, [classTaskId]: updatedState }
+    const updated = {
+      ...current,
+      [rawId]: updatedState,
+      [prefixedId]: updatedState,
+    }
     _classTaskStatesCache = updated
     notifyListeners()
     try {
@@ -632,7 +641,11 @@ export const personalStorage = {
     const states = await this.getClassTaskLocalStates()
     const statuses: Record<string, TaskStatus> = {}
     for (const [id, s] of Object.entries(states)) {
-      statuses[id] = s.completed ? 'completed' : 'pending'
+      const status: TaskStatus = s.completed ? 'completed' : 'pending'
+      statuses[id] = status
+      const rawId = id.startsWith('class_') ? id.replace('class_', '') : id
+      statuses[rawId] = status
+      statuses[`class_${rawId}`] = status
     }
     return statuses
   },

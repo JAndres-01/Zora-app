@@ -425,20 +425,46 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         updated_at: new Date().toISOString(),
       }
 
-      const { data, error } = await supabase
+      const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
+      const prefixedId = `class_${rawId}`
+
+      // Buscar por prefixedId primero, o retry con rawId
+      let { data, error } = await supabase
         .from('class_tasks')
         .update(payload)
-        .eq('id', classTaskId)
+        .eq('id', prefixedId)
         .select()
         .single()
+
+      if (error && rawId !== prefixedId) {
+        const retry = await supabase
+          .from('class_tasks')
+          .update(payload)
+          .eq('id', rawId)
+          .select()
+          .single()
+        if (!retry.error) {
+          data = retry.data
+          error = null
+        }
+      }
 
       if (error) {
         logger.error('[ClassAuth] Error actualizando class_task en Supabase:', error)
         return { error }
       }
 
-      await syncClassTasks()
-      return { error: null, data: data as ClassTask }
+      const updatedTask = (data || { id: prefixedId, ...payload }) as ClassTask
+      const currentCache = await personalStorage.getClassTasksCache()
+      const updatedCache = currentCache.map((t) => {
+        const tRaw = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
+        return tRaw === rawId ? { ...t, ...updatedTask } : t
+      })
+      await personalStorage.setClassTasksCache(updatedCache)
+      setClassTasks(updatedCache)
+
+      syncClassTasks().catch(() => {})
+      return { error: null, data: updatedTask }
     } catch (err: any) {
       logger.error('[ClassAuth] Error en updateClassTask:', err)
       return { error: err }
@@ -451,18 +477,41 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const { error } = await supabase
+      const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
+      const prefixedId = `class_${rawId}`
+
+      let { error } = await supabase
         .from('class_tasks')
         .delete()
-        .eq('id', classTaskId)
+        .eq('id', prefixedId)
+
+      if (error && rawId !== prefixedId) {
+        const retry = await supabase
+          .from('class_tasks')
+          .delete()
+          .eq('id', rawId)
+        if (!retry.error) {
+          error = null
+        }
+      }
 
       if (error) {
+        logger.error('[ClassAuth] Error eliminando class_task en Supabase:', error)
         return { error }
       }
 
-      await syncClassTasks()
+      const currentCache = await personalStorage.getClassTasksCache()
+      const updatedCache = currentCache.filter((t) => {
+        const tRaw = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
+        return tRaw !== rawId
+      })
+      await personalStorage.setClassTasksCache(updatedCache)
+      setClassTasks(updatedCache)
+
+      syncClassTasks().catch(() => {})
       return { error: null }
     } catch (err: any) {
+      logger.error('[ClassAuth] Error en deleteClassTask:', err)
       return { error: err }
     }
   }

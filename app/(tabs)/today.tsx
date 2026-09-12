@@ -177,7 +177,7 @@ export default function TodayScreen() {
     [loadData]
   )
 
-  const { deleteClassTask } = useClassAuth()
+  const { isAdmin, deleteClassTask } = useClassAuth()
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
@@ -190,12 +190,16 @@ export default function TodayScreen() {
 
       if (taskId.startsWith('class_')) {
         const classTaskId = taskId.replace('class_', '')
-        await deleteClassTask(classTaskId)
+        if (isAdmin) {
+          await deleteClassTask(classTaskId)
+        } else {
+          await personalStorage.setClassTaskLocalState(classTaskId, { deleted_locally: true })
+        }
       } else {
         await personalStorage.removeTask(taskId)
       }
     },
-    [deleteClassTask]
+    [isAdmin, deleteClassTask]
   )
 
   // Animaciones de Entrada Escalonada hacia abajo

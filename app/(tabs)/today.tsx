@@ -165,12 +165,12 @@ export default function TodayScreen() {
           clearTimeout(highlightTimeoutRef.current)
         }
         setHighlightedTaskId(null)
-        requestAnimationFrame(() => {
+        setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
-          }, 1100)
-        })
+          }, 1400)
+        }, 180)
       }
       loadData()
     },
@@ -287,6 +287,7 @@ export default function TodayScreen() {
         >
           <MinimalistTodayTasks
             tasks={tasks}
+            highlightedTaskId={highlightedTaskId}
             onToggleTask={handleToggleTaskStatus}
             onOpenTaskDetail={(t) => {
               triggerHaptic('light')

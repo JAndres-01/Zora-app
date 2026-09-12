@@ -433,12 +433,14 @@ export function MinimalistTaskModal({
           await personalStorage.saveTask(fullTask)
           savedTaskObj = fullTask
         } else {
-          const publishedId = classTaskData?.id
-            ? (classTaskData.id.startsWith('class_') ? classTaskData.id : `class_${classTaskData.id}`)
-            : generateId('class')
+          const rawId = classTaskData?.id
+            ? (classTaskData.id.startsWith('class_') ? classTaskData.id.replace('class_', '') : classTaskData.id)
+            : generateId('class').replace('class_', '')
+          const publishedId = `class_${rawId}`
           savedTaskObj = {
             id: publishedId,
             is_class_task: true,
+            class_task_id: rawId,
             ...payload,
             status: 'pending',
             created_at: new Date().toISOString(),

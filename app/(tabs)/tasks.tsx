@@ -66,6 +66,7 @@ export default function TasksScreen() {
 
   // Transiciones y Scroll
   const [isScrollEnabled, setIsScrollEnabled] = useState(true)
+  const flatListRef = useRef<FlatList<Task>>(null)
   const tasksRef = useRef(tasks)
   tasksRef.current = tasks
 
@@ -327,6 +328,23 @@ export default function TasksScreen() {
   const handleTaskSaved = useCallback(
     (savedTask?: Task | null) => {
       if (savedTask?.id) {
+        // 1. Si estaba en 'completed' y la tarea es 'pending', cambiar a 'pending' para mostrarla
+        if (savedTask.status === 'pending' && statusFilter === 'completed') {
+          setStatusFilter('pending')
+        }
+        // 2. Si tenía filtro de materia que no coincide, volver a 'all'
+        if (
+          selectedSubjectId !== 'all' &&
+          savedTask.subject_id &&
+          savedTask.subject_id !== selectedSubjectId
+        ) {
+          setSelectedSubjectId('all')
+        }
+        // 3. Limpiar búsqueda activa si existía para no ocultar la nueva tarea
+        if (searchQuery.trim()) {
+          setSearchQuery('')
+        }
+
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -335,20 +353,28 @@ export default function TasksScreen() {
           return [savedTask, ...prevTasks]
         })
 
+        // Scroll al inicio de la lista para mostrar la tarea
+        requestAnimationFrame(() => {
+          try {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+          } catch {}
+        })
+
+        // Disparar animación de resalte sincronizada cuando el modal termina de bajar (180ms)
         if (highlightTimeoutRef.current) {
           clearTimeout(highlightTimeoutRef.current)
         }
         setHighlightedTaskId(null)
-        requestAnimationFrame(() => {
+        setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
-          }, 1100)
-        })
+          }, 1400)
+        }, 180)
       }
       loadData()
     },
-    [loadData]
+    [loadData, statusFilter, selectedSubjectId, searchQuery]
   )
 
   const renderTaskItem = useCallback(
@@ -483,8 +509,9 @@ export default function TasksScreen() {
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
       <FlatList
+        ref={flatListRef}
         data={filteredTasks}
-        extraData={statusFilter}
+        extraData={`${statusFilter}_${highlightedTaskId}_${selectedSubjectId}`}
         renderItem={renderTaskItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={renderListHeader}

@@ -117,8 +117,11 @@ function mapClassTasksToTaskObjects(
 
     const completedAt = localState?.completed_at || (status === 'completed' ? ct.updated_at || ct.created_at : null)
 
+    const rawClassId = ct.id.startsWith('class_') ? ct.id.replace('class_', '') : ct.id
+    const finalId = `class_${rawClassId}`
+
     result.push({
-      id: `class_${ct.id}`,
+      id: finalId,
       title: ct.title,
       description: ct.description || null,
       type: ct.type,
@@ -127,7 +130,7 @@ function mapClassTasksToTaskObjects(
       completed_at: completedAt,
       attachments: ct.attachments || [],
       is_class_task: true,
-      class_task_id: ct.id,
+      class_task_id: rawClassId,
       publisher_name: ct.publisher_name,
       publisher_id: ct.publisher_id,
       has_class_update: isOfficialUpdated,

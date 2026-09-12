@@ -145,7 +145,7 @@ export async function playSound(effect: SoundEffect): Promise<void> {
       configureAudioMode().catch(() => {})
     }
 
-    // En iOS / Android usamos el pool de reproductores expo-audio con rotación round-robin
+    // En iOS / Android usamos rotación round-robin de reproductores expo-audio
     let pool = _playerPool[effect]
     if (!pool) {
       pool = []
@@ -155,25 +155,25 @@ export async function playSound(effect: SoundEffect): Promise<void> {
     const currentIdx = _poolPointers[effect] ?? 0
     _poolPointers[effect] = (currentIdx + 1) % POOL_SIZE
 
-    let player = pool[currentIdx]
-    if (!player) {
-      const asset = SOUND_ASSETS[effect]
-      player = createAudioPlayer(asset)
-      pool[currentIdx] = player
+    const oldPlayer = pool[currentIdx]
+    if (oldPlayer) {
+      try {
+        if (typeof oldPlayer.remove === 'function') {
+          oldPlayer.remove()
+        } else if (typeof (oldPlayer as any).release === 'function') {
+          ;(oldPlayer as any).release()
+        }
+      } catch {}
     }
 
-    if (player) {
-      try {
-        if (player.playing && typeof player.pause === 'function') {
-          player.pause()
-        }
-        if (typeof player.seekTo === 'function') {
-          await player.seekTo(0).catch(() => {})
-        }
-        player.play()
-      } catch (playErr) {
-        logger.warn(`[personalAudio] Error disparando reproductor ${effect}:`, playErr)
-      }
+    const asset = SOUND_ASSETS[effect]
+    const player = createAudioPlayer(asset)
+    pool[currentIdx] = player
+
+    try {
+      player.play()
+    } catch (playErr) {
+      logger.warn(`[personalAudio] Error disparando reproductor ${effect}:`, playErr)
     }
   } catch (err) {
     // Protección silenciosa: nunca lanzar excepciones que interrumpan la interacción del usuario

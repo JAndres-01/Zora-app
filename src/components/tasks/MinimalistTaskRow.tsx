@@ -122,11 +122,11 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           }),
           Animated.timing(highlightAnim, {
             toValue: 0,
-            duration: 280,
+            duration: 350,
             useNativeDriver: true,
           }),
         ]).start()
-      }, 500)
+      }, 750)
 
       return () => clearTimeout(timer)
     } else {

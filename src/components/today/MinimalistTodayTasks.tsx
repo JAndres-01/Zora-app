@@ -1,4 +1,4 @@
-import { useRef, memo } from 'react'
+import { useRef, useEffect, memo } from 'react'
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native'
 import type { Task } from '@/types/personal'
 import { Check, CheckSquare, ChevronRight, Paperclip } from 'lucide-react-native'
@@ -10,6 +10,7 @@ import { DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
 
 interface MinimalistTodayTasksProps {
   tasks: Task[]
+  highlightedTaskId?: string | null
   onToggleTask: (taskId: string, currentStatus: string) => void
   onOpenTaskDetail: (task: Task) => void
   onNavigateToTasks: () => void
@@ -18,20 +19,89 @@ interface MinimalistTodayTasksProps {
 const TodayTaskItem = memo(function TodayTaskItem({
   task,
   isLast,
+  isHighlighted = false,
   onToggle,
   onOpenDetail,
 }: {
   task: Task
   isLast: boolean
+  isHighlighted?: boolean
   onToggle: () => void
   onOpenDetail: () => void
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current
   const checkBounceAnim = useRef(new Animated.Value(1)).current
+  const highlightAnim = useRef(new Animated.Value(0)).current
+  const liftAnim = useRef(new Animated.Value(0)).current
   const isDone = task.status === 'completed'
   const subjColor = task.subject?.color || '#71717A'
   const isWhite = isWhiteColor(task.subject?.color)
   const attachCount = Array.isArray(task.attachments) ? task.attachments.length : 0
+
+  useEffect(() => {
+    if (isHighlighted) {
+      triggerHaptic('medium')
+
+      scaleAnim.stopAnimation()
+      liftAnim.stopAnimation()
+      highlightAnim.stopAnimation()
+
+      liftAnim.setValue(0)
+      highlightAnim.setValue(0)
+      scaleAnim.setValue(0.97)
+
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1.02,
+          stiffness: 600,
+          damping: 18,
+          useNativeDriver: true,
+        }),
+        Animated.spring(liftAnim, {
+          toValue: -4,
+          stiffness: 600,
+          damping: 18,
+          useNativeDriver: true,
+        }),
+        Animated.timing(highlightAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start()
+
+      const timer = setTimeout(() => {
+        Animated.parallel([
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            stiffness: 400,
+            damping: 22,
+            useNativeDriver: true,
+          }),
+          Animated.spring(liftAnim, {
+            toValue: 0,
+            stiffness: 400,
+            damping: 22,
+            useNativeDriver: true,
+          }),
+          Animated.timing(highlightAnim, {
+            toValue: 0,
+            duration: 350,
+            useNativeDriver: true,
+          }),
+        ]).start()
+      }, 750)
+
+      return () => clearTimeout(timer)
+    } else {
+      scaleAnim.stopAnimation()
+      liftAnim.stopAnimation()
+      highlightAnim.stopAnimation()
+      scaleAnim.setValue(1)
+      liftAnim.setValue(0)
+      highlightAnim.setValue(0)
+    }
+  }, [isHighlighted])
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -94,8 +164,32 @@ const TodayTaskItem = memo(function TodayTaskItem({
   const dueInfo = formatTaskDueDate(task.due_date, isDone)
 
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, styles.taskRowOuter]}>
+    <Animated.View
+      style={[
+        {
+          transform: [
+            { scale: scaleAnim },
+            { translateY: liftAnim },
+          ],
+        },
+        styles.taskRowOuter,
+      ]}
+    >
       <View style={[styles.taskRow, !isLast && styles.taskRowBorder]}>
+        {/* Capa de Resalte Blanco */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.highlightOverlay,
+            {
+              opacity: highlightAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.16],
+              }),
+            },
+          ]}
+        />
         {/* Checkbox Circular con Rebote Rápido */}
         <Animated.View style={{ transform: [{ scale: checkBounceAnim }] }}>
           <Pressable
@@ -172,6 +266,7 @@ const TodayTaskItem = memo(function TodayTaskItem({
 
 export function MinimalistTodayTasks({
   tasks = [],
+  highlightedTaskId,
   onToggleTask,
   onOpenTaskDetail,
   onNavigateToTasks,
@@ -223,6 +318,7 @@ export function MinimalistTodayTasks({
               key={task.id}
               task={task}
               isLast={idx === Math.min(sortedTasks.length, 4) - 1}
+              isHighlighted={highlightedTaskId === task.id}
               onToggle={() => onToggleTask(task.id, task.status)}
               onOpenDetail={() => onOpenTaskDetail(task)}
             />
@@ -234,6 +330,10 @@ export function MinimalistTodayTasks({
 }
 
 const styles = StyleSheet.create({
+  highlightOverlay: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+  },
   container: {
     gap: 4,
     marginTop: 2,

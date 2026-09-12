@@ -12,7 +12,6 @@ import { Home, Calendar, CheckSquare, User, type LucideIcon } from 'lucide-react
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
-import { playSwipeSound } from '@/lib/personalAudio'
 
 export type TabKey = 'today' | 'schedule' | 'tasks' | 'settings'
 
@@ -54,7 +53,6 @@ export const MinimalistFloatingIsland = memo(function MinimalistFloatingIsland({
 
   const handleTabPress = (tabKey: TabKey) => {
     if (tabKey === activeTab) return
-    playSwipeSound()
     onSelectTab(tabKey)
   }
 

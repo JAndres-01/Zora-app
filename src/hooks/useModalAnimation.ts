@@ -41,6 +41,8 @@ export function useModalAnimation({
 }: UseModalAnimationOptions): UseModalAnimationReturn {
   const [modalVisible, setModalVisible] = useState(visible)
   const isClosingRef = useRef(false)
+  const prevVisibleRef = useRef(visible)
+  const wasClosedSilentlyRef = useRef(false)
 
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -72,7 +74,10 @@ export function useModalAnimation({
         (callbackOrOptions && typeof callbackOrOptions === 'object' && 'silent' in callbackOrOptions && (callbackOrOptions as any).silent)
       )
 
-      if (!isSilent) {
+      if (isSilent) {
+        wasClosedSilentlyRef.current = true
+      } else {
+        wasClosedSilentlyRef.current = false
         playModalCloseSound()
       }
       triggerHaptic('light')
@@ -109,10 +114,15 @@ export function useModalAnimation({
     [fadeAnim, slideAnim, panY]
   )
 
-  // Sincronizar apertura/cierre reactivo cuando cambia la prop `visible`
+  // Sincronizar apertura/cierre reactivo solo en transiciones reales de la prop `visible`
   useEffect(() => {
-    if (visible) {
+    const wasVisible = prevVisibleRef.current
+    prevVisibleRef.current = visible
+
+    if (visible && !wasVisible) {
+      // Apertura genuina: false -> true
       isClosingRef.current = false
+      wasClosedSilentlyRef.current = false
       playModalOpenSound()
       fadeAnim.setValue(0)
       slideAnim.setValue(SCREEN_HEIGHT)
@@ -130,34 +140,39 @@ export function useModalAnimation({
           ...SPRING_PANEL_CONFIG,
         }),
       ]).start()
-    } else if (modalVisible && !isClosingRef.current) {
-      isClosingRef.current = true
-      playModalCloseSound()
-      Keyboard.dismiss()
+    } else if (!visible && wasVisible) {
+      // Cierre reactivo desde el padre (cambio de prop visible: true -> false)
+      if (!isClosingRef.current && modalVisible) {
+        isClosingRef.current = true
+        if (!wasClosedSilentlyRef.current) {
+          playModalCloseSound()
+        }
+        Keyboard.dismiss()
 
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 180,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: SCREEN_HEIGHT,
-          duration: 220,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.timing(panY, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setModalVisible(false)
-        isClosingRef.current = false
-        onClosedRef.current?.()
-      })
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 180,
+            easing: APPLE_EASING,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: SCREEN_HEIGHT,
+            duration: 220,
+            easing: APPLE_EASING,
+            useNativeDriver: true,
+          }),
+          Animated.timing(panY, {
+            toValue: 0,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setModalVisible(false)
+          isClosingRef.current = false
+          onClosedRef.current?.()
+        })
+      }
     }
   }, [visible, modalVisible, fadeAnim, slideAnim, panY])
 

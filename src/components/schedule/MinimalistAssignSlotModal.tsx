@@ -14,6 +14,7 @@ import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
 import { SCHEDULE_DAYS } from '@/constants/dates'
 import { Check, Trash2 } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { playSaveSound, playTrashSound, playWarningSound } from '@/lib/personalAudio'
 import { personalStorage } from '@/lib/personalStorage'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { generateId } from '@/lib/idGenerator'
@@ -94,10 +95,12 @@ export function MinimalistAssignSlotModal({
         await personalStorage.saveScheduleSlot(slotData)
       }
 
+      playSaveSound()
       triggerHaptic('success')
       onScheduleSaved()
-      handleSmoothClose()
+      handleSmoothClose({ silent: true })
     } catch (err: unknown) {
+      playWarningSound()
       const msg = err instanceof Error ? err.message : 'No se pudo asignar la materia.'
       Alert.alert('Error', msg)
       triggerHaptic('error')
@@ -118,10 +121,12 @@ export function MinimalistAssignSlotModal({
         await personalStorage.clearScheduleSlot(initialDay, initialBlock)
       }
 
+      playTrashSound()
       triggerHaptic('success')
       onScheduleSaved()
-      handleSmoothClose()
+      handleSmoothClose({ silent: true })
     } catch (err) {
+      playWarningSound()
       logger.error('Error limpiando bloque:', err)
       Alert.alert('Error', 'No se pudo liberar el bloque.')
     } finally {

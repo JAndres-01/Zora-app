@@ -1,8 +1,10 @@
 import { Platform } from 'react-native'
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
+import { AudioModule, createAudioPlayer, type AudioPlayer } from 'expo-audio'
+import { Asset } from 'expo-asset'
 import { logger } from '@/lib/logger'
 
 export type SoundEffect =
+  | 'task_undo'       // Desmarcar / Deshacer tarea (water pop suave)
   | 'chip_snap'       // #12 Snap de ficha / materia
   | 'modal_open'      // #16 Suspiro al abrir modal
   | 'modal_close'     // #17 Exhalación al cerrar modal
@@ -14,6 +16,7 @@ export type SoundEffect =
   | 'warning_thud'    // #27 Aviso suave / límite
 
 const SOUND_ASSETS: Record<SoundEffect, any> = {
+  task_undo: require('../../assets/sounds/task_undo.wav'),
   chip_snap: require('../../assets/sounds/chip_snap.wav'),
   modal_open: require('../../assets/sounds/modal_open.wav'),
   modal_close: require('../../assets/sounds/modal_close.wav'),
@@ -27,6 +30,52 @@ const SOUND_ASSETS: Record<SoundEffect, any> = {
 
 let _globalSoundEnabled = true
 const _cachedPlayers: Partial<Record<SoundEffect, AudioPlayer>> = {}
+let _audioModeConfigured = false
+
+/**
+ * Resetea el flag de configuración de audio y la caché de reproductores para pruebas.
+ */
+export function __resetAudioConfigForTesting(): void {
+  _audioModeConfigured = false
+  for (const key of Object.keys(_cachedPlayers) as SoundEffect[]) {
+    delete _cachedPlayers[key]
+  }
+}
+
+/**
+ * Configura el modo de audio nativo para reproducir en modo silencioso y mezclar con otras fuentes.
+ */
+export async function configureAudioMode(): Promise<void> {
+  if (_audioModeConfigured || Platform.OS === 'web') return
+  try {
+    if (AudioModule && typeof AudioModule.setAudioModeAsync === 'function') {
+      await AudioModule.setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'mixWithOthers',
+      })
+      _audioModeConfigured = true
+    }
+  } catch (err) {
+    logger.warn('[personalAudio] Error configurando modo de audio:', err)
+  }
+}
+
+/**
+ * Precarga todos los efectos de audio nativos en memoria para reproducción instantánea sin latencia.
+ */
+export async function preloadAllAudio(): Promise<void> {
+  if (Platform.OS === 'web') return
+  await configureAudioMode()
+  for (const key of Object.keys(SOUND_ASSETS) as SoundEffect[]) {
+    try {
+      if (!_cachedPlayers[key]) {
+        _cachedPlayers[key] = createAudioPlayer(SOUND_ASSETS[key])
+      }
+    } catch (err) {
+      logger.warn(`[personalAudio] Error precargando sonido ${key}:`, err)
+    }
+  }
+}
 
 /**
  * Activa o desactiva la reproducción de sonidos a nivel de sesión.
@@ -43,7 +92,7 @@ export function isGlobalSoundEnabled(): boolean {
 }
 
 /**
- * Reproduce de forma asíncrona ("fire-and-forget") uno de los 10 efectos de sonido de Zora.
+ * Reproduce de forma asíncrona ("fire-and-forget") uno de los efectos de sonido de Zora.
  * Si el sonido está deshabilitado en Ajustes, se omite de inmediato sin retrasar la UI.
  */
 export async function playSound(effect: SoundEffect): Promise<void> {
@@ -51,10 +100,16 @@ export async function playSound(effect: SoundEffect): Promise<void> {
 
   try {
     if (Platform.OS === 'web') {
-      // En Web reproducimos de forma nativa con HTMLAudioElement
+      // En Web reproducimos con HTMLAudioElement
       if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
         const audioAsset = SOUND_ASSETS[effect]
-        const src = typeof audioAsset === 'string' ? audioAsset : (audioAsset?.default || audioAsset?.uri || '')
+        let src = typeof audioAsset === 'string' ? audioAsset : (audioAsset?.default || audioAsset?.uri || '')
+        if (!src) {
+          try {
+            const assetObj = Asset.fromModule(audioAsset)
+            src = assetObj?.uri || ''
+          } catch {}
+        }
         if (src) {
           const webAudio = new Audio(src)
           webAudio.volume = 0.6
@@ -62,6 +117,11 @@ export async function playSound(effect: SoundEffect): Promise<void> {
         }
       }
       return
+    }
+
+    // Configurar modo de audio la primera vez en background si no se ha hecho
+    if (!_audioModeConfigured) {
+      configureAudioMode().catch(() => {})
     }
 
     // En iOS / Android usamos el reproductor nativo expo-audio
@@ -72,10 +132,10 @@ export async function playSound(effect: SoundEffect): Promise<void> {
       _cachedPlayers[effect] = player
     }
 
-    // Reiniciar posición y reproducir
     if (player) {
-      if (typeof player.seekTo === 'function') {
-        await player.seekTo(0)
+      // Si el reproductor ya se reprodujo antes, rebobinamos en background sin bloquear play()
+      if (player.currentTime > 0 && typeof player.seekTo === 'function') {
+        player.seekTo(0).catch(() => {})
       }
       player.play()
     }
@@ -88,6 +148,7 @@ export async function playSound(effect: SoundEffect): Promise<void> {
 // Helpers semánticos rápidos para cada acción del sistema:
 // #6 eliminado a petición del usuario para evitar colisión con el sonido festivo de confetti
 export const playTaskCompleteSound = () => Promise.resolve()
+export const playTaskUndoSound = () => playSound('task_undo')
 export const playChipSnapSound = () => playSound('chip_snap') // #12
 export const playModalOpenSound = () => playSound('modal_open') // #16
 export const playModalCloseSound = () => playSound('modal_close') // #17

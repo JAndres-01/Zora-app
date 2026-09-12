@@ -21,6 +21,7 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 import {
   playConfettiSound,
   playTrashSound,
+  playTaskUndoSound,
   playModalOpenSound,
   playModalCloseSound,
 } from '@/lib/personalAudio'
@@ -106,6 +107,7 @@ export default function TodayScreen() {
         playConfettiSound()
       }
     } else {
+      playTaskUndoSound()
       const taskObj = tasks.find((t) => t.id === taskId)
       if (taskObj) {
         personalStorage.getPreferences().then((p) =>

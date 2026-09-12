@@ -32,7 +32,12 @@ import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
-import { setGlobalSoundEnabled, playSaveSound } from '@/lib/personalAudio'
+import {
+  setGlobalSoundEnabled,
+  playSaveSound,
+  playWarningSound,
+  playTrashSound,
+} from '@/lib/personalAudio'
 import { logger } from '@/lib/logger'
 
 export default function ProfileScreen() {
@@ -169,6 +174,7 @@ export default function ProfileScreen() {
     if (val) {
       const granted = await requestNotificationPermissions()
       if (!granted) {
+        playWarningSound()
         Alert.alert(
           'Permiso de Notificaciones',
           'Activa las notificaciones en los Ajustes de tu teléfono para recibir recordatorios.'
@@ -187,6 +193,7 @@ export default function ProfileScreen() {
     if (val) {
       const granted = await requestNotificationPermissions()
       if (!granted) {
+        playWarningSound()
         Alert.alert(
           'Permiso de Notificaciones',
           'Activa las notificaciones en los Ajustes de tu teléfono para recibir avisos de clase.'
@@ -275,6 +282,7 @@ export default function ProfileScreen() {
       return
     }
 
+    playWarningSound()
     Alert.alert(
       'Restablecer App',
       '¿Deseas eliminar todas las materias, horarios y tareas del dispositivo? Esta acción no se puede deshacer.',
@@ -284,6 +292,7 @@ export default function ProfileScreen() {
           text: 'Restablecer Todo',
           style: 'destructive',
           onPress: async () => {
+            playTrashSound()
             triggerHaptic('error')
             await clearData()
             loadData()

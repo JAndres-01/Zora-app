@@ -9,6 +9,7 @@ import { StyleSheet, Platform } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { personalStorage } from '@/lib/personalStorage'
 import { setupNotificationInfrastructure } from '@/lib/personalNotifications'
+import { preloadAllAudio } from '@/lib/personalAudio'
 import { logger } from '@/lib/logger'
 
 // Retener el Splash Screen nativo hasta que los datos estén 100% listos en memoria
@@ -24,6 +25,8 @@ export default function RootLayout() {
         setupNotificationInfrastructure()
         // Precarga ultrarrápida en memoria (~100-200ms)
         await personalStorage.preloadAll()
+        // Precargar sistema de audio nativo
+        preloadAllAudio().catch(() => {})
       } catch (e) {
         logger.warn('[RootLayout] Error precargando datos:', e)
       } finally {

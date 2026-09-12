@@ -27,7 +27,7 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 import {
   playConfettiSound,
   playTrashSound,
-  playSwipeSound,
+  playTaskUndoSound,
 } from '@/lib/personalAudio'
 import {
   cancelTaskReminder,
@@ -147,7 +147,6 @@ export default function TasksScreen() {
   // Handlers de Tareas
   const handleStatusChange = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
-    playSwipeSound()
     // Panel switch: easeOut para reposicionamiento fluido (desliza sin trabarse)
     // + fade rápido de entrada/salida de filas
     PANEL_SWITCH_LAYOUT(100, 150)
@@ -167,6 +166,7 @@ export default function TasksScreen() {
           }
         })
       } else {
+        playTaskUndoSound()
         const taskObj = tasksRef.current.find((t) => t.id === taskId)
         if (taskObj) {
           personalStorage.getPreferences().then((p) =>

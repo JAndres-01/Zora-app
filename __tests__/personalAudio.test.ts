@@ -1,8 +1,9 @@
-import {
+ï»¿import {
   playSound,
   setGlobalSoundEnabled,
   isGlobalSoundEnabled,
   playTaskCompleteSound,
+  playTaskUndoSound,
   playChipSnapSound,
   playModalOpenSound,
   playModalCloseSound,
@@ -12,13 +13,17 @@ import {
   playClassReminderSound,
   playTrashSound,
   playWarningSound,
+  preloadAllAudio,
+  configureAudioMode,
+  __resetAudioConfigForTesting,
 } from '@/lib/personalAudio'
-import { createAudioPlayer } from 'expo-audio'
+import { createAudioPlayer, AudioModule } from 'expo-audio'
 
 describe('personalAudio', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     setGlobalSoundEnabled(true)
+    __resetAudioConfigForTesting()
   })
 
   it('permite consultar y alternar el estado global del sonido', () => {
@@ -29,21 +34,22 @@ describe('personalAudio', () => {
     expect(isGlobalSoundEnabled()).toBe(true)
   })
 
-  it('reproduce sonidos mediante expo-audio cuando el sonido está activo', async () => {
+  it('reproduce sonidos mediante expo-audio cuando el sonido esta activo', async () => {
     await playSound('confetti')
     expect(createAudioPlayer).toHaveBeenCalled()
     const mockPlayer = (createAudioPlayer as jest.Mock).mock.results[0]?.value
     expect(mockPlayer.play).toHaveBeenCalled()
   })
 
-  it('no reproduce sonidos si el sonido está deshabilitado', async () => {
+  it('no reproduce sonidos si el sonido esta deshabilitado', async () => {
     setGlobalSoundEnabled(false)
     await playSound('confetti')
     expect(createAudioPlayer).not.toHaveBeenCalled()
   })
 
-  it('ejecuta los helpers semánticos sin errores', async () => {
+  it('ejecuta los helpers semanticos sin errores', async () => {
     await expect(playTaskCompleteSound()).resolves.not.toThrow()
+    await expect(playTaskUndoSound()).resolves.not.toThrow()
     await expect(playChipSnapSound()).resolves.not.toThrow()
     await expect(playModalOpenSound()).resolves.not.toThrow()
     await expect(playModalCloseSound()).resolves.not.toThrow()
@@ -53,6 +59,17 @@ describe('personalAudio', () => {
     await expect(playClassReminderSound()).resolves.not.toThrow()
     await expect(playTrashSound()).resolves.not.toThrow()
     await expect(playWarningSound()).resolves.not.toThrow()
+  })
+
+  it('configura el modo de audio nativo y precarga sonidos', async () => {
+    await expect(configureAudioMode()).resolves.not.toThrow()
+    expect(AudioModule.setAudioModeAsync).toHaveBeenCalledWith({
+      playsInSilentMode: true,
+      interruptionMode: 'mixWithOthers',
+    })
+
+    await expect(preloadAllAudio()).resolves.not.toThrow()
+    expect(createAudioPlayer).toHaveBeenCalled()
   })
 
   it('captura errores silenciosamente si el reproductor falla', async () => {

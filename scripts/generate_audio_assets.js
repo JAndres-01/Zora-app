@@ -88,15 +88,18 @@ if (!fs.existsSync(soundsDir)) {
   fs.mkdirSync(soundsDir, { recursive: true })
 }
 
-// 1. #6 Doble Tono Chime (F#5 -> B5, Things 3 style)
+// 1. Desmarcar / Deshacer Tarea (Soft Water Pop 680Hz -> 480Hz, 50ms)
 {
-  const t1 = tone(739.99, 0.16, 'sine', 4)
-  const t2 = tone(987.77, 0.28, 'sine', 3.5)
-  const mixed = mix([
-    { startTimeSec: 0, samples: t1, volume: 0.65 },
-    { startTimeSec: 0.08, samples: t2, volume: 0.8 },
-  ], 0.38)
-  fs.writeFileSync(path.join(soundsDir, 'task_complete.wav'), encodeWAV(mixed))
+  const duration = 0.05
+  const numSamples = Math.floor(SAMPLE_RATE * duration)
+  const samples = new Float32Array(numSamples)
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / SAMPLE_RATE
+    const freq = 680 - (680 - 480) * (t / duration)
+    const env = Math.pow(Math.sin(Math.PI * (t / duration)), 1.5)
+    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.55
+  }
+  fs.writeFileSync(path.join(soundsDir, 'task_undo.wav'), encodeWAV(samples))
 }
 
 // 2. #12 Snap de Ficha / Materia (Plastic Snap 30ms)

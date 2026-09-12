@@ -167,6 +167,7 @@ export function MinimalistSubjectModal({
   }
 
   const handleDeleteSubject = (subjectId: string, subjectName: string) => {
+    playWarningSound()
     triggerHaptic('warning')
     if (Platform.OS === 'web') {
       const confirmed =

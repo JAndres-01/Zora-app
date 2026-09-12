@@ -15,7 +15,7 @@ describe('DynamicSplashScreen', () => {
     expect(queryByText('SISTEMA ACADÉMICO')).toBeNull()
   })
 
-  test('permite omitir y disparar onFinish al presionar la pantalla', async () => {
+  test('bloquea los toques en pantalla para evitar cierres accidentales durante la animación', async () => {
     const mockFinish = jest.fn()
     const { getByTestId } = await render(
       <DynamicSplashScreen autoFinish={false} onFinish={mockFinish} />
@@ -25,6 +25,19 @@ describe('DynamicSplashScreen', () => {
       fireEvent.press(getByTestId('dynamic-splash-screen'))
     })
 
+    expect(mockFinish).not.toHaveBeenCalled()
+  })
+
+  test('dispara onFinish automáticamente tras cumplir la duración de 3000ms', async () => {
+    jest.useFakeTimers()
+    const mockFinish = jest.fn()
+    await render(<DynamicSplashScreen autoFinish={true} duration={3000} onFinish={mockFinish} />)
+
+    act(() => {
+      jest.advanceTimersByTime(3000)
+    })
+
     expect(mockFinish).toHaveBeenCalledTimes(1)
+    jest.useRealTimers()
   })
 })

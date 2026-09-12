@@ -16,10 +16,11 @@ const SOUND_ASSETS: Record<SoundEffect, any> = {
   warning_thud: require('../../assets/sounds/warning_thud.wav'),
 }
 
-const POOL_SIZE = 4
+const POOL_SIZE = 6
 let _globalSoundEnabled = true
 const _playerPool: Partial<Record<SoundEffect, AudioPlayer[]>> = {}
 const _poolPointers: Partial<Record<SoundEffect, number>> = {}
+const _webAssetUrls: Partial<Record<SoundEffect, string>> = {}
 let _audioModeConfigured = false
 
 /**
@@ -40,7 +41,27 @@ export function __resetAudioConfigForTesting(): void {
     }
     delete _playerPool[key]
     delete _poolPointers[key]
+    delete _webAssetUrls[key]
   }
+}
+
+/**
+ * Obtiene la URL resolver de la fuente Web de forma síncrona y cacheada.
+ */
+function getWebAudioSrc(effect: SoundEffect): string {
+  if (_webAssetUrls[effect]) return _webAssetUrls[effect]!
+  const audioAsset = SOUND_ASSETS[effect]
+  let src = typeof audioAsset === 'string' ? audioAsset : (audioAsset?.default || audioAsset?.uri || '')
+  if (!src) {
+    try {
+      const assetObj = Asset.fromModule(audioAsset)
+      src = assetObj?.uri || assetObj?.localUri || ''
+    } catch {}
+  }
+  if (src) {
+    _webAssetUrls[effect] = src
+  }
+  return src
 }
 
 /**
@@ -98,24 +119,16 @@ export function isGlobalSoundEnabled(): boolean {
 
 /**
  * Reproduce de forma asíncrona ("fire-and-forget") uno de los efectos de sonido de Zora.
- * Implementa un pool round-robin de reproductores nativos para evitar que acciones
- * consecutivas rápidas (p. ej. desmarcar varias tareas rápidamente) se omitan o corten.
+ * Utiliza un pool rotativo de 6 reproductores independientes por sonido con rebobinado
+ * síncrono previo para garantizar que CADA pulsación rápida dispare audio sin omisiones.
  */
 export async function playSound(effect: SoundEffect): Promise<void> {
   if (!_globalSoundEnabled) return
 
   try {
     if (Platform.OS === 'web') {
-      // En Web reproducimos con HTMLAudioElement
       if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
-        const audioAsset = SOUND_ASSETS[effect]
-        let src = typeof audioAsset === 'string' ? audioAsset : (audioAsset?.default || audioAsset?.uri || '')
-        if (!src) {
-          try {
-            const assetObj = Asset.fromModule(audioAsset)
-            src = assetObj?.uri || ''
-          } catch {}
-        }
+        const src = getWebAudioSrc(effect)
         if (src) {
           const webAudio = new Audio(src)
           webAudio.volume = 0.6
@@ -152,8 +165,8 @@ export async function playSound(effect: SoundEffect): Promise<void> {
         if (player.playing && typeof player.pause === 'function') {
           player.pause()
         }
-        if (typeof player.seekTo === 'function') {
-          player.seekTo(0).catch(() => {})
+        if (player.currentTime > 0 && typeof player.seekTo === 'function') {
+          await player.seekTo(0).catch(() => {})
         }
         player.play()
       } catch (playErr) {

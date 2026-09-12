@@ -23,7 +23,7 @@ import {
 import { APPLE_EASING, SPRING_TOUCH_CONFIG } from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
 
-export const ONBOARDING_COMPLETED_KEY = '@zora_has_seen_onboarding'
+export const ONBOARDING_COMPLETED_KEY = '@zora_has_seen_onboarding_v2'
 
 const ZORA_LOGO = require('../assets/icon.png')
 

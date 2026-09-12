@@ -313,6 +313,16 @@ export default function AuthScreen() {
               ? 'Tus horarios y tareas se sincronizan con tu grupo de clase.'
               : 'Al crear tu cuenta tendrás acceso al horario y tareas de clase.'}
           </Text>
+
+          {/* Enlace para volver a ver la introducción */}
+          <Pressable
+            testID="auth-view-welcome-button"
+            onPress={() => router.push('/welcome')}
+            style={styles.viewWelcomeButton}
+            hitSlop={8}
+          >
+            <Text style={styles.viewWelcomeButtonText}>Ver pantalla de bienvenida</Text>
+          </Pressable>
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -537,5 +547,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
     paddingHorizontal: 16,
+  },
+  viewWelcomeButton: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 2,
+  },
+  viewWelcomeButtonText: {
+    fontSize: 13,
+    color: '#71717A',
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 })

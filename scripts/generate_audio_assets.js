@@ -155,17 +155,18 @@ if (!fs.existsSync(soundsDir)) {
   fs.writeFileSync(path.join(soundsDir, 'swipe_velvet.wav'), encodeWAV(samples))
 }
 
-// 6. #20 Obturador Guardar (Camera Shutter + Confirmación Nítida, 85ms)
+// 6. #20 Guardar / Publicar Tarea (Ascending Publish Sweep 520Hz -> 880Hz, 65ms)
 {
-  const click1 = tone(1100, 0.02, 'triangle', 12)
-  const click2 = tone(1450, 0.025, 'triangle', 10)
-  const confirmTone = tone(1046.5, 0.06, 'sine', 6)
-  const mixed = mix([
-    { startTimeSec: 0, samples: click1, volume: 0.7 },
-    { startTimeSec: 0.018, samples: click2, volume: 0.85 },
-    { startTimeSec: 0.025, samples: confirmTone, volume: 0.65 },
-  ], 0.085)
-  fs.writeFileSync(path.join(soundsDir, 'shutter_save.wav'), encodeWAV(mixed))
+  const duration = 0.065
+  const numSamples = Math.floor(SAMPLE_RATE * duration)
+  const samples = new Float32Array(numSamples)
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / SAMPLE_RATE
+    const freq = 520 + (880 - 520) * Math.pow(t / duration, 0.8)
+    const env = Math.pow(Math.sin(Math.PI * (t / duration)), 1.4)
+    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.5
+  }
+  fs.writeFileSync(path.join(soundsDir, 'shutter_save.wav'), encodeWAV(samples))
 }
 
 // 7. #22 Confetti Fanfarria (Major 7th: C5, E5, G5, C6)

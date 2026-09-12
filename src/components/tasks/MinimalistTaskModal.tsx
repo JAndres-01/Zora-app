@@ -409,8 +409,10 @@ export function MinimalistTaskModal({
         subject: selectedSubj || null,
       }
 
+      let savedTaskObj: Task | null = null
+
       if (publishToClass && isAdmin && mode === 'create') {
-        const { error: publishError } = await publishClassTask({
+        const { data: classTaskData, error: publishError } = await publishClassTask({
           title: title.trim(),
           description: description.trim() || null,
           subject_name: selectedSubj?.name || 'General',
@@ -429,11 +431,20 @@ export function MinimalistTaskModal({
             created_at: new Date().toISOString(),
           }
           await personalStorage.saveTask(fullTask)
+          savedTaskObj = fullTask
+        } else {
+          const publishedId = classTaskData?.id
+            ? (classTaskData.id.startsWith('class_') ? classTaskData.id : `class_${classTaskData.id}`)
+            : generateId('class')
+          savedTaskObj = {
+            id: publishedId,
+            is_class_task: true,
+            ...payload,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          }
         }
-      }
-
-      let savedTaskObj: Task | null = null
-      if (mode === 'edit' && task) {
+      } else if (mode === 'edit' && task) {
         savedTaskObj = {
           ...task,
           ...payload,

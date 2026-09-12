@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger'
 
 interface PersonalProfileContextType {
   profile: PersonalProfile | null
-  updateProfile: (fullName: string) => Promise<void>
+  updateProfile: (fullName: string, syncToRemote?: boolean) => Promise<void>
   updateCredential: (credentialUrl: string | null, credentialName?: string | null) => Promise<void>
   clearData: () => Promise<void>
 }
@@ -30,7 +30,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     loadLocalProfile()
   }, [])
 
-  const updateProfile = async (fullName: string) => {
+  const updateProfile = async (fullName: string, syncToRemote = true) => {
     const trimmed = fullName.trim() || DEFAULT_STUDENT_NAME
     const current = profile || (await personalStorage.getProfile())
     const updated: PersonalProfile = {
@@ -41,7 +41,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     await personalStorage.setProfile(updated)
     setProfile(updated)
 
-    // Sincronizar actualización de nombre en Supabase si hay sesión activa
+    if (!syncToRemote) return
+
+    // Sincronizar actualización de nombre en Supabase solo si fue solicitado explícitamente
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {

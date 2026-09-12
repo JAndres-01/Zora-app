@@ -87,7 +87,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.full_name) {
-        await updateProfile(data.full_name)
+        await updateProfile(data.full_name, false)
       }
 
       const assignedRole = (data.role as UserRole) || 'student'
@@ -185,31 +185,32 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       if (!isMounted) return
       setSession(newSession)
       setUser(newSession?.user || null)
+      setIsLoading(false)
 
       if (newSession?.user) {
-        const profileData = await fetchUserProfile(newSession.user.id)
-        if (isMounted) {
-          setRole(profileData.role)
-          syncClassTasks()
-          syncClassSchedule()
-        }
+        fetchUserProfile(newSession.user.id).then((profileData) => {
+          if (isMounted) {
+            setRole(profileData.role)
+          }
+        }).catch(() => {})
+        syncClassTasks().catch(() => {})
+        syncClassSchedule().catch(() => {})
       } else {
         setRole(null)
       }
-      setIsLoading(false)
     })
 
     // 4. Suscripción en tiempo real a cambios de la clase
     const channel = supabase
       .channel('class-realtime-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_tasks' }, () => {
-        syncClassTasks()
+        syncClassTasks().catch(() => {})
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_subjects' }, () => {
-        syncClassSchedule()
+        syncClassSchedule().catch(() => {})
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_schedules' }, () => {
-        syncClassSchedule()
+        syncClassSchedule().catch(() => {})
       })
       .subscribe()
 
@@ -235,17 +236,18 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       if (data.session && data.user) {
         setSession(data.session)
         setUser(data.user)
-        const profileData = await fetchUserProfile(data.user.id)
-        setRole(profileData.role)
-        await Promise.all([
-          syncClassTasks(),
-          syncClassSchedule(),
-        ])
-        // Limpiar materias locales huérfanas creadas antes del inicio de sesión
-        await Promise.all([
-          personalStorage.setSubjects([]),
-          personalStorage.setSchedules([]),
-        ])
+        setIsLoading(false)
+
+        // Sincronizaciones no bloqueantes en segundo plano
+        fetchUserProfile(data.user.id).then((profileData) => {
+          setRole(profileData.role)
+        }).catch(() => {})
+
+        syncClassTasks().catch(() => {})
+        syncClassSchedule().catch(() => {})
+
+        personalStorage.setSubjects([]).catch(() => {})
+        personalStorage.setSchedules([]).catch(() => {})
       }
 
       return { error: null }
@@ -277,35 +279,33 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        // Asegurar que el perfil quede registrado en public.profiles
-        const { error: profileError } = await supabase.from('profiles').upsert({
+        setSession(data.session)
+        setUser(data.user)
+        setRole(userRole)
+        setIsLoading(false)
+
+        if (fullName.trim()) {
+          updateProfile(fullName.trim(), false).catch(() => {})
+        }
+
+        // Asegurar en segundo plano que el perfil quede registrado en public.profiles
+        supabase.from('profiles').upsert({
           id: data.user.id,
           full_name: fullName.trim(),
           email: email.trim(),
           role: userRole,
           updated_at: new Date().toISOString(),
+        }).then(({ error: profileError }) => {
+          if (profileError) {
+            logger.warn('[ClassAuth] Error upserting profile:', profileError)
+          }
         })
 
-        if (profileError) {
-          logger.warn('[ClassAuth] Error upserting profile:', profileError)
-        }
-
-        if (fullName.trim()) {
-          await updateProfile(fullName.trim())
-        }
-
-        setSession(data.session)
-        setUser(data.user)
-        setRole(userRole)
-        await Promise.all([
-          syncClassTasks(),
-          syncClassSchedule(),
-        ])
-        // Limpiar materias locales huérfanas creadas antes del registro
-        await Promise.all([
-          personalStorage.setSubjects([]),
-          personalStorage.setSchedules([]),
-        ])
+        // Sincronizaciones no bloqueantes en segundo plano
+        syncClassTasks().catch(() => {})
+        syncClassSchedule().catch(() => {})
+        personalStorage.setSubjects([]).catch(() => {})
+        personalStorage.setSchedules([]).catch(() => {})
       }
 
       return { error: null }

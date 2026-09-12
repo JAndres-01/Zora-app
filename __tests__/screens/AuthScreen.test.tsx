@@ -19,11 +19,12 @@ jest.mock('expo-router', () => ({
 
 const mockSignIn = jest.fn().mockResolvedValue({ error: null })
 const mockSignUp = jest.fn().mockResolvedValue({ error: null })
+let mockIsLoading = false
 
 jest.mock('@/context/ClassAuthContext', () => ({
   useClassAuth: () => ({
     isConnected: false,
-    isLoading: false,
+    isLoading: mockIsLoading,
     signIn: mockSignIn,
     signUp: mockSignUp,
   }),
@@ -33,6 +34,7 @@ describe('AuthScreen (Minimalist Auth: Centered & Clean)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockSearchParams = {}
+    mockIsLoading = false
   })
 
   test('renderiza Bienvenido de vuelta (Login) centrado, con retroceso sin fondo y sin botón biométrico', async () => {
@@ -134,5 +136,14 @@ describe('AuthScreen (Minimalist Auth: Centered & Clean)', () => {
     })
 
     expect(mockBack).toHaveBeenCalled()
+  })
+
+  test('renderiza pantalla de carga skeleton minimalista cuando isLoading es true sin ActivityIndicator fullscreen', async () => {
+    mockIsLoading = true
+    const { getByTestId, queryByTestId, queryByText } = await render(<AuthScreen />)
+
+    expect(getByTestId('skeleton-loading-screen')).toBeTruthy()
+    expect(queryByTestId('auth-back-button')).toBeNull()
+    expect(queryByText('Bienvenido de vuelta')).toBeNull()
   })
 })

@@ -27,19 +27,23 @@ export function MinimalistSkeletonSplash() {
 
   return (
     <View
+      testID="skeleton-loading-screen"
       style={[
         styles.container,
         {
           paddingTop: insets.top + 16,
-          paddingBottom: Math.max(insets.bottom, 20) + 16,
+          paddingBottom: Math.max(insets.bottom, 16) + 16,
         },
       ]}
     >
       <Animated.View style={[styles.innerContent, { opacity: shimmerAnim }]}>
-        {/* Cabecera / Fecha */}
+        {/* Cabecera / Fecha Coherente con TodayScreen */}
         <View style={styles.header}>
-          <View style={styles.dateBar} />
-          <View style={styles.avatarPill} />
+          <View style={styles.headerLeft}>
+            <View style={styles.titleBar} />
+            <View style={styles.dateBar} />
+          </View>
+          <View style={styles.headerBtn} />
         </View>
 
         {/* Hero Card en Vivo */}
@@ -52,19 +56,43 @@ export function MinimalistSkeletonSplash() {
         {/* Sección: Tareas de Hoy */}
         <View style={styles.section}>
           <View style={styles.sectionTitle} />
-          <View style={styles.taskCard} />
-          <View style={styles.taskCard} />
+          <View style={styles.taskCard}>
+            <View style={styles.taskCheckbox} />
+            <View style={styles.taskLines}>
+              <View style={styles.taskTitle} />
+              <View style={styles.taskSubtitle} />
+            </View>
+          </View>
+          <View style={styles.taskCard}>
+            <View style={styles.taskCheckbox} />
+            <View style={styles.taskLines}>
+              <View style={styles.taskTitleShort} />
+              <View style={styles.taskSubtitle} />
+            </View>
+          </View>
         </View>
 
         {/* Sección: Cronograma */}
         <View style={styles.section}>
           <View style={styles.sectionTitleSmall} />
-          <View style={styles.timelineCard} />
+          <View style={styles.timelineCard}>
+            <View style={styles.timelineTime} />
+            <View style={styles.timelineDivider} />
+            <View style={styles.timelineContent}>
+              <View style={styles.timelineTitle} />
+              <View style={styles.timelineSubtitle} />
+            </View>
+          </View>
         </View>
       </Animated.View>
 
-      {/* Silueta de la Isla Flotante Inferior */}
-      <Animated.View style={[styles.floatingIslandSkeleton, { opacity: shimmerAnim }]} />
+      {/* Silueta de la Isla Flotante Inferior con sus 4 tabs */}
+      <Animated.View style={[styles.floatingIslandSkeleton, { opacity: shimmerAnim }]}>
+        <View style={styles.tabIconSkeleton} />
+        <View style={styles.tabIconSkeleton} />
+        <View style={styles.tabIconSkeleton} />
+        <View style={styles.tabIconSkeleton} />
+      </Animated.View>
     </View>
   )
 }
@@ -83,17 +111,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 2,
     marginBottom: 4,
+  },
+  headerLeft: {
+    gap: 6,
+  },
+  titleBar: {
+    width: 72,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#22222A',
   },
   dateBar: {
     width: 140,
-    height: 18,
-    borderRadius: 6,
-    backgroundColor: '#1C1C22',
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#18181E',
   },
-  avatarPill: {
-    width: 32,
+  headerBtn: {
+    width: 80,
     height: 32,
     borderRadius: 16,
     backgroundColor: '#1C1C22',
@@ -107,16 +143,16 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   heroBadge: {
-    width: 70,
-    height: 16,
-    borderRadius: 8,
+    width: 80,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#1C1C22',
   },
   heroTitle: {
     width: '65%',
     height: 22,
     borderRadius: 6,
-    backgroundColor: '#1F1F26',
+    backgroundColor: '#22222A',
     marginTop: 2,
   },
   heroSubtitle: {
@@ -143,11 +179,45 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   taskCard: {
-    height: 56,
+    height: 60,
     backgroundColor: '#121215',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#1E1E24',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  taskCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#1C1C22',
+    borderWidth: 1,
+    borderColor: '#2A2A34',
+  },
+  taskLines: {
+    flex: 1,
+    gap: 6,
+  },
+  taskTitle: {
+    width: '70%',
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#22222A',
+  },
+  taskTitleShort: {
+    width: '50%',
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#22222A',
+  },
+  taskSubtitle: {
+    width: '35%',
+    height: 10,
+    borderRadius: 3,
+    backgroundColor: '#18181E',
   },
   timelineCard: {
     height: 72,
@@ -155,14 +225,55 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#1E1E24',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 14,
+  },
+  timelineTime: {
+    width: 44,
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#1C1C22',
+  },
+  timelineDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: '#1E1E24',
+  },
+  timelineContent: {
+    flex: 1,
+    gap: 6,
+  },
+  timelineTitle: {
+    width: '60%',
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#22222A',
+  },
+  timelineSubtitle: {
+    width: '40%',
+    height: 10,
+    borderRadius: 3,
+    backgroundColor: '#18181E',
   },
   floatingIslandSkeleton: {
-    width: 180,
-    height: 44,
-    borderRadius: 22,
+    width: 220,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#141418',
     borderWidth: 1,
     borderColor: '#22222A',
     alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+  },
+  tabIconSkeleton: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#202028',
   },
 })

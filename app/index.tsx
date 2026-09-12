@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Redirect } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useClassAuth } from '@/context/ClassAuthContext'
-import { DynamicSplashScreen } from '@/components/common/DynamicSplashScreen'
+import { MinimalistSkeletonSplash } from '@/components/common/MinimalistSkeletonSplash'
 import { ONBOARDING_COMPLETED_KEY } from './welcome'
 
 export default function Index() {
@@ -35,12 +35,16 @@ export default function Index() {
     }
   }, [])
 
-  if (isLoading || !hasCheckedOnboarding) {
-    return <DynamicSplashScreen autoFinish={false} />
+  if (!hasCheckedOnboarding) {
+    return <MinimalistSkeletonSplash />
   }
 
   if (!hasSeenOnboarding) {
     return <Redirect href="/welcome" />
+  }
+
+  if (isLoading) {
+    return <MinimalistSkeletonSplash />
   }
 
   if (!isConnected) {

@@ -24,6 +24,7 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 import { APPLE_EASING } from '@/constants/animations'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ONBOARDING_COMPLETED_KEY } from './welcome'
+import { MinimalistSkeletonSplash } from '@/components/common/MinimalistSkeletonSplash'
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets()
@@ -166,11 +167,7 @@ export default function AuthScreen() {
   }
 
   if (isLoading) {
-    return (
-      <View style={[styles.screen, styles.loadingContainer, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
-      </View>
-    )
+    return <MinimalistSkeletonSplash />
   }
 
   return (
@@ -351,10 +348,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#09090B',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // Barra Superior con Botón Discreto sin fondo

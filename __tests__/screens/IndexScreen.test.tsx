@@ -79,4 +79,27 @@ describe('Index Screen Routing', () => {
       expect(Redirect).toHaveBeenCalledWith({ href: '/(tabs)/today' }, undefined)
     })
   })
+
+  test('renderiza pantalla de carga skeleton cuando ya completó onboarding pero isLoading es true', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce('true')
+    jest.spyOn(ClassAuthContext, 'useClassAuth').mockReturnValue({
+      isConnected: false,
+      isLoading: true,
+      userRole: null,
+      session: null,
+      user: null,
+      classCode: null,
+      classGroup: null,
+      signIn: jest.fn(),
+      signUp: jest.fn(),
+      signOut: jest.fn(),
+      refreshSession: jest.fn(),
+    } as any)
+
+    const { getByTestId } = await render(<Index />)
+
+    await waitFor(() => {
+      expect(getByTestId('skeleton-loading-screen')).toBeTruthy()
+    })
+  })
 })

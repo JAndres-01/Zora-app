@@ -16,8 +16,10 @@ const SOUND_ASSETS: Record<SoundEffect, any> = {
   warning_thud: require('../../assets/sounds/warning_thud.wav'),
 }
 
+const POOL_SIZE = 4
 let _globalSoundEnabled = true
-const _cachedPlayers: Partial<Record<SoundEffect, AudioPlayer>> = {}
+const _playerPool: Partial<Record<SoundEffect, AudioPlayer[]>> = {}
+const _poolPointers: Partial<Record<SoundEffect, number>> = {}
 let _audioModeConfigured = false
 
 /**
@@ -25,8 +27,19 @@ let _audioModeConfigured = false
  */
 export function __resetAudioConfigForTesting(): void {
   _audioModeConfigured = false
-  for (const key of Object.keys(_cachedPlayers) as SoundEffect[]) {
-    delete _cachedPlayers[key]
+  for (const key of Object.keys(_playerPool) as SoundEffect[]) {
+    const pool = _playerPool[key]
+    if (pool) {
+      for (const player of pool) {
+        try {
+          if (typeof player.remove === 'function') {
+            player.remove()
+          }
+        } catch {}
+      }
+    }
+    delete _playerPool[key]
+    delete _poolPointers[key]
   }
 }
 
@@ -56,8 +69,12 @@ export async function preloadAllAudio(): Promise<void> {
   await configureAudioMode()
   for (const key of Object.keys(SOUND_ASSETS) as SoundEffect[]) {
     try {
-      if (!_cachedPlayers[key]) {
-        _cachedPlayers[key] = createAudioPlayer(SOUND_ASSETS[key])
+      if (!_playerPool[key]) {
+        _playerPool[key] = []
+      }
+      const pool = _playerPool[key]!
+      while (pool.length < POOL_SIZE) {
+        pool.push(createAudioPlayer(SOUND_ASSETS[key]))
       }
     } catch (err) {
       logger.warn(`[personalAudio] Error precargando sonido ${key}:`, err)
@@ -81,7 +98,8 @@ export function isGlobalSoundEnabled(): boolean {
 
 /**
  * Reproduce de forma asíncrona ("fire-and-forget") uno de los efectos de sonido de Zora.
- * Si el sonido está deshabilitado en Ajustes, se omite de inmediato sin retrasar la UI.
+ * Implementa un pool round-robin de reproductores nativos para evitar que acciones
+ * consecutivas rápidas (p. ej. desmarcar varias tareas rápidamente) se omitan o corten.
  */
 export async function playSound(effect: SoundEffect): Promise<void> {
   if (!_globalSoundEnabled) return
@@ -112,20 +130,35 @@ export async function playSound(effect: SoundEffect): Promise<void> {
       configureAudioMode().catch(() => {})
     }
 
-    // En iOS / Android usamos el reproductor nativo expo-audio
-    let player = _cachedPlayers[effect]
+    // En iOS / Android usamos el pool de reproductores expo-audio con rotación round-robin
+    let pool = _playerPool[effect]
+    if (!pool) {
+      pool = []
+      _playerPool[effect] = pool
+    }
+
+    const currentIdx = _poolPointers[effect] ?? 0
+    _poolPointers[effect] = (currentIdx + 1) % POOL_SIZE
+
+    let player = pool[currentIdx]
     if (!player) {
       const asset = SOUND_ASSETS[effect]
       player = createAudioPlayer(asset)
-      _cachedPlayers[effect] = player
+      pool[currentIdx] = player
     }
 
     if (player) {
-      // Si el reproductor ya se reprodujo antes, rebobinamos en background sin bloquear play()
-      if (player.currentTime > 0 && typeof player.seekTo === 'function') {
-        player.seekTo(0).catch(() => {})
+      try {
+        if (player.playing && typeof player.pause === 'function') {
+          player.pause()
+        }
+        if (typeof player.seekTo === 'function') {
+          player.seekTo(0).catch(() => {})
+        }
+        player.play()
+      } catch (playErr) {
+        logger.warn(`[personalAudio] Error disparando reproductor ${effect}:`, playErr)
       }
-      player.play()
     }
   } catch (err) {
     // Protección silenciosa: nunca lanzar excepciones que interrumpan la interacción del usuario

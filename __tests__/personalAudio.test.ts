@@ -1,4 +1,4 @@
-﻿import {
+import {
   playSound,
   setGlobalSoundEnabled,
   isGlobalSoundEnabled,
@@ -77,5 +77,18 @@ describe('personalAudio', () => {
       throw new Error('Audio hardware unavailable')
     })
     await expect(playSound('warning_thud')).resolves.not.toThrow()
+  })
+
+  it('soporta disparos rápidos consecutivos mediante el pool de reproductores', async () => {
+    await playSound('task_undo')
+    await playSound('task_undo')
+    await playSound('task_undo')
+    await playSound('task_undo')
+    // Cada llamada inicial crea una instancia en el pool de 4 slots
+    expect(createAudioPlayer).toHaveBeenCalledTimes(4)
+
+    // La 5ta llamada rota al primer reproductor ya instanciado (round-robin)
+    await playSound('task_undo')
+    expect(createAudioPlayer).toHaveBeenCalledTimes(4)
   })
 })

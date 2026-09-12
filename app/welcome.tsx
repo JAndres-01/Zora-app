@@ -112,8 +112,7 @@ export default function WelcomeScreen() {
       }).start()
     })
 
-    // Transición en paralelo con curvas iOS
-    Animated.parallel([
+    const parallelAnimations: Animated.CompositeAnimation[] = [
       Animated.timing(cardFadeAnim, {
         toValue: 1,
         duration: 220,
@@ -127,20 +126,31 @@ export default function WelcomeScreen() {
         mass: 0.6,
         useNativeDriver: true,
       }),
-      Animated.timing(textFadeAnim, {
-        toValue: 1,
-        duration: 220,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-      Animated.spring(textSlideAnim, {
-        toValue: 0,
-        stiffness: 380,
-        damping: 28,
-        mass: 0.5,
-        useNativeDriver: true,
-      }),
-    ]).start()
+    ]
+
+    // Solo animar texto inferior en pasos 0, 1 y 2 (en paso 3 se unmounta para mostrar botones de cuenta)
+    if (newStep < 3) {
+      textSlideAnim.setValue(direction === 'forward' ? 12 : -12)
+      textFadeAnim.setValue(0.2)
+      parallelAnimations.push(
+        Animated.timing(textFadeAnim, {
+          toValue: 1,
+          duration: 220,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.spring(textSlideAnim, {
+          toValue: 0,
+          stiffness: 380,
+          damping: 28,
+          mass: 0.5,
+          useNativeDriver: true,
+        })
+      )
+    }
+
+    // stopTogether: false asegura que si una animación finaliza o desmonta, las demás continúan al 100%
+    Animated.parallel(parallelAnimations, { stopTogether: false }).start()
   }
 
   const handleNext = () => {
@@ -216,8 +226,12 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.navSlotCenter}>
-          <Image source={ZORA_LOGO} style={styles.topLogo} resizeMode="contain" />
-          <Text style={styles.topBrandText}>ZORA</Text>
+          {currentStep < 3 && (
+            <>
+              <Image source={ZORA_LOGO} style={styles.topLogo} resizeMode="contain" />
+              <Text style={styles.topBrandText}>ZORA</Text>
+            </>
+          )}
         </View>
 
         <View style={styles.navSlotRight}>
@@ -366,16 +380,8 @@ export default function WelcomeScreen() {
 // ─── 4. Paso 3: Hero de Marca Minimalista para Selección de Cuenta ───────────
 function AccountLandingMockup() {
   const breathAnim = useRef(new Animated.Value(1)).current
-  const fadeAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 350,
-      easing: APPLE_EASING,
-      useNativeDriver: true,
-    }).start()
-
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(breathAnim, {
@@ -394,16 +400,16 @@ function AccountLandingMockup() {
     )
     loop.start()
     return () => loop.stop()
-  }, [breathAnim, fadeAnim])
+  }, [breathAnim])
 
   return (
-    <Animated.View style={[styles.accountLandingContainer, { opacity: fadeAnim }]}>
+    <View style={styles.accountLandingContainer}>
       <Animated.View style={[styles.accountLogoWrapper, { transform: [{ scale: breathAnim }] }]}>
         <Image source={ZORA_LOGO} style={styles.accountHeroLogo} resizeMode="contain" />
       </Animated.View>
       <Text style={styles.accountHeroBrand}>ZORA</Text>
       <Text style={styles.accountHeroTagline}>Tu espacio académico y personal minimalista.</Text>
-    </Animated.View>
+    </View>
   )
 }
 
@@ -1235,20 +1241,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   accountLogoWrapper: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   accountHeroLogo: {
-    width: 68,
-    height: 68,
+    width: 76,
+    height: 76,
   },
   accountHeroBrand: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '800',
-    letterSpacing: 5,
+    letterSpacing: 6,
     color: '#FFFFFF',
   },
   accountHeroTagline: {
@@ -1256,7 +1262,7 @@ const styles = StyleSheet.create({
     color: '#A1A1AA',
     fontWeight: '400',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
     maxWidth: 280,
   },
   accountActionsSection: {

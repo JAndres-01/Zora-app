@@ -79,7 +79,8 @@
       "expo-sharing",
       "expo-splash-screen",
       "expo-status-bar",
-      "expo-asset"
+      "expo-asset",
+      "./plugins/withZoraWidget"
     ],
     "extra": {
       "eas": {

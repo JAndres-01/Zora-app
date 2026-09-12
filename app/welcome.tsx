@@ -93,21 +93,23 @@ export default function WelcomeScreen() {
     triggerHaptic('selection')
     setCurrentStep(newStep)
 
-    // Desplazamiento elástico direccional
-    const inOffset = direction === 'forward' ? 28 : -28
+    // Desplazamiento horizontal coordinado en el mismo eje X (sin saltos verticales)
+    const inOffset = direction === 'forward' ? 36 : -36
+    const textOffset = direction === 'forward' ? 20 : -20
+
     cardSlideAnim.setValue(inOffset)
-    cardFadeAnim.setValue(0.2)
+    cardFadeAnim.setValue(0)
 
-    textSlideAnim.setValue(direction === 'forward' ? 12 : -12)
-    textFadeAnim.setValue(0.2)
+    textSlideAnim.setValue(textOffset)
+    textFadeAnim.setValue(0)
 
-    // Animación fluida de píldoras de paginación con scaleX nativo
+    // Animación fluida y elástica de píldoras de paginación
     dotScales.forEach((_, i) => {
       Animated.spring(dotScales[i], {
         toValue: i === newStep ? 2.75 : 1,
-        stiffness: 420,
-        damping: 32,
-        mass: 0.55,
+        stiffness: 260,
+        damping: 26,
+        mass: 0.7,
         useNativeDriver: true,
       }).start()
     })
@@ -115,41 +117,38 @@ export default function WelcomeScreen() {
     const parallelAnimations: Animated.CompositeAnimation[] = [
       Animated.timing(cardFadeAnim, {
         toValue: 1,
-        duration: 220,
+        duration: 380,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.spring(cardSlideAnim, {
         toValue: 0,
-        stiffness: 360,
-        damping: 26,
-        mass: 0.6,
+        stiffness: 220,
+        damping: 28,
+        mass: 0.8,
         useNativeDriver: true,
       }),
     ]
 
-    // Solo animar texto inferior en pasos 0, 1 y 2 (en paso 3 se unmounta para mostrar botones de cuenta)
+    // Animar texto inferior en la misma dirección horizontal con sutil desfase armónico
     if (newStep < 3) {
-      textSlideAnim.setValue(direction === 'forward' ? 12 : -12)
-      textFadeAnim.setValue(0.2)
       parallelAnimations.push(
         Animated.timing(textFadeAnim, {
           toValue: 1,
-          duration: 220,
+          duration: 380,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.spring(textSlideAnim, {
           toValue: 0,
-          stiffness: 380,
+          stiffness: 240,
           damping: 28,
-          mass: 0.5,
+          mass: 0.8,
           useNativeDriver: true,
         })
       )
     }
 
-    // stopTogether: false asegura que si una animación finaliza o desmonta, las demás continúan al 100%
     Animated.parallel(parallelAnimations, { stopTogether: false }).start()
   }
 
@@ -304,7 +303,7 @@ export default function WelcomeScreen() {
                 styles.textWrapper,
                 {
                   opacity: textFadeAnim,
-                  transform: [{ translateY: textSlideAnim }],
+                  transform: [{ translateX: textSlideAnim }],
                 },
               ]}
             >
@@ -413,39 +412,12 @@ function AccountLandingMockup() {
   )
 }
 
-// ─── 1. Paso 0: Mockup Fiel de Tareas con Entrada Escalonada y Pop de Tags ──────
+// ─── 1. Paso 0: Mockup Fiel de Tareas con Diseño Minimalista y Limpio ─────────
 function TasksMockup() {
-  const row1Anim = useRef(new Animated.Value(0)).current
-  const row2Anim = useRef(new Animated.Value(0)).current
-  const row3Anim = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    Animated.stagger(75, [
-      Animated.spring(row1Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
-      Animated.spring(row2Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
-      Animated.spring(row3Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
-    ]).start()
-  }, [row1Anim, row2Anim, row3Anim])
-
   return (
     <View style={styles.fullStageBox}>
       {/* Tarea 1: Infografia */}
-      <Animated.View
-        style={[
-          styles.taskRealRow,
-          {
-            opacity: row1Anim,
-            transform: [
-              {
-                translateY: row1Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [12, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.taskRealRow}>
         <Text style={styles.taskRealTitle}>Infografia</Text>
         <View style={styles.taskRealMetaRow}>
           <View style={[styles.taskRealDot, { backgroundColor: '#10B981' }]} />
@@ -453,27 +425,12 @@ function TasksMockup() {
           <Text style={styles.taskRealSep}>•</Text>
           <Text style={styles.taskRealDate}>Lun 14 Sep 10:00 AM</Text>
         </View>
-      </Animated.View>
+      </View>
 
       <View style={styles.realDivider} />
 
-      {/* Tarea 2: Expo de modelo con Tag Grupal pop */}
-      <Animated.View
-        style={[
-          styles.taskRealRow,
-          {
-            opacity: row2Anim,
-            transform: [
-              {
-                translateY: row2Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [12, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      {/* Tarea 2: Expo de modelo con Tag Grupal */}
+      <View style={styles.taskRealRow}>
         <Text style={styles.taskRealTitle}>Expo de modelo</Text>
         <View style={styles.taskRealMetaRow}>
           <View style={[styles.taskRealDot, { backgroundColor: '#A855F7' }]} />
@@ -483,27 +440,12 @@ function TasksMockup() {
           <Text style={styles.taskRealSep}>•</Text>
           <Text style={styles.taskRealGroupTag}>Grupal</Text>
         </View>
-      </Animated.View>
+      </View>
 
       <View style={styles.realDivider} />
 
-      {/* Tarea 3: 10 Consultas con Adjunto Pop */}
-      <Animated.View
-        style={[
-          styles.taskRealRow,
-          {
-            opacity: row3Anim,
-            transform: [
-              {
-                translateY: row3Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [12, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      {/* Tarea 3: 10 Consultas con Adjunto */}
+      <View style={styles.taskRealRow}>
         <Text style={styles.taskRealTitle}>10 Consultas</Text>
         <View style={styles.taskRealMetaRow}>
           <View style={[styles.taskRealDot, { backgroundColor: '#EC4899' }]} />
@@ -516,29 +458,18 @@ function TasksMockup() {
             <Text style={styles.taskRealAttachCount}>1</Text>
           </View>
         </View>
-      </Animated.View>
+      </View>
     </View>
   )
 }
 
-// ─── 2. Paso 1: Mockup Fiel de Horario con Cascada y Radar Beacon ───────────────
+// ─── 2. Paso 1: Mockup Fiel de Horario con Diseño Minimalista y Radar Beacon ────
 function ScheduleMockup() {
-  const block1Anim = useRef(new Animated.Value(0)).current
-  const block2Anim = useRef(new Animated.Value(0)).current
-  const block3Anim = useRef(new Animated.Value(0)).current
-
   // Radar beacon animado en la clase actual (C1)
   const beaconScale = useRef(new Animated.Value(1)).current
   const beaconOpacity = useRef(new Animated.Value(0.7)).current
 
   useEffect(() => {
-    // Cascada de entrada
-    Animated.stagger(75, [
-      Animated.spring(block1Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
-      Animated.spring(block2Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
-      Animated.spring(block3Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
-    ]).start()
-
     // Pulso radar de clase en vivo
     const beaconLoop = Animated.loop(
       Animated.parallel([
@@ -559,27 +490,12 @@ function ScheduleMockup() {
     beaconLoop.start()
 
     return () => beaconLoop.stop()
-  }, [block1Anim, block2Anim, block3Anim, beaconScale, beaconOpacity])
+  }, [beaconScale, beaconOpacity])
 
   return (
     <View style={styles.fullStageBox}>
       {/* Bloque 1: C1 Ing de software con radar beacon activo */}
-      <Animated.View
-        style={[
-          styles.schedRealRow,
-          {
-            opacity: block1Anim,
-            transform: [
-              {
-                translateX: block1Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-14, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.schedRealRow}>
         <View style={styles.schedTimeCol}>
           <Text style={styles.schedTimeStart}>07:00</Text>
           <Text style={styles.schedTimeEnd}>08:30</Text>
@@ -602,27 +518,12 @@ function ScheduleMockup() {
           </View>
           <Text style={styles.schedSubjectName}>Ing de software</Text>
         </View>
-      </Animated.View>
+      </View>
 
       <View style={styles.realDivider} />
 
       {/* Bloque 2: C2 Redes II */}
-      <Animated.View
-        style={[
-          styles.schedRealRow,
-          {
-            opacity: block2Anim,
-            transform: [
-              {
-                translateX: block2Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-14, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.schedRealRow}>
         <View style={styles.schedTimeCol}>
           <Text style={styles.schedTimeStart}>08:30</Text>
           <Text style={styles.schedTimeEnd}>10:00</Text>
@@ -634,27 +535,12 @@ function ScheduleMockup() {
           <View style={[styles.schedDot, { backgroundColor: '#3B82F6' }]} />
           <Text style={styles.schedSubjectName}>Redes II</Text>
         </View>
-      </Animated.View>
+      </View>
 
       <View style={styles.realDivider} />
 
       {/* Bloque 3: C3 Base de datos II */}
-      <Animated.View
-        style={[
-          styles.schedRealRow,
-          {
-            opacity: block3Anim,
-            transform: [
-              {
-                translateX: block3Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-14, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.schedRealRow}>
         <View style={styles.schedTimeCol}>
           <Text style={styles.schedTimeStart}>10:00</Text>
           <Text style={styles.schedTimeEnd}>11:30</Text>
@@ -666,7 +552,7 @@ function ScheduleMockup() {
           <View style={[styles.schedDot, { backgroundColor: '#EC4899' }]} />
           <Text style={styles.schedSubjectName}>Base de datos II</Text>
         </View>
-      </Animated.View>
+      </View>
     </View>
   )
 }
@@ -692,19 +578,10 @@ const MONTH_LABELS = [
 const HEATMAP_DAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
 function StatsMockup() {
-  const headerPopAnim = useRef(new Animated.Value(0)).current
   const todayPulseAnim = useRef(new Animated.Value(0.4)).current
 
   useEffect(() => {
-    // 1. Pop elástico en el encabezado
-    Animated.spring(headerPopAnim, {
-      toValue: 1,
-      stiffness: 380,
-      damping: 22,
-      useNativeDriver: true,
-    }).start()
-
-    // 2. Resplandor pulsante continuo en la celda de hoy
+    // Resplandor pulsante continuo en la celda de hoy
     const todayLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(todayPulseAnim, {
@@ -726,23 +603,16 @@ function StatsMockup() {
     return () => {
       todayLoop.stop()
     }
-  }, [headerPopAnim, todayPulseAnim])
+  }, [todayPulseAnim])
 
   return (
     <View style={styles.fullStageBox}>
       {/* Header Resumen sin texto de racha ni 14 días */}
       <View style={styles.heatmapHeaderRow}>
-        <Animated.View
-          style={[
-            styles.heatmapHeaderLeft,
-            {
-              transform: [{ scale: headerPopAnim }],
-            },
-          ]}
-        >
+        <View style={styles.heatmapHeaderLeft}>
           <Flame size={15} color="#34D399" strokeWidth={2.4} />
           <Text style={styles.heatmapHeaderTitle}>Registro de Actividad</Text>
-        </Animated.View>
+        </View>
         <Text style={styles.heatmapStatsSummary}>28 entregas registradas</Text>
       </View>
 

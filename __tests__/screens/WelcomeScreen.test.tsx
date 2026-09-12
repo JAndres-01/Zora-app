@@ -3,33 +3,43 @@ import { render, fireEvent, act } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import WelcomeScreen, { ONBOARDING_COMPLETED_KEY } from '../../app/welcome'
 
-describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
+describe('WelcomeScreen (4-Step Immersive Onboarding)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  test('renderiza inicialmente el paso 1 (Tareas) con mockup y controles', async () => {
+  test('renderiza inicialmente el paso 0 (Bienvenida General) con logo y controles', async () => {
     const { getByText, getByTestId, queryByTestId } = await render(<WelcomeScreen />)
 
     // Barra superior
     expect(getByText('ZORA')).toBeTruthy()
     expect(getByTestId('welcome-skip-button')).toBeTruthy()
 
-    // Contenido del paso 1
-    expect(getByText('Control y registro de tareas')).toBeTruthy()
-    expect(getByText('Infografia')).toBeTruthy()
-    expect(getByText('Expo de modelo')).toBeTruthy()
-    expect(getByText('10 Consultas')).toBeTruthy()
+    // Contenido del paso 0 (Bienvenida General)
+    expect(getByText('Bienvenido a Zora')).toBeTruthy()
+    expect(getByText('// 00 · SISTEMA ACADÉMICO')).toBeTruthy()
+    expect(getByText('Modo local sin dependencia de red')).toBeTruthy()
 
     // Botones de control
     expect(getByTestId('welcome-next-button')).toBeTruthy()
     expect(queryByTestId('welcome-back-button')).toBeNull()
   })
 
-  test('avanza al paso 2 (Horario) y paso 3 (Métricas) al pulsar siguiente', async () => {
-    const { getByText, getByTestId } = await render(<WelcomeScreen />)
+  test('avanza por todos los pasos: 1 (Tareas), 2 (Horario) y 3 (Métricas con inicio en domingo y sin racha)', async () => {
+    const { getByText, getByTestId, queryByText } = await render(<WelcomeScreen />)
 
-    // Avanzar a paso 2
+    // Avanzar a paso 1: Tareas
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    expect(getByText('Control y registro de tareas')).toBeTruthy()
+    expect(getByText('Infografia')).toBeTruthy()
+    expect(getByText('Expo de modelo')).toBeTruthy()
+    expect(getByText('10 Consultas')).toBeTruthy()
+    expect(getByTestId('welcome-back-button')).toBeTruthy()
+
+    // Avanzar a paso 2: Horario
     await act(async () => {
       fireEvent.press(getByTestId('welcome-next-button'))
     })
@@ -38,35 +48,39 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
     expect(getByText('Ing de software')).toBeTruthy()
     expect(getByText('Redes II')).toBeTruthy()
     expect(getByText('C1')).toBeTruthy()
-    expect(getByTestId('welcome-back-button')).toBeTruthy()
 
-    // Avanzar a paso 3
+    // Avanzar a paso 3: Métricas
     await act(async () => {
       fireEvent.press(getByTestId('welcome-next-button'))
     })
 
     expect(getByText('Métricas de rendimiento')).toBeTruthy()
-    expect(getByText('14 Días de racha')).toBeTruthy()
+    // Verificamos que diga "14 Días" y NO "14 Días de racha"
+    expect(getByText('14 Días')).toBeTruthy()
+    expect(queryByText('14 Días de racha')).toBeNull()
+    expect(getByText('28 entregas registradas')).toBeTruthy()
+    // Verificamos que la semana empiece con D (Domingo)
+    expect(getByText('D')).toBeTruthy()
     expect(getByText('Comenzar')).toBeTruthy()
   })
 
   test('permite retroceder al paso anterior con el botón de retroceso', async () => {
     const { getByText, getByTestId } = await render(<WelcomeScreen />)
 
-    // Ir a paso 2
+    // Ir a paso 1
     await act(async () => {
       fireEvent.press(getByTestId('welcome-next-button'))
     })
-    expect(getByText('Horario académico estructurado')).toBeTruthy()
+    expect(getByText('Control y registro de tareas')).toBeTruthy()
 
-    // Retroceder al paso 1
+    // Retroceder al paso 0
     await act(async () => {
       fireEvent.press(getByTestId('welcome-back-button'))
     })
-    expect(getByText('Control y registro de tareas')).toBeTruthy()
+    expect(getByText('Bienvenido a Zora')).toBeTruthy()
   })
 
-  test('al completar el paso 3 guarda en AsyncStorage y redirige a /auth', async () => {
+  test('al completar el paso 3 (Comenzar) guarda en AsyncStorage y redirige a /auth', async () => {
     const mockReplace = jest.fn()
     jest.spyOn(require('expo-router'), 'useRouter').mockReturnValue({
       push: jest.fn(),
@@ -76,6 +90,11 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
 
     const { getByTestId } = await render(<WelcomeScreen />)
 
+    // Avanzar a paso 1
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
     // Avanzar a paso 2
     await act(async () => {
       fireEvent.press(getByTestId('welcome-next-button'))
@@ -86,7 +105,7 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
       fireEvent.press(getByTestId('welcome-next-button'))
     })
 
-    // Finalizar en paso 3
+    // Finalizar en paso 3 pulsando Comenzar
     await act(async () => {
       fireEvent.press(getByTestId('welcome-next-button'))
     })

@@ -32,7 +32,7 @@ import {
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { DynamicSplashScreen } from '@/components/common/DynamicSplashScreen'
 
-export const ONBOARDING_COMPLETED_KEY = '@zora_has_seen_onboarding_v2'
+export const ONBOARDING_COMPLETED_KEY = '@zora_has_seen_onboarding_v3'
 
 const ZORA_LOGO = require('../assets/icon.png')
 

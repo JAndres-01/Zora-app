@@ -22,6 +22,8 @@ import {
 import { useClassAuth } from '@/context/ClassAuthContext'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { APPLE_EASING } from '@/constants/animations'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { ONBOARDING_COMPLETED_KEY } from './welcome'
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets()
@@ -97,12 +99,17 @@ export default function AuthScreen() {
     setAuthMode(newMode)
   }
 
-  const handleBack = () => {
+  const handleBack = async () => {
     triggerHaptic('light')
+    try {
+      await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY)
+    } catch {
+      // Ignorar
+    }
     if (router.canGoBack()) {
       router.back()
     } else {
-      router.replace({ pathname: '/welcome', params: { step: '3' } })
+      router.replace('/welcome')
     }
   }
 
@@ -143,6 +150,11 @@ export default function AuthScreen() {
         }
       }
 
+      try {
+        await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
+      } catch {
+        // Ignorar
+      }
       triggerHaptic('success')
       router.replace('/(tabs)/today')
     } catch (err: any) {

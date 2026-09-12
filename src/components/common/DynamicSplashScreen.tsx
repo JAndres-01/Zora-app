@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Pressable,
   Animated,
-  Image,
 } from 'react-native'
 import Svg, {
   Defs,
@@ -16,31 +15,52 @@ import Svg, {
 } from 'react-native-svg'
 import { APPLE_EASING } from '@/constants/animations'
 
-const ZORA_LOGO = require('../../../assets/icon.png')
-
 export interface DynamicSplashScreenProps {
   onFinish?: () => void
   duration?: number
   autoFinish?: boolean
 }
 
+// Estrellas destellantes sutiles en posiciones abiertas
+const TWINKLE_STARS = [
+  { x: 38, y: 55, r: 1.2 },
+  { x: 290, y: 70, r: 1.5 },
+  { x: 75, y: 190, r: 1.0 },
+  { x: 310, y: 220, r: 1.4 },
+  { x: 50, y: 340, r: 1.3 },
+  { x: 285, y: 380, r: 1.2 },
+  { x: 120, y: 80, r: 1.0 },
+  { x: 230, y: 320, r: 1.1 },
+]
+
 export function DynamicSplashScreen({
   onFinish,
-  duration = 1400,
+  duration = 2400, // 1 segundo más (2.4s)
   autoFinish = true,
 }: DynamicSplashScreenProps) {
-  // Opacidad y escala general para entrada y salida fluida
+  // Transición de salida global
   const containerFadeAnim = useRef(new Animated.Value(0)).current
   const containerScaleAnim = useRef(new Animated.Value(0.96)).current
 
-  // Animaciones de elementos centrales
-  const logoSpringScale = useRef(new Animated.Value(0.65)).current
-  const logoBreathAnim = useRef(new Animated.Value(1)).current
-  const waveScaleAnim = useRef(new Animated.Value(1)).current
-  const waveOpacityAnim = useRef(new Animated.Value(0.65)).current
-  const orbitRotateAnim = useRef(new Animated.Value(0)).current
-  const textFadeAnim = useRef(new Animated.Value(0)).current
-  const textSlideAnim = useRef(new Animated.Value(14)).current
+  // 1. Fase Láser: Trazado en 3 segmentos geométricos del monograma "Z"
+  const zTopBarScale = useRef(new Animated.Value(0)).current
+  const zDiagScale = useRef(new Animated.Value(0)).current
+  const zBottomBarScale = useRef(new Animated.Value(0)).current
+  const zMonogramOpacity = useRef(new Animated.Value(1)).current
+
+  // 2. Fase Expansión de Luz y Revelación de ZORA
+  const burstScale = useRef(new Animated.Value(0.7)).current
+  const burstOpacity = useRef(new Animated.Value(0)).current
+  const wordmarkFadeAnim = useRef(new Animated.Value(0)).current
+  const wordmarkScaleAnim = useRef(new Animated.Value(0.85)).current
+  const wordmarkBreathAnim = useRef(new Animated.Value(1)).current
+
+  // 3. Constelación Orbital Abierta
+  const orbitRotateFast = useRef(new Animated.Value(0)).current
+  const orbitRotateSlow = useRef(new Animated.Value(0)).current
+  const starsTwinkleAnim = useRef(new Animated.Value(0.2)).current
+
+  // 4. Barra de progreso minimalista
   const progressAnim = useRef(new Animated.Value(0)).current
 
   const isExitingRef = useRef(false)
@@ -54,13 +74,13 @@ export function DynamicSplashScreen({
     Animated.parallel([
       Animated.timing(containerFadeAnim, {
         toValue: 0,
-        duration: 260,
+        duration: 280,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.timing(containerScaleAnim, {
-        toValue: 1.04,
-        duration: 260,
+        toValue: 1.05,
+        duration: 280,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
@@ -68,11 +88,11 @@ export function DynamicSplashScreen({
   }
 
   useEffect(() => {
-    // 1. Entrada suave del contenedor y pop del logo
+    // A. Entrada del contenedor
     Animated.parallel([
       Animated.timing(containerFadeAnim, {
         toValue: 1,
-        duration: 220,
+        duration: 200,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
@@ -82,52 +102,82 @@ export function DynamicSplashScreen({
         damping: 24,
         useNativeDriver: true,
       }),
-      Animated.spring(logoSpringScale, {
-        toValue: 1,
-        stiffness: 300,
-        damping: 20,
-        mass: 0.8,
-        useNativeDriver: true,
-      }),
     ]).start()
 
-    // 2. Entrada de texto
-    Animated.parallel([
-      Animated.timing(textFadeAnim, {
+    // B. Animación de trazo láser rápido en la Z (Segmento 1 -> 2 -> 3)
+    Animated.sequence([
+      Animated.timing(zTopBarScale, {
         toValue: 1,
-        duration: 320,
-        delay: 100,
+        duration: 180,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
-      Animated.spring(textSlideAnim, {
+      Animated.timing(zDiagScale, {
+        toValue: 1,
+        duration: 220,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(zBottomBarScale, {
+        toValue: 1,
+        duration: 180,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      // Destello de luz expansiva y desvanecimiento de monograma Z
+      Animated.parallel([
+        Animated.timing(burstOpacity, {
+          toValue: 0.85,
+          duration: 120,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(burstScale, {
+          toValue: 1.6,
+          duration: 400,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(zMonogramOpacity, {
+          toValue: 0,
+          duration: 300,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        // Aparición del nombre completo ZORA
+        Animated.timing(wordmarkFadeAnim, {
+          toValue: 1,
+          duration: 380,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.spring(wordmarkScaleAnim, {
+          toValue: 1,
+          stiffness: 300,
+          damping: 22,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(burstOpacity, {
         toValue: 0,
-        stiffness: 320,
-        damping: 24,
+        duration: 300,
+        easing: APPLE_EASING,
         useNativeDriver: true,
       }),
     ]).start()
 
-    // 3. Barra de progreso de carga (width usa scaleX)
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: Math.max(duration - 200, 800),
-      easing: APPLE_EASING,
-      useNativeDriver: true,
-    }).start()
-
-    // 4. Respiración continua del logotipo
+    // C. Respiración armónica de ZORA
     const breathLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(logoBreathAnim, {
-          toValue: 1.05,
-          duration: 2200,
+        Animated.timing(wordmarkBreathAnim, {
+          toValue: 1.04,
+          duration: 1800,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
-        Animated.timing(logoBreathAnim, {
+        Animated.timing(wordmarkBreathAnim, {
           toValue: 1.0,
-          duration: 2200,
+          duration: 1800,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
@@ -135,37 +185,55 @@ export function DynamicSplashScreen({
     )
     breathLoop.start()
 
-    // 5. Onda de pulso de radar
-    const waveLoop = Animated.loop(
-      Animated.parallel([
-        Animated.timing(waveScaleAnim, {
-          toValue: 1.8,
-          duration: 2000,
+    // D. Rotación de constelación orbital abierta (2 capas a ritmos distintos)
+    const orbitFastLoop = Animated.loop(
+      Animated.timing(orbitRotateFast, {
+        toValue: 1,
+        duration: 16000,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      })
+    )
+    orbitFastLoop.start()
+
+    const orbitSlowLoop = Animated.loop(
+      Animated.timing(orbitRotateSlow, {
+        toValue: 1,
+        duration: 26000,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      })
+    )
+    orbitSlowLoop.start()
+
+    // E. Destellos sutiles de estrellas en el fondo
+    const twinkleLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(starsTwinkleAnim, {
+          toValue: 0.55,
+          duration: 1400,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
-        Animated.timing(waveOpacityAnim, {
-          toValue: 0,
-          duration: 2000,
+        Animated.timing(starsTwinkleAnim, {
+          toValue: 0.15,
+          duration: 1400,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
       ])
     )
-    waveLoop.start()
+    twinkleLoop.start()
 
-    // 6. Rotación orbital continua de satélites
-    const orbitLoop = Animated.loop(
-      Animated.timing(orbitRotateAnim, {
-        toValue: 1,
-        duration: 18000,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      })
-    )
-    orbitLoop.start()
+    // F. Barra de progreso minimalista
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: Math.max(duration - 250, 1000),
+      easing: APPLE_EASING,
+      useNativeDriver: true,
+    }).start()
 
-    // 7. Auto-finalización tras duration
+    // G. Temporizador de salida automática
     let timer: ReturnType<typeof setTimeout> | null = null
     if (autoFinish && onFinish) {
       timer = setTimeout(() => {
@@ -175,15 +243,21 @@ export function DynamicSplashScreen({
 
     return () => {
       breathLoop.stop()
-      waveLoop.stop()
-      orbitLoop.stop()
+      orbitFastLoop.stop()
+      orbitSlowLoop.stop()
+      twinkleLoop.stop()
       if (timer) clearTimeout(timer)
     }
   }, [])
 
-  const orbitInterpolated = orbitRotateAnim.interpolate({
+  const rotateFastInterp = orbitRotateFast.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
+  })
+
+  const rotateSlowInterp = orbitRotateSlow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['360deg', '0deg'],
   })
 
   return (
@@ -203,103 +277,144 @@ export function DynamicSplashScreen({
           },
         ]}
       >
-        {/* Resplandor ambiental de fondo */}
+        {/* Halo de luz radial abierto que se mezcla suavemente con el fondo */}
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <Svg width="100%" height="100%">
             <Defs>
-              <RadialGradient id="splashGlow" cx="50%" cy="46%" r="50%">
-                <Stop offset="0%" stopColor="#818CF8" stopOpacity="0.18" />
-                <Stop offset="50%" stopColor="#6366F1" stopOpacity="0.05" />
+              <RadialGradient id="openGlow" cx="50%" cy="50%" r="55%">
+                <Stop offset="0%" stopColor="#818CF8" stopOpacity="0.20" />
+                <Stop offset="45%" stopColor="#6366F1" stopOpacity="0.05" />
                 <Stop offset="100%" stopColor="#09090B" stopOpacity="0" />
               </RadialGradient>
             </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill="url(#splashGlow)" />
+            <Rect x="0" y="0" width="100%" height="100%" fill="url(#openGlow)" />
           </Svg>
         </View>
 
-        {/* Órbitas y Satélites a escala completa */}
-        <View style={styles.orbitalStage}>
-          <Svg width="100%" height={260} viewBox="0 0 340 260">
-            <Circle cx="170" cy="130" r="56" stroke="rgba(255, 255, 255, 0.14)" strokeWidth="1.2" />
-            <Circle cx="170" cy="130" r="92" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" strokeDasharray="5,6" />
-            <Circle cx="170" cy="130" r="130" stroke="rgba(255, 255, 255, 0.04)" strokeWidth="1" strokeDasharray="3,8" />
-            <Circle cx="170" cy="130" r="165" stroke="rgba(255, 255, 255, 0.025)" strokeWidth="1" />
+        {/* Estrellas destellantes sutiles en el espacio abierto */}
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: starsTwinkleAnim }]} pointerEvents="none">
+          <Svg width="100%" height="100%" viewBox="0 0 350 450">
+            {TWINKLE_STARS.map((s, idx) => (
+              <Circle key={idx} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={0.6} />
+            ))}
           </Svg>
+        </Animated.View>
 
-          {/* Satélites en rotación orbital */}
+        {/* Constelación Orbital Abierta 1: Órbita exterior fluida sin líneas visibles */}
+        <Animated.View
+          style={[
+            styles.orbitLayer,
+            {
+              transform: [{ rotate: rotateFastInterp }],
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Svg width={360} height={360} viewBox="0 0 360 360">
+            {/* Puntos de colores dispersos en el espacio */}
+            <Circle cx="260" cy="80" r="4.5" fill="#818CF8" opacity="0.9" />
+            <Circle cx="75" cy="270" r="4" fill="#34D399" opacity="0.85" />
+            <Circle cx="295" cy="245" r="3.5" fill="#60A5FA" opacity="0.8" />
+            <Circle cx="60" cy="115" r="3" fill="#F59E0B" opacity="0.75" />
+          </Svg>
+        </Animated.View>
+
+        {/* Constelación Orbital Abierta 2: Órbita interior en contragiro */}
+        <Animated.View
+          style={[
+            styles.orbitLayer,
+            {
+              transform: [{ rotate: rotateSlowInterp }],
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Svg width={360} height={360} viewBox="0 0 360 360">
+            <Circle cx="130" cy="65" r="3" fill="#A855F7" opacity="0.8" />
+            <Circle cx="245" cy="295" r="3.5" fill="#10B981" opacity="0.85" />
+            <Circle cx="290" cy="140" r="2.5" fill="#38BDF8" opacity="0.7" />
+            <Circle cx="85" cy="205" r="3" fill="#EC4899" opacity="0.75" />
+          </Svg>
+        </Animated.View>
+
+        {/* Destello de Expansión de Luz */}
+        <Animated.View
+          style={[
+            styles.lightBurst,
+            {
+              opacity: burstOpacity,
+              transform: [{ scale: burstScale }],
+            },
+          ]}
+          pointerEvents="none"
+        />
+
+        {/* Monograma Z Geométrico de Trazo Láser Rápido */}
+        <Animated.View
+          style={[
+            styles.zMonogramBox,
+            {
+              opacity: zMonogramOpacity,
+            },
+          ]}
+          pointerEvents="none"
+        >
+          {/* Segmento 1: Barra superior de la Z */}
           <Animated.View
             style={[
-              StyleSheet.absoluteFill,
+              styles.zLaserBar,
+              styles.zTopBar,
               {
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ rotate: orbitInterpolated }],
-              },
-            ]}
-            pointerEvents="none"
-          >
-            <Svg width={340} height={260} viewBox="0 0 340 260">
-              <Circle cx="250" cy="78" r="4" fill="#818CF8" opacity="0.9" />
-              <Circle cx="90" cy="182" r="3.5" fill="#34D399" opacity="0.85" />
-              <Circle cx="282" cy="172" r="3" fill="#60A5FA" opacity="0.8" />
-              <Circle cx="58" cy="88" r="2.5" fill="#F59E0B" opacity="0.75" />
-            </Svg>
-          </Animated.View>
-
-          {/* Onda radar expansiva */}
-          <Animated.View
-            style={[
-              styles.radarWave,
-              {
-                transform: [{ scale: waveScaleAnim }],
-                opacity: waveOpacityAnim,
+                transform: [{ scaleX: zTopBarScale }],
               },
             ]}
           />
-
-          {/* Emblema central de Zora */}
+          {/* Segmento 2: Diagonal cortante de la Z */}
           <Animated.View
             style={[
-              styles.logoCircle,
+              styles.zLaserDiag,
               {
                 transform: [
-                  { scale: Animated.multiply(logoSpringScale, logoBreathAnim) },
+                  { rotate: '-48deg' },
+                  { scaleY: zDiagScale },
                 ],
               },
             ]}
-          >
-            <Image source={ZORA_LOGO} style={styles.logoImage} resizeMode="contain" />
-          </Animated.View>
-        </View>
+          />
+          {/* Segmento 3: Barra inferior de la Z */}
+          <Animated.View
+            style={[
+              styles.zLaserBar,
+              styles.zBottomBar,
+              {
+                transform: [{ scaleX: zBottomBarScale }],
+              },
+            ]}
+          />
+        </Animated.View>
 
-        {/* Tipografía de Marca y Subtítulo */}
+        {/* Núcleo Central: Tipografía ZORA en Gran Formato con Resplandor */}
         <Animated.View
           style={[
-            styles.brandBlock,
+            styles.wordmarkContainer,
             {
-              opacity: textFadeAnim,
-              transform: [{ translateY: textSlideAnim }],
+              opacity: wordmarkFadeAnim,
+              transform: [
+                { scale: Animated.multiply(wordmarkScaleAnim, wordmarkBreathAnim) },
+              ],
             },
           ]}
         >
-          <Text style={styles.brandTitle}>ZORA</Text>
-          <View style={styles.badgePill}>
-            <View style={styles.badgeDot} />
-            <Text style={styles.badgeText}>SISTEMA ACADÉMICO</Text>
-          </View>
+          <Text style={styles.wordmarkText}>ZORA</Text>
         </Animated.View>
 
-        {/* Barra de Progreso Minimalista */}
+        {/* Barra de Progreso Minimalista Inferior */}
         <View style={styles.progressTrack}>
           <Animated.View
             style={[
               styles.progressBar,
               {
-                transform: [
-                  {
-                    scaleX: progressAnim,
-                  },
-                ],
+                transform: [{ scaleX: progressAnim }],
               },
             ]}
           />
@@ -318,92 +433,99 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    paddingHorizontal: 24,
-  },
-  orbitalStage: {
-    width: '100%',
-    height: 260,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  radarWave: {
+  orbitLayer: {
     position: 'absolute',
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 1.5,
-    borderColor: '#818CF8',
-    backgroundColor: 'rgba(129, 140, 248, 0.08)',
-  },
-  logoCircle: {
-    position: 'absolute',
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#141419',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    width: 360,
+    height: 360,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  lightBurst: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(129, 140, 248, 0.25)',
     shadowColor: '#818CF8',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOpacity: 0.9,
+    shadowRadius: 36,
+    elevation: 16,
   },
-  logoImage: {
-    width: 52,
-    height: 52,
-  },
-  brandBlock: {
+  zMonogramBox: {
+    position: 'absolute',
+    width: 74,
+    height: 80,
     alignItems: 'center',
-    marginTop: 20,
+    justifyContent: 'center',
   },
-  brandTitle: {
-    fontSize: 26,
+  zLaserBar: {
+    position: 'absolute',
+    width: 68,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#818CF8',
+    shadowColor: '#818CF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 6,
+    transformOrigin: 'left',
+  },
+  zTopBar: {
+    top: 6,
+    left: 3,
+  },
+  zBottomBar: {
+    bottom: 6,
+    left: 3,
+  },
+  zLaserDiag: {
+    position: 'absolute',
+    width: 5,
+    height: 96,
+    borderRadius: 2.5,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#818CF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 12,
+    elevation: 8,
+    transformOrigin: 'center',
+  },
+  wordmarkContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  wordmarkText: {
+    fontSize: 42,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 6,
-    marginBottom: 10,
-  },
-  badgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#34D399',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#A1A1AA',
-    letterSpacing: 1.8,
+    letterSpacing: 10,
+    textShadowColor: 'rgba(129, 140, 248, 0.65)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 24,
   },
   progressTrack: {
-    width: 120,
+    position: 'absolute',
+    bottom: 60,
+    width: 100,
     height: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 1,
     overflow: 'hidden',
-    marginTop: 36,
   },
   progressBar: {
     width: '100%',
     height: '100%',
     backgroundColor: '#818CF8',
+    transformOrigin: 'left',
   },
 })

@@ -7,12 +7,12 @@ describe('DynamicSplashScreen', () => {
     jest.clearAllMocks()
   })
 
-  test('renderiza el logo, tipografía ZORA y badge del sistema', async () => {
-    const { getByText, getByTestId } = await render(<DynamicSplashScreen autoFinish={false} />)
+  test('renderiza la tipografía ZORA y omite el texto de sistema académico', async () => {
+    const { getByText, getByTestId, queryByText } = await render(<DynamicSplashScreen autoFinish={false} />)
 
     expect(getByTestId('dynamic-splash-screen')).toBeTruthy()
     expect(getByText('ZORA')).toBeTruthy()
-    expect(getByText('SISTEMA ACADÉMICO')).toBeTruthy()
+    expect(queryByText('SISTEMA ACADÉMICO')).toBeNull()
   })
 
   test('permite omitir y disparar onFinish al presionar la pantalla', async () => {

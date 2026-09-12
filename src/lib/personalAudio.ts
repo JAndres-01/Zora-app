@@ -4,26 +4,14 @@ import { Asset } from 'expo-asset'
 import { logger } from '@/lib/logger'
 
 export type SoundEffect =
-  | 'task_undo'       // Desmarcar / Deshacer tarea (water pop suave)
-  | 'chip_snap'       // #12 Snap de ficha / materia
-  | 'modal_open'      // #16 Suspiro al abrir modal
-  | 'modal_close'     // #17 Exhalación al cerrar modal
-  | 'swipe_velvet'    // #18 Deslizar día / tab
-  | 'shutter_save'    // #20 Obturador al guardar
-  | 'confetti'        // #22 Confetti fanfarria
-  | 'class_reminder'  // #25 Aviso de clase
-  | 'trash_delete'    // #26 Eliminar / desvanecer
-  | 'warning_thud'    // #27 Aviso suave / límite
+  | 'confetti'        // Confetti fanfarria al completar tareas
+  | 'task_undo'       // Desmarcar / Deshacer tarea
+  | 'trash_delete'    // Eliminar / desvanecer tarea
+  | 'warning_thud'    // Aviso suave / límite
 
 const SOUND_ASSETS: Record<SoundEffect, any> = {
-  task_undo: require('../../assets/sounds/task_undo.wav'),
-  chip_snap: require('../../assets/sounds/chip_snap.wav'),
-  modal_open: require('../../assets/sounds/modal_open.wav'),
-  modal_close: require('../../assets/sounds/modal_close.wav'),
-  swipe_velvet: require('../../assets/sounds/swipe_velvet.wav'),
-  shutter_save: require('../../assets/sounds/shutter_save.wav'),
   confetti: require('../../assets/sounds/confetti.wav'),
-  class_reminder: require('../../assets/sounds/class_reminder.wav'),
+  task_undo: require('../../assets/sounds/task_undo.wav'),
   trash_delete: require('../../assets/sounds/trash_delete.wav'),
   warning_thud: require('../../assets/sounds/warning_thud.wav'),
 }
@@ -146,15 +134,17 @@ export async function playSound(effect: SoundEffect): Promise<void> {
 }
 
 // Helpers semánticos rápidos para cada acción del sistema:
-// #6 eliminado a petición del usuario para evitar colisión con el sonido festivo de confetti
-export const playTaskCompleteSound = () => Promise.resolve()
+// Únicamente 4 sonidos activos solicitados: confetti, desmarcar tarea, borrar tarea y avisos.
+export const playConfettiSound = () => playSound('confetti')
 export const playTaskUndoSound = () => playSound('task_undo')
-export const playChipSnapSound = () => playSound('chip_snap') // #12
-export const playModalOpenSound = () => playSound('modal_open') // #16
-export const playModalCloseSound = () => playSound('modal_close') // #17
-export const playSwipeSound = () => playSound('swipe_velvet') // #18
-export const playSaveSound = () => playSound('shutter_save') // #20
-export const playConfettiSound = () => playSound('confetti') // #22
-export const playClassReminderSound = () => playSound('class_reminder') // #25
-export const playTrashSound = () => playSound('trash_delete') // #26
-export const playWarningSound = () => playSound('warning_thud') // #27
+export const playTrashSound = () => playSound('trash_delete')
+export const playWarningSound = () => playSound('warning_thud')
+
+// Sonidos desactivados para mantener la experiencia limpia y sin ruido (no-op inmediatos):
+export const playTaskCompleteSound = () => Promise.resolve()
+export const playChipSnapSound = () => Promise.resolve()
+export const playModalOpenSound = () => Promise.resolve()
+export const playModalCloseSound = () => Promise.resolve()
+export const playSwipeSound = () => Promise.resolve()
+export const playSaveSound = () => Promise.resolve()
+export const playClassReminderSound = () => Promise.resolve()

@@ -34,7 +34,7 @@ import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
 import {
   setGlobalSoundEnabled,
-  playSaveSound,
+  playConfettiSound,
   playWarningSound,
   playTrashSound,
 } from '@/lib/personalAudio'
@@ -165,7 +165,7 @@ export default function ProfileScreen() {
     setSoundEnabled(val)
     setGlobalSoundEnabled(val)
     triggerHaptic('selection')
-    if (val) playSaveSound()
+    if (val) playConfettiSound()
     const current = await personalStorage.getPreferences()
     await personalStorage.setPreferences({ ...current, sound_enabled: val })
   }

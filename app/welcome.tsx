@@ -16,9 +16,6 @@ import {
   ArrowRight,
   Paperclip,
   Flame,
-  Shield,
-  Database,
-  Activity,
 } from 'lucide-react-native'
 import Svg, {
   Defs,
@@ -26,7 +23,6 @@ import Svg, {
   LinearGradient,
   Stop,
   Rect,
-  Circle,
 } from 'react-native-svg'
 import {
   APPLE_EASING,
@@ -46,11 +42,6 @@ export interface SlideData {
 }
 
 const SLIDES: SlideData[] = [
-  {
-    id: 'welcome',
-    title: 'Bienvenido a Zora',
-    description: 'Espacio de organización académica sin distracciones. Diseñado para simplificar tu rutina universitaria.',
-  },
   {
     id: 'tasks',
     title: 'Control y registro de tareas',
@@ -235,11 +226,9 @@ export default function WelcomeScreen() {
             },
           ]}
         >
-          {/* Renderizado de cada paso sin comentarios //... */}
-          {currentStep === 0 && <GeneralWelcomeMockup />}
-          {currentStep === 1 && <TasksMockup />}
-          {currentStep === 2 && <ScheduleMockup />}
-          {currentStep === 3 && <StatsMockup />}
+          {currentStep === 0 && <TasksMockup />}
+          {currentStep === 1 && <ScheduleMockup />}
+          {currentStep === 2 && <StatsMockup />}
         </Animated.View>
 
         {/* Degradado Inferior de Fundido Suave */}
@@ -363,10 +352,9 @@ function StageAmbientGlow({ step }: { step: number }) {
     return () => loop.stop()
   }, [pulseOpacity])
 
-  let glowColor = '#818CF8'
-  if (step === 1) glowColor = '#10B981'
-  if (step === 2) glowColor = '#3B82F6'
-  if (step === 3) glowColor = '#34D399'
+  let glowColor = '#10B981' // Paso 0: Tareas (Esmeralda)
+  if (step === 1) glowColor = '#3B82F6' // Paso 1: Horario (Azul)
+  if (step === 2) glowColor = '#34D399' // Paso 2: Métricas (Menta)
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: pulseOpacity }]} pointerEvents="none">
@@ -384,245 +372,7 @@ function StageAmbientGlow({ step }: { step: number }) {
   )
 }
 
-// ─── 0. Paso 0: Bienvenida General a Escala Completa (Abarca Toda la Pantalla) ──
-function GeneralWelcomeMockup() {
-  const breathAnim = useRef(new Animated.Value(1)).current
-  const orbitRotateAnim = useRef(new Animated.Value(0)).current
-  const waveScaleAnim = useRef(new Animated.Value(1)).current
-  const waveOpacityAnim = useRef(new Animated.Value(0.5)).current
-
-  // Entrada escalonada de las 3 tarjetas de arquitectura
-  const card1Anim = useRef(new Animated.Value(0)).current
-  const card2Anim = useRef(new Animated.Value(0)).current
-  const card3Anim = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    // 1. Respiración armónica del emblema central
-    const breathLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathAnim, {
-          toValue: 1.05,
-          duration: 2400,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.timing(breathAnim, {
-          toValue: 1.0,
-          duration: 2400,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-      ])
-    )
-    breathLoop.start()
-
-    // 2. Onda expansiva de halo de fondo
-    const waveLoop = Animated.loop(
-      Animated.parallel([
-        Animated.timing(waveScaleAnim, {
-          toValue: 1.5,
-          duration: 2200,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.timing(waveOpacityAnim, {
-          toValue: 0,
-          duration: 2200,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-      ])
-    )
-    waveLoop.start()
-
-    // 3. Rotación orbital continua a gran escala
-    const orbitLoop = Animated.loop(
-      Animated.timing(orbitRotateAnim, {
-        toValue: 1,
-        duration: 22000,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      })
-    )
-    orbitLoop.start()
-
-    // 4. Cascada de entrada de tarjetas de arquitectura
-    Animated.stagger(80, [
-      Animated.spring(card1Anim, { toValue: 1, stiffness: 360, damping: 24, useNativeDriver: true }),
-      Animated.spring(card2Anim, { toValue: 1, stiffness: 360, damping: 24, useNativeDriver: true }),
-      Animated.spring(card3Anim, { toValue: 1, stiffness: 360, damping: 24, useNativeDriver: true }),
-    ]).start()
-
-    return () => {
-      breathLoop.stop()
-      waveLoop.stop()
-      orbitLoop.stop()
-    }
-  }, [breathAnim, waveScaleAnim, waveOpacityAnim, orbitRotateAnim, card1Anim, card2Anim, card3Anim])
-
-  const orbitInterpolated = orbitRotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  })
-
-  return (
-    <View style={styles.welcomeGeneralStage}>
-      {/* Canvas orbital amplio que abarca el ancho completo de la pantalla */}
-      <View style={styles.orbitalFullCanvasWrapper}>
-        {/* Anillos SVG estáticos a gran escala */}
-        <Svg width="100%" height={165} viewBox="0 0 340 165">
-          <Circle cx="170" cy="82" r="50" stroke="rgba(255, 255, 255, 0.14)" strokeWidth="1.2" />
-          <Circle
-            cx="170"
-            cy="82"
-            r="80"
-            stroke="rgba(255, 255, 255, 0.08)"
-            strokeWidth="1"
-            strokeDasharray="5,6"
-          />
-          <Circle
-            cx="170"
-            cy="82"
-            r="114"
-            stroke="rgba(255, 255, 255, 0.05)"
-            strokeWidth="1"
-            strokeDasharray="3,8"
-          />
-          <Circle
-            cx="170"
-            cy="82"
-            r="148"
-            stroke="rgba(255, 255, 255, 0.03)"
-            strokeWidth="1"
-          />
-        </Svg>
-
-        {/* Nodos satélite giratorios en la órbita amplia */}
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              alignItems: 'center',
-              justifyContent: 'center',
-              transform: [{ rotate: orbitInterpolated }],
-            },
-          ]}
-          pointerEvents="none"
-        >
-          <Svg width={340} height={165} viewBox="0 0 340 165">
-            <Circle cx="242" cy="44" r="3.5" fill="#818CF8" opacity="0.9" />
-            <Circle cx="98" cy="120" r="3" fill="#34D399" opacity="0.85" />
-            <Circle cx="270" cy="108" r="2.5" fill="#60A5FA" opacity="0.8" />
-            <Circle cx="70" cy="54" r="2" fill="#F59E0B" opacity="0.75" />
-          </Svg>
-        </Animated.View>
-
-        {/* Onda expansiva de fondo */}
-        <Animated.View
-          style={[
-            styles.centralLogoWave,
-            {
-              transform: [{ scale: waveScaleAnim }],
-              opacity: waveOpacityAnim,
-            },
-          ]}
-        />
-
-        {/* Emblema central de Zora agrandado y prominente */}
-        <Animated.View
-          style={[
-            styles.centralLogoCircle,
-            {
-              transform: [{ scale: breathAnim }],
-            },
-          ]}
-        >
-          <Image source={ZORA_LOGO} style={styles.welcomeHeroLogo} resizeMode="contain" />
-        </Animated.View>
-      </View>
-
-      {/* Tarjetas de Arquitectura a Ancho Completo */}
-      <View style={styles.welcomeCardsContainer}>
-        <Animated.View
-          style={[
-            styles.welcomeFeatureCard,
-            {
-              opacity: card1Anim,
-              transform: [
-                {
-                  translateY: card1Anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [14, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={[styles.welcomeCardIconBox, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-            <Shield size={16} color="#10B981" strokeWidth={2.4} />
-          </View>
-          <View style={styles.welcomeCardTextBox}>
-            <Text style={styles.welcomeCardTitle}>Almacenamiento Local</Text>
-            <Text style={styles.welcomeCardDesc}>Tus datos residen en tu dispositivo, sin rastreadores ni latencia.</Text>
-          </View>
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.welcomeFeatureCard,
-            {
-              opacity: card2Anim,
-              transform: [
-                {
-                  translateY: card2Anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [14, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={[styles.welcomeCardIconBox, { backgroundColor: 'rgba(129, 140, 248, 0.12)' }]}>
-            <Database size={16} color="#818CF8" strokeWidth={2.4} />
-          </View>
-          <View style={styles.welcomeCardTextBox}>
-            <Text style={styles.welcomeCardTitle}>Sincronización en Reposo</Text>
-            <Text style={styles.welcomeCardDesc}>Copia de seguridad encriptada cuando hay conexión disponible.</Text>
-          </View>
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.welcomeFeatureCard,
-            {
-              opacity: card3Anim,
-              transform: [
-                {
-                  translateY: card3Anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [14, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={[styles.welcomeCardIconBox, { backgroundColor: 'rgba(52, 211, 153, 0.12)' }]}>
-            <Activity size={16} color="#34D399" strokeWidth={2.4} />
-          </View>
-          <View style={styles.welcomeCardTextBox}>
-            <Text style={styles.welcomeCardTitle}>Registro Visual Continuo</Text>
-            <Text style={styles.welcomeCardDesc}>Visualización clara de tu constancia, horario y entregas.</Text>
-          </View>
-        </Animated.View>
-      </View>
-    </View>
-  )
-}
-
-// ─── 1. Paso 1: Mockup Fiel de Tareas con Entrada Escalonada y Pop de Tags ──────
+// ─── 1. Paso 0: Mockup Fiel de Tareas con Entrada Escalonada y Pop de Tags ──────
 function TasksMockup() {
   const row1Anim = useRef(new Animated.Value(0)).current
   const row2Anim = useRef(new Animated.Value(0)).current
@@ -730,7 +480,7 @@ function TasksMockup() {
   )
 }
 
-// ─── 2. Paso 2: Mockup Fiel de Horario con Cascada y Radar Beacon ───────────────
+// ─── 2. Paso 1: Mockup Fiel de Horario con Cascada y Radar Beacon ───────────────
 function ScheduleMockup() {
   const block1Anim = useRef(new Animated.Value(0)).current
   const block2Anim = useRef(new Animated.Value(0)).current
@@ -880,7 +630,7 @@ function ScheduleMockup() {
   )
 }
 
-// ─── 3. Paso 3: Mockup Fiel de Métricas (Sin "racha" ni "14 días", sólo actividad)
+// ─── 3. Paso 2: Mockup Fiel de Métricas (Sin "racha" ni "14 días", sólo actividad)
 const HEATMAP_MATRIX = [
   [0, 1, 0, 2, 0, 1, 0, 3, 2, 1, 0, 2, 1, 3, 0], // D (Domingo)
   [1, 0, 2, 0, 1, 0, 2, 1, 0, 2, 1, 0, 3, 1, 2], // L (Lunes)
@@ -1128,89 +878,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,
     paddingVertical: 18,
-  },
-
-  // ─── Estilos de Paso 0: Bienvenida General a Escala Completa ─────
-  welcomeGeneralStage: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 2,
-  },
-  orbitalFullCanvasWrapper: {
-    width: '100%',
-    height: 165,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  centralLogoWave: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 1.5,
-    borderColor: '#818CF8',
-    backgroundColor: 'rgba(129, 140, 248, 0.08)',
-  },
-  centralLogoCircle: {
-    position: 'absolute',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#141419',
-    borderWidth: 1.4,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#818CF8',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 22,
-    elevation: 10,
-  },
-  welcomeHeroLogo: {
-    width: 46,
-    height: 46,
-  },
-  welcomeCardsContainer: {
-    width: '100%',
-    gap: 8,
-    marginTop: 8,
-  },
-  welcomeFeatureCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(24, 24, 29, 0.65)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  welcomeCardIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  welcomeCardTextBox: {
-    flex: 1,
-  },
-  welcomeCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.1,
-    marginBottom: 2,
-  },
-  welcomeCardDesc: {
-    fontSize: 11,
-    fontWeight: '400',
-    color: '#A1A1AA',
-    lineHeight: 15,
   },
 
   // ─── Estilos Fieles de Tareas (media_1789186882005.png) ──────────

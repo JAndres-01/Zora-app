@@ -77,26 +77,31 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   useEffect(() => {
     if (isHighlighted) {
       triggerHaptic('medium')
+
+      scaleAnim.stopAnimation()
+      liftAnim.stopAnimation()
+      highlightAnim.stopAnimation()
+
       liftAnim.setValue(0)
       highlightAnim.setValue(0)
-      scaleAnim.setValue(0.96)
+      scaleAnim.setValue(0.97)
 
       Animated.parallel([
         Animated.spring(scaleAnim, {
-          toValue: 1.025,
-          stiffness: 450,
-          damping: 16,
+          toValue: 1.02,
+          stiffness: 600,
+          damping: 18,
           useNativeDriver: true,
         }),
         Animated.spring(liftAnim, {
-          toValue: -6,
-          stiffness: 450,
-          damping: 16,
+          toValue: -4,
+          stiffness: 600,
+          damping: 18,
           useNativeDriver: true,
         }),
         Animated.timing(highlightAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 150,
           useNativeDriver: true,
         }),
       ]).start()
@@ -105,26 +110,29 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         Animated.parallel([
           Animated.spring(scaleAnim, {
             toValue: 1,
-            stiffness: 280,
-            damping: 24,
+            stiffness: 400,
+            damping: 22,
             useNativeDriver: true,
           }),
           Animated.spring(liftAnim, {
             toValue: 0,
-            stiffness: 280,
-            damping: 24,
+            stiffness: 400,
+            damping: 22,
             useNativeDriver: true,
           }),
           Animated.timing(highlightAnim, {
             toValue: 0,
-            duration: 850,
+            duration: 280,
             useNativeDriver: true,
           }),
         ]).start()
-      }, 1500)
+      }, 500)
 
       return () => clearTimeout(timer)
     } else {
+      scaleAnim.stopAnimation()
+      liftAnim.stopAnimation()
+      highlightAnim.stopAnimation()
       liftAnim.setValue(0)
       highlightAnim.setValue(0)
       scaleAnim.setValue(1)
@@ -593,8 +601,8 @@ const styles = StyleSheet.create({
   },
   highlightOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    borderColor: 'rgba(255, 255, 255, 0.45)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(255, 255, 255, 0.65)',
     borderWidth: 1.5,
     borderRadius: 14,
   },

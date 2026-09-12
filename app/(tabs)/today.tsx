@@ -146,15 +146,22 @@ export default function TodayScreen() {
   }, [tasks, activeTask])
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleTaskSaved = useCallback(
     (savedTask?: Task | null) => {
       loadData()
       if (savedTask?.id) {
-        setHighlightedTaskId(savedTask.id)
-        setTimeout(() => {
-          setHighlightedTaskId(null)
-        }, 2500)
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current)
+        }
+        setHighlightedTaskId(null)
+        requestAnimationFrame(() => {
+          setHighlightedTaskId(savedTask.id)
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedTaskId(null)
+          }, 1100)
+        })
       }
     },
     [loadData]

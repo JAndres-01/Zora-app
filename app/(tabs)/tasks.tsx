@@ -321,15 +321,22 @@ export default function TasksScreen() {
     setTaskModalMode('edit')
   }, [])
 
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const handleTaskSaved = useCallback(
     (savedTask?: Task | null) => {
       loadData()
       if (savedTask?.id) {
-        LAYOUT_EASE(220)
-        setHighlightedTaskId(savedTask.id)
-        setTimeout(() => {
-          setHighlightedTaskId(null)
-        }, 2500)
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current)
+        }
+        setHighlightedTaskId(null)
+        requestAnimationFrame(() => {
+          setHighlightedTaskId(savedTask.id)
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedTaskId(null)
+          }, 1100)
+        })
       }
     },
     [loadData]

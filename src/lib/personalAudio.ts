@@ -8,12 +8,14 @@ export type SoundEffect =
   | 'task_undo'       // Desmarcar / Deshacer tarea
   | 'trash_delete'    // Eliminar / desvanecer tarea
   | 'warning_thud'    // Aviso suave / límite
+  | 'shutter_save'    // Guardar o editar tareas / elementos
 
 const SOUND_ASSETS: Record<SoundEffect, any> = {
   confetti: require('../../assets/sounds/confetti.wav'),
   task_undo: require('../../assets/sounds/task_undo.wav'),
   trash_delete: require('../../assets/sounds/trash_delete.wav'),
   warning_thud: require('../../assets/sounds/warning_thud.wav'),
+  shutter_save: require('../../assets/sounds/shutter_save.wav'),
 }
 
 const POOL_SIZE = 6
@@ -180,11 +182,11 @@ export async function playSound(effect: SoundEffect): Promise<void> {
 }
 
 // Helpers semánticos rápidos para cada acción del sistema:
-// Únicamente 4 sonidos activos solicitados: confetti, desmarcar tarea, borrar tarea y avisos.
 export const playConfettiSound = () => playSound('confetti')
 export const playTaskUndoSound = () => playSound('task_undo')
 export const playTrashSound = () => playSound('trash_delete')
 export const playWarningSound = () => playSound('warning_thud')
+export const playSaveSound = () => playSound('shutter_save')
 
 // Sonidos desactivados para mantener la experiencia limpia y sin ruido (no-op inmediatos):
 export const playTaskCompleteSound = () => Promise.resolve()
@@ -192,5 +194,4 @@ export const playChipSnapSound = () => Promise.resolve()
 export const playModalOpenSound = () => Promise.resolve()
 export const playModalCloseSound = () => Promise.resolve()
 export const playSwipeSound = () => Promise.resolve()
-export const playSaveSound = () => Promise.resolve()
 export const playClassReminderSound = () => Promise.resolve()

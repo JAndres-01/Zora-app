@@ -14,13 +14,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
-  Check,
-  Clock,
-  MapPin,
+  Paperclip,
   Flame,
-  CheckCircle2,
 } from 'lucide-react-native'
-import { APPLE_EASING, SPRING_TOUCH_CONFIG } from '@/constants/animations'
+import { APPLE_EASING } from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
 
 export const ONBOARDING_COMPLETED_KEY = '@zora_has_seen_onboarding_v2'
@@ -139,7 +136,7 @@ export default function WelcomeScreen() {
         </Pressable>
       </View>
 
-      {/* Área Visual Principal: Mockups Estilizados */}
+      {/* Área Visual Principal: Mockups Fieles a la App */}
       <View style={styles.visualContainer}>
         <Animated.View
           style={[
@@ -221,53 +218,50 @@ export default function WelcomeScreen() {
   )
 }
 
-// ─── 1. Mockup Estilizado: Listado de Tareas ──────────────────────────────────
+// ─── 1. Mockup Fiel: Listado de Tareas (Réplica de MinimalistTaskRow) ───────────
 function TasksMockup() {
   return (
     <View style={styles.mockupCard}>
-      <View style={styles.mockupHeader}>
-        <Text style={styles.mockupHeaderTitle}>Entregas Pendientes</Text>
-        <View style={styles.countBadge}>
-          <Text style={styles.countBadgeText}>3 activas</Text>
+      {/* Tarea 1: Infografia */}
+      <View style={styles.taskRealRow}>
+        <Text style={styles.taskRealTitle}>Infografia</Text>
+        <View style={styles.taskRealMetaRow}>
+          <View style={[styles.taskRealDot, { backgroundColor: '#10B981' }]} />
+          <Text style={styles.taskRealSubject}>Diseño 3D</Text>
+          <Text style={styles.taskRealSep}>•</Text>
+          <Text style={styles.taskRealDate}>Lun 14 Sep 10:00 AM</Text>
         </View>
       </View>
 
-      <View style={styles.taskList}>
-        {/* Tarea 1: Completada */}
-        <View style={[styles.taskItem, styles.taskItemDone]}>
-          <View style={styles.taskCheckDone}>
-            <Check size={12} color="#10B981" strokeWidth={3} />
-          </View>
-          <View style={styles.taskTextCol}>
-            <Text style={[styles.taskTitle, styles.taskTitleDone]}>Taller de Cálculo Diferencial</Text>
-            <Text style={styles.taskSub}>Física Térmica • 100%</Text>
-          </View>
-          <View style={styles.tagDone}>
-            <Text style={styles.tagDoneText}>Listo</Text>
-          </View>
-        </View>
+      <View style={styles.realDivider} />
 
-        {/* Tarea 2: Urgente */}
-        <View style={styles.taskItem}>
-          <View style={styles.taskCheckPending} />
-          <View style={styles.taskTextCol}>
-            <Text style={styles.taskTitle}>Informe de Circuitos Lógicos</Text>
-            <Text style={styles.taskSub}>Electrónica Digital • Aula 104</Text>
-          </View>
-          <View style={styles.tagUrgent}>
-            <Text style={styles.tagUrgentText}>Mañana</Text>
-          </View>
+      {/* Tarea 2: Expo de modelo */}
+      <View style={styles.taskRealRow}>
+        <Text style={styles.taskRealTitle}>Expo de modelo</Text>
+        <View style={styles.taskRealMetaRow}>
+          <View style={[styles.taskRealDot, { backgroundColor: '#A855F7' }]} />
+          <Text style={styles.taskRealSubject}>Ing de software</Text>
+          <Text style={styles.taskRealSep}>•</Text>
+          <Text style={styles.taskRealDate}>Mar 15 Sep 7:00 AM</Text>
+          <Text style={styles.taskRealSep}>•</Text>
+          <Text style={styles.taskRealGroupTag}>Grupal</Text>
         </View>
+      </View>
 
-        {/* Tarea 3: Normal */}
-        <View style={styles.taskItem}>
-          <View style={styles.taskCheckPending} />
-          <View style={styles.taskTextCol}>
-            <Text style={styles.taskTitle}>Avance de Proyecto Final</Text>
-            <Text style={styles.taskSub}>Sistemas Operativos</Text>
-          </View>
-          <View style={styles.tagNormal}>
-            <Text style={styles.tagNormalText}>Jueves</Text>
+      <View style={styles.realDivider} />
+
+      {/* Tarea 3: 10 Consultas */}
+      <View style={styles.taskRealRow}>
+        <Text style={styles.taskRealTitle}>10 Consultas</Text>
+        <View style={styles.taskRealMetaRow}>
+          <View style={[styles.taskRealDot, { backgroundColor: '#EC4899' }]} />
+          <Text style={styles.taskRealSubject}>Base de datos II</Text>
+          <Text style={styles.taskRealSep}>•</Text>
+          <Text style={styles.taskRealDate}>Vie 18 Sep 10:00 AM</Text>
+          <Text style={styles.taskRealSep}>•</Text>
+          <View style={styles.taskRealAttachBox}>
+            <Paperclip size={12} color="#71717A" strokeWidth={2.4} />
+            <Text style={styles.taskRealAttachCount}>1</Text>
           </View>
         </View>
       </View>
@@ -275,118 +269,153 @@ function TasksMockup() {
   )
 }
 
-// ─── 2. Mockup Estilizado: Horario Semanal ────────────────────────────────────
+// ─── 2. Mockup Fiel: Horario Semanal (Réplica de MinimalistDayView) ─────────────
 function ScheduleMockup() {
   return (
     <View style={styles.mockupCard}>
-      <View style={styles.mockupHeader}>
-        <Text style={styles.mockupHeaderTitle}>Horario de Hoy</Text>
-        <View style={styles.dayBadge}>
-          <Text style={styles.dayBadgeText}>Lunes</Text>
+      {/* Bloque 1: C1 Ing de software */}
+      <View style={styles.schedRealRow}>
+        <View style={styles.schedTimeCol}>
+          <Text style={styles.schedTimeStart}>07:00</Text>
+          <Text style={styles.schedTimeEnd}>08:30</Text>
+          <View style={styles.schedBlockBadge}>
+            <Text style={styles.schedBlockBadgeText}>C1</Text>
+          </View>
+        </View>
+        <View style={styles.schedContentCol}>
+          <View style={[styles.schedDot, { backgroundColor: '#A855F7' }]} />
+          <Text style={styles.schedSubjectName}>Ing de software</Text>
         </View>
       </View>
 
-      <View style={styles.scheduleList}>
-        {/* Clase 1: En curso */}
-        <View style={[styles.classItem, styles.classItemActive]}>
-          <View style={styles.classTimeCol}>
-            <Text style={styles.classTimeStart}>08:00</Text>
-            <Text style={styles.classTimeEnd}>10:00</Text>
-          </View>
-          <View style={styles.classDividerActive} />
-          <View style={styles.classInfoCol}>
-            <View style={styles.classTitleRow}>
-              <Text style={styles.classTitle}>Álgebra Lineal</Text>
-              <View style={styles.liveBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveBadgeText}>En curso</Text>
-              </View>
-            </View>
-            <View style={styles.classMetaRow}>
-              <MapPin size={12} color="#71717A" />
-              <Text style={styles.classMeta}>Edificio B • Aula 302</Text>
-            </View>
+      <View style={styles.realDivider} />
+
+      {/* Bloque 2: C2 Redes II */}
+      <View style={styles.schedRealRow}>
+        <View style={styles.schedTimeCol}>
+          <Text style={styles.schedTimeStart}>08:30</Text>
+          <Text style={styles.schedTimeEnd}>10:00</Text>
+          <View style={styles.schedBlockBadge}>
+            <Text style={styles.schedBlockBadgeText}>C2</Text>
           </View>
         </View>
+        <View style={styles.schedContentCol}>
+          <View style={[styles.schedDot, { backgroundColor: '#3B82F6' }]} />
+          <Text style={styles.schedSubjectName}>Redes II</Text>
+        </View>
+      </View>
 
-        {/* Clase 2: Siguiente */}
-        <View style={styles.classItem}>
-          <View style={styles.classTimeCol}>
-            <Text style={styles.classTimeStart}>10:30</Text>
-            <Text style={styles.classTimeEnd}>12:30</Text>
-          </View>
-          <View style={styles.classDividerNormal} />
-          <View style={styles.classInfoCol}>
-            <Text style={styles.classTitle}>Estructuras de Datos</Text>
-            <View style={styles.classMetaRow}>
-              <MapPin size={12} color="#71717A" />
-              <Text style={styles.classMeta}>Laboratorio de Cómputo 2</Text>
-            </View>
+      <View style={styles.realDivider} />
+
+      {/* Bloque 3: C3 Base de datos II */}
+      <View style={styles.schedRealRow}>
+        <View style={styles.schedTimeCol}>
+          <Text style={styles.schedTimeStart}>10:00</Text>
+          <Text style={styles.schedTimeEnd}>11:30</Text>
+          <View style={styles.schedBlockBadge}>
+            <Text style={styles.schedBlockBadgeText}>C3</Text>
           </View>
         </View>
-
-        {/* Clase 3: Tarde */}
-        <View style={styles.classItem}>
-          <View style={styles.classTimeCol}>
-            <Text style={styles.classTimeStart}>14:00</Text>
-            <Text style={styles.classTimeEnd}>15:30</Text>
-          </View>
-          <View style={styles.classDividerNormal} />
-          <View style={styles.classInfoCol}>
-            <Text style={styles.classTitle}>Mecánica Clásica</Text>
-            <View style={styles.classMetaRow}>
-              <MapPin size={12} color="#71717A" />
-              <Text style={styles.classMeta}>Salón 201</Text>
-            </View>
-          </View>
+        <View style={styles.schedContentCol}>
+          <View style={[styles.schedDot, { backgroundColor: '#EC4899' }]} />
+          <Text style={styles.schedSubjectName}>Base de datos II</Text>
         </View>
       </View>
     </View>
   )
 }
 
-// ─── 3. Mockup Estilizado: Métricas y Rendimiento ──────────────────────────────
+// ─── 3. Mockup Fiel: Métricas (Réplica de MinimalistActivityHeatmap) ───────────
+// Datos fijos realistas de matriz con variedad de intensidades (0, 1, 2, 3)
+const HEATMAP_MATRIX = [
+  [0, 1, 0, 2, 0, 1, 0, 3, 2, 1, 0, 2, 1, 3, 0],
+  [1, 0, 2, 0, 1, 0, 2, 1, 0, 2, 1, 0, 3, 1, 2],
+  [0, 2, 1, 3, 0, 2, 0, 1, 3, 0, 2, 1, 0, 2, 1],
+  [2, 0, 1, 0, 3, 1, 2, 0, 1, 2, 0, 3, 1, 0, 3],
+  [0, 1, 0, 2, 1, 0, 3, 2, 0, 1, 3, 0, 2, 1, 0],
+  [1, 0, 3, 1, 0, 2, 0, 1, 2, 0, 1, 2, 0, 3, 1],
+  [0, 2, 0, 1, 2, 0, 1, 3, 0, 2, 0, 1, 2, 0, 0],
+]
+
+const MONTH_LABELS = [
+  { name: 'Ago', col: 0 },
+  { name: 'Sep', col: 4 },
+  { name: 'Oct', col: 8 },
+  { name: 'Nov', col: 12 },
+]
+
 function StatsMockup() {
   return (
     <View style={styles.mockupCard}>
-      <View style={styles.mockupHeader}>
-        <Text style={styles.mockupHeaderTitle}>Métricas de Entrega</Text>
-        <View style={styles.streakBadge}>
-          <Flame size={12} color="#F59E0B" />
-          <Text style={styles.streakBadgeText}>14 Días</Text>
+      {/* Header Resumen */}
+      <View style={styles.heatmapHeaderRow}>
+        <View style={styles.heatmapStreakBadge}>
+          <Flame size={13} color="#F59E0B" />
+          <Text style={styles.heatmapStreakText}>14 Días de racha</Text>
+        </View>
+        <Text style={styles.heatmapStatsSummary}>28 entregas registradas</Text>
+      </View>
+
+      {/* Área de la Cuadrícula del Mapa de Actividad */}
+      <View style={styles.heatmapArea}>
+        {/* Etiquetas de Días (L, M, V) */}
+        <View style={styles.heatmapDaysCol}>
+          <Text style={styles.heatmapDayText}>L</Text>
+          <Text style={styles.heatmapDayText} />
+          <Text style={styles.heatmapDayText}>M</Text>
+          <Text style={styles.heatmapDayText} />
+          <Text style={styles.heatmapDayText}>V</Text>
+          <Text style={styles.heatmapDayText} />
+          <Text style={styles.heatmapDayText} />
+        </View>
+
+        {/* Matriz y Meses */}
+        <View style={styles.heatmapMatrixCol}>
+          {/* Etiquetas de Meses */}
+          <View style={styles.heatmapMonthRow}>
+            {MONTH_LABELS.map((m) => (
+              <Text key={m.name} style={[styles.heatmapMonthText, { left: m.col * 15 }]}>
+                {m.name}
+              </Text>
+            ))}
+          </View>
+
+          {/* Cuadrícula de Semanas */}
+          <View style={styles.heatmapGridRows}>
+            {Array.from({ length: 15 }).map((_, colIdx) => (
+              <View key={colIdx} style={styles.heatmapWeekCol}>
+                {Array.from({ length: 7 }).map((_, rowIdx) => {
+                  const level = HEATMAP_MATRIX[rowIdx][colIdx]
+                  const isToday = colIdx === 14 && rowIdx === 3
+
+                  return (
+                    <View
+                      key={rowIdx}
+                      style={[
+                        styles.heatmapSquare,
+                        level === 0 && styles.level0,
+                        level === 1 && styles.level1,
+                        level === 2 && styles.level2,
+                        level === 3 && styles.level3,
+                        isToday && styles.squareToday,
+                      ]}
+                    />
+                  )
+                })}
+              </View>
+            ))}
+          </View>
         </View>
       </View>
 
-      {/* Fila de Tarjetas Resumen */}
-      <View style={styles.statsRow}>
-        <View style={styles.statMiniCard}>
-          <Text style={styles.statMiniNumber}>94%</Text>
-          <Text style={styles.statMiniLabel}>A tiempo</Text>
-        </View>
-        <View style={styles.statMiniCard}>
-          <Text style={styles.statMiniNumber}>28</Text>
-          <Text style={styles.statMiniLabel}>Completadas</Text>
-        </View>
-        <View style={styles.statMiniCard}>
-          <Text style={styles.statMiniNumber}>4</Text>
-          <Text style={styles.statMiniLabel}>Materias</Text>
-        </View>
-      </View>
-
-      {/* Mini Heatmap de Actividad */}
-      <View style={styles.heatmapBox}>
-        <Text style={styles.heatmapLabel}>FRECUENCIA DE TRABAJO</Text>
-        <View style={styles.heatmapGrid}>
-          {Array.from({ length: 24 }).map((_, i) => {
-            const level = (i * 7 + 3) % 4
-            let bg = '#18181D'
-            if (level === 1) bg = 'rgba(255, 255, 255, 0.2)'
-            if (level === 2) bg = 'rgba(255, 255, 255, 0.5)'
-            if (level === 3) bg = '#FFFFFF'
-
-            return <View key={i} style={[styles.heatmapCell, { backgroundColor: bg }]} />
-          })}
-        </View>
+      {/* Leyenda de Intensidad */}
+      <View style={styles.heatmapLegendRow}>
+        <Text style={styles.legendText}>Menos</Text>
+        <View style={[styles.heatmapSquareSmall, styles.level0]} />
+        <View style={[styles.heatmapSquareSmall, styles.level1]} />
+        <View style={[styles.heatmapSquareSmall, styles.level2]} />
+        <View style={[styles.heatmapSquareSmall, styles.level3]} />
+        <Text style={styles.legendText}>Más</Text>
       </View>
     </View>
   )
@@ -396,7 +425,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#09090B',
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     justifyContent: 'space-between',
   },
   topBar: {
@@ -434,7 +463,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 10,
   },
   mockupWrapper: {
     width: '100%',
@@ -444,313 +473,250 @@ const styles = StyleSheet.create({
   mockupCard: {
     width: '100%',
     backgroundColor: '#121216',
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
     elevation: 8,
   },
-  mockupHeader: {
+  realDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginVertical: 12,
+  },
+  // ─── Estilos Fieles de Tareas (media_1789186901387.png) ──────────
+  taskRealRow: {
+    paddingVertical: 2,
+  },
+  taskRealTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+    marginBottom: 5,
+  },
+  taskRealMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  taskRealDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  taskRealSubject: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#A1A1AA',
+  },
+  taskRealSep: {
+    fontSize: 11,
+    color: '#52525B',
+  },
+  taskRealDate: {
+    fontSize: 12.5,
+    color: '#A1A1AA',
+    fontWeight: '400',
+  },
+  taskRealGroupTag: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#60A5FA',
+  },
+  taskRealAttachBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  taskRealAttachCount: {
+    fontSize: 12,
+    color: '#71717A',
+    fontWeight: '500',
+  },
+  // ─── Estilos Fieles de Horario (media_1789186882005.png) ────────
+  schedRealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    gap: 20,
+  },
+  schedTimeCol: {
+    width: 52,
+  },
+  schedTimeStart: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  schedTimeEnd: {
+    fontSize: 12,
+    color: '#71717A',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  schedBlockBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#18181D',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    marginTop: 4,
+    borderWidth: 0.8,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  schedBlockBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#71717A',
+  },
+  schedContentCol: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  schedDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+  },
+  schedSubjectName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  // ─── Estilos Fieles de Métricas y Heatmap ────────────────────────
+  heatmapHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 14,
   },
-  mockupHeaderTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
-  },
-  countBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#18181D',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  countBadgeText: {
-    fontSize: 12,
-    color: '#A1A1AA',
-    fontWeight: '600',
-  },
-  dayBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#18181D',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  dayBadgeText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  streakBadge: {
+  heatmapStreakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
+    gap: 5,
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: 'rgba(245, 158, 11, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.25)',
   },
-  streakBadgeText: {
+  heatmapStreakText: {
     fontSize: 12,
     color: '#F59E0B',
     fontWeight: '700',
   },
-  // Estilos de Tareas Mockup
-  taskList: {
-    gap: 10,
-  },
-  taskItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#18181D',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    gap: 12,
-  },
-  taskItemDone: {
-    opacity: 0.65,
-  },
-  taskCheckDone: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  taskCheckPending: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#52525B',
-  },
-  taskTextCol: {
-    flex: 1,
-  },
-  taskTitle: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  taskTitleDone: {
-    textDecorationLine: 'line-through',
-    color: '#A1A1AA',
-  },
-  taskSub: {
-    fontSize: 11.5,
-    color: '#71717A',
-  },
-  tagDone: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-  },
-  tagDoneText: {
-    fontSize: 11,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  tagUrgent: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.14)',
-  },
-  tagUrgentText: {
-    fontSize: 11,
-    color: '#F59E0B',
-    fontWeight: '600',
-  },
-  tagNormal: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#27272A',
-  },
-  tagNormalText: {
-    fontSize: 11,
+  heatmapStatsSummary: {
+    fontSize: 12,
     color: '#A1A1AA',
     fontWeight: '500',
   },
-  // Estilos de Horario Mockup
-  scheduleList: {
-    gap: 10,
-  },
-  classItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#18181D',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    gap: 12,
-  },
-  classItemActive: {
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    backgroundColor: '#1C1C22',
-  },
-  classTimeCol: {
-    width: 44,
-    alignItems: 'center',
-  },
-  classTimeStart: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  classTimeEnd: {
-    fontSize: 11,
-    color: '#71717A',
-  },
-  classDividerActive: {
-    width: 3,
-    height: 32,
-    borderRadius: 1.5,
-    backgroundColor: '#FFFFFF',
-  },
-  classDividerNormal: {
-    width: 3,
-    height: 32,
-    borderRadius: 1.5,
-    backgroundColor: '#3F3F46',
-  },
-  classInfoCol: {
-    flex: 1,
-  },
-  classTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  classTitle: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
-  liveBadgeText: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  classMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  classMeta: {
-    fontSize: 11.5,
-    color: '#71717A',
-  },
-  // Estilos de Métricas Mockup
-  statsRow: {
+  heatmapArea: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 14,
+    alignItems: 'flex-start',
   },
-  statMiniCard: {
+  heatmapDaysCol: {
+    paddingTop: 18,
+    gap: 3,
+  },
+  heatmapDayText: {
+    height: 12,
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#52525B',
+    lineHeight: 12,
+  },
+  heatmapMatrixCol: {
     flex: 1,
-    backgroundColor: '#18181D',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    alignItems: 'center',
   },
-  statMiniNumber: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
+  heatmapMonthRow: {
+    height: 18,
+    position: 'relative',
     marginBottom: 2,
   },
-  statMiniLabel: {
-    fontSize: 10.5,
+  heatmapMonthText: {
+    position: 'absolute',
+    top: 0,
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#71717A',
+  },
+  heatmapGridRows: {
+    flexDirection: 'row',
+    gap: 3.5,
+  },
+  heatmapWeekCol: {
+    flexDirection: 'column',
+    gap: 3.5,
+  },
+  heatmapSquare: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+  },
+  heatmapSquareSmall: {
+    width: 9,
+    height: 9,
+    borderRadius: 2.5,
+  },
+  level0: {
+    backgroundColor: '#1E1E24',
+  },
+  level1: {
+    backgroundColor: 'rgba(52, 211, 153, 0.35)',
+  },
+  level2: {
+    backgroundColor: 'rgba(52, 211, 153, 0.70)',
+  },
+  level3: {
+    backgroundColor: '#34D399',
+  },
+  squareToday: {
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  heatmapLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 5,
+    marginTop: 14,
+  },
+  legendText: {
+    fontSize: 10,
     color: '#71717A',
     fontWeight: '500',
   },
-  heatmapBox: {
-    backgroundColor: '#18181D',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  heatmapLabel: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#71717A',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  heatmapGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'space-between',
-  },
-  heatmapCell: {
-    width: 22,
-    height: 18,
-    borderRadius: 4,
-  },
-  // Sección Inferior y Controles
+  // ─── Sección Inferior y Controles ────────────────────────────────
   bottomSection: {
-    paddingTop: 12,
-    gap: 20,
+    paddingTop: 8,
+    gap: 16,
   },
   textWrapper: {
-    minHeight: 80,
+    minHeight: 74,
   },
   slideTitle: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.2,
-    marginBottom: 8,
+    letterSpacing: 0.1,
+    marginBottom: 6,
   },
   slideDescription: {
-    fontSize: 14,
+    fontSize: 13.5,
     color: '#A1A1AA',
-    lineHeight: 21,
+    lineHeight: 20,
     fontWeight: '400',
   },
   controlsRow: {

@@ -17,7 +17,9 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
 
     // Contenido del paso 1
     expect(getByText('Control y registro de tareas')).toBeTruthy()
-    expect(getByText('Taller de Cálculo Diferencial')).toBeTruthy()
+    expect(getByText('Infografia')).toBeTruthy()
+    expect(getByText('Expo de modelo')).toBeTruthy()
+    expect(getByText('10 Consultas')).toBeTruthy()
 
     // Botones de control
     expect(getByTestId('welcome-next-button')).toBeTruthy()
@@ -33,7 +35,9 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
     })
 
     expect(getByText('Horario académico estructurado')).toBeTruthy()
-    expect(getByText('Álgebra Lineal')).toBeTruthy()
+    expect(getByText('Ing de software')).toBeTruthy()
+    expect(getByText('Redes II')).toBeTruthy()
+    expect(getByText('C1')).toBeTruthy()
     expect(getByTestId('welcome-back-button')).toBeTruthy()
 
     // Avanzar a paso 3
@@ -42,7 +46,7 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
     })
 
     expect(getByText('Métricas de rendimiento')).toBeTruthy()
-    expect(getByText('94%')).toBeTruthy()
+    expect(getByText('14 Días de racha')).toBeTruthy()
     expect(getByText('Comenzar')).toBeTruthy()
   })
 

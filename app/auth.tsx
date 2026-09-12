@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -10,44 +10,49 @@ import {
   Platform,
   ScrollView,
   Animated,
-  Image,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
-  UserCheck,
-  ShieldCheck,
-  Check,
-  Mail,
-  Lock,
-  User,
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  Fingerprint,
   AlertCircle,
+  Info,
 } from 'lucide-react-native'
 import { useClassAuth } from '@/context/ClassAuthContext'
-import type { UserRole } from '@/types/personal'
 import { triggerHaptic } from '@/lib/personalHaptics'
-import { APPLE_EASING, SPRING_SLIDE_INDICATOR } from '@/constants/animations'
-
-const ZORA_LOGO = require('../assets/icon.png')
+import { APPLE_EASING } from '@/constants/animations'
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const params = useLocalSearchParams<{ mode?: string }>()
   const { isConnected, isLoading, signIn, signUp } = useClassAuth()
 
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const initialMode = params.mode === 'register' ? 'register' : 'login'
+  const [authMode, setAuthMode] = useState<'login' | 'register'>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [infoMessage, setInfoMessage] = useState<string | null>(null)
 
-  // Animaciones de entrada y cambio de tab
+  // Animaciones de entrada suave
   const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(24)).current
-  const tabSlideAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(14)).current
+  const modeFadeAnim = useRef(new Animated.Value(1)).current
 
-  // Redirigir a la app si el usuario ya cuenta con sesión activa
+  useEffect(() => {
+    if (params.mode === 'register' || params.mode === 'login') {
+      setAuthMode(params.mode)
+    }
+  }, [params.mode])
+
+  // Redirigir a la aplicación si ya hay sesión activa
   useEffect(() => {
     if (!isLoading && isConnected) {
       router.replace('/(tabs)/today')
@@ -58,39 +63,66 @@ export default function AuthScreen() {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 320,
+        duration: 260,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
-        stiffness: 300,
+        stiffness: 340,
         damping: 26,
-        mass: 0.9,
+        mass: 0.7,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [])
+  }, [fadeAnim, slideAnim])
 
-  const handleTabChange = (mode: 'login' | 'register') => {
-    if (mode === authMode) return
+  const toggleAuthMode = (newMode: 'login' | 'register') => {
+    if (newMode === authMode) return
     triggerHaptic('selection')
-    setAuthMode(mode)
     setErrorMessage(null)
+    setInfoMessage(null)
 
-    Animated.spring(tabSlideAnim, {
-      toValue: mode === 'login' ? 0 : 1,
-      ...SPRING_SLIDE_INDICATOR,
-    }).start()
+    Animated.sequence([
+      Animated.timing(modeFadeAnim, {
+        toValue: 0.3,
+        duration: 100,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(modeFadeAnim, {
+        toValue: 1,
+        duration: 160,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+    ]).start()
+
+    setAuthMode(newMode)
+  }
+
+  const handleBack = () => {
+    triggerHaptic('light')
+    if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace('/welcome')
+    }
+  }
+
+  const handleBiometricPress = () => {
+    triggerHaptic('medium')
+    setInfoMessage('Autenticación biométrica disponible tras iniciar sesión por primera vez.')
   }
 
   const handleSubmit = async () => {
     setErrorMessage(null)
+    setInfoMessage(null)
     const trimmedEmail = email.trim()
     const trimmedPass = password.trim()
 
     if (!trimmedEmail || !trimmedPass) {
-      setErrorMessage('Ingresa tu correo y contraseña.')
+      setErrorMessage('Por favor completa todos los campos requeridos.')
       triggerHaptic('warning')
       return
     }
@@ -108,7 +140,7 @@ export default function AuthScreen() {
       } else {
         const trimmedName = fullName.trim()
         if (!trimmedName) {
-          setErrorMessage('Por favor ingresa tu nombre completo.')
+          setErrorMessage('Por favor ingresa tu nombre.')
           triggerHaptic('warning')
           return
         }
@@ -148,8 +180,8 @@ export default function AuthScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 28,
-            paddingBottom: Math.max(insets.bottom, 24) + 20,
+            paddingTop: insets.top + 16,
+            paddingBottom: Math.max(insets.bottom, 24) + 24,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -157,172 +189,181 @@ export default function AuthScreen() {
       >
         <Animated.View
           style={[
-            styles.mainContainer,
+            styles.container,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
-          {/* Header Hero */}
-          <View style={styles.brandHero}>
-            <View style={styles.ambientGlow} pointerEvents="none" />
-            <View style={styles.logoOrb}>
-              <Image source={ZORA_LOGO} style={styles.logoImage} resizeMode="contain" />
-            </View>
-            <Text style={styles.brandTitle}>Z O R A</Text>
-            <Text style={styles.brandSubtitle}>
-              {authMode === 'login'
-                ? 'Acceso para sincronizar materias y tareas con tu grupo.'
-                : 'Registro de cuenta para integrarte al horario de tu clase.'}
+          {/* Barra Superior con Botón Discreto de Retroceso */}
+          <View style={styles.topBar}>
+            <Pressable
+              testID="auth-back-button"
+              onPress={handleBack}
+              style={({ pressed }) => [styles.discreteBackButton, pressed && styles.buttonPressed]}
+              hitSlop={8}
+              accessibilityLabel="Volver a la pantalla anterior"
+            >
+              <ChevronLeft size={22} color="#A1A1AA" strokeWidth={2.4} />
+            </Pressable>
+          </View>
+
+          {/* Encabezado Dinámico según Modo */}
+          <Animated.View style={[styles.headerSection, { opacity: modeFadeAnim }]}>
+            <Text style={styles.titleText}>
+              {authMode === 'register' ? 'Crear cuenta' : 'Bienvenido de vuelta'}
             </Text>
-          </View>
+            <Text style={styles.subtitleText}>
+              {authMode === 'register'
+                ? 'Inicia tu espacio de trabajo minimalista.'
+                : 'Ingresa para continuar en tu espacio.'}
+            </Text>
+          </Animated.View>
 
-          {/* Selector de Modo (Entrar / Unirme) */}
-          <View style={styles.tabContainer}>
-            <Animated.View
-              style={[
-                styles.tabIndicator,
-                {
-                  transform: [
-                    {
-                      translateX: tabSlideAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [2, 142],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-            <Pressable
-              onPress={() => handleTabChange('login')}
-              style={styles.tabButton}
-              hitSlop={4}
-            >
-              <Text
-                style={[
-                  styles.tabButtonText,
-                  authMode === 'login' && styles.tabButtonTextActive,
-                ]}
-              >
-                Iniciar Sesión
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleTabChange('register')}
-              style={styles.tabButton}
-              hitSlop={4}
-            >
-              <Text
-                style={[
-                  styles.tabButtonText,
-                  authMode === 'register' && styles.tabButtonTextActive,
-                ]}
-              >
-                Crear Cuenta
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Banner de Error */}
+          {/* Banner de Mensaje Informativo o Error */}
           {errorMessage && (
-            <View style={styles.errorCard}>
+            <View style={styles.alertCardError}>
               <AlertCircle size={16} color="#EF4444" />
-              <Text style={styles.errorCardText}>{errorMessage}</Text>
+              <Text style={styles.alertTextError}>{errorMessage}</Text>
             </View>
           )}
 
-          {/* Formulario */}
-          <View style={styles.formCard}>
-            {authMode === 'register' && (
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>NOMBRE COMPLETO</Text>
-                <View style={styles.inputWrapper}>
-                  <User size={16} color="#71717A" style={styles.inputIcon} />
-                  <TextInput
-                    value={fullName}
-                    onChangeText={setFullName}
-                    placeholder="Ej. Juan Pérez"
-                    placeholderTextColor="#52525B"
-                    style={styles.inputField}
-                    autoCapitalize="words"
-                  />
-                </View>
-              </View>
-            )}
+          {infoMessage && (
+            <View style={styles.alertCardInfo}>
+              <Info size={16} color="#A1A1AA" />
+              <Text style={styles.alertTextInfo}>{infoMessage}</Text>
+            </View>
+          )}
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>CORREO ELECTRÓNICO</Text>
-              <View style={styles.inputWrapper}>
-                <Mail size={16} color="#71717A" style={styles.inputIcon} />
+          {/* Formulario Estilo Card Minimalista */}
+          <Animated.View style={[styles.formContainer, { opacity: modeFadeAnim }]}>
+            {authMode === 'register' && (
+              <View style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>NOMBRE</Text>
                 <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="estudiante@escuela.edu"
+                  testID="auth-name-input"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Ej. Alex Rivera"
                   placeholderTextColor="#52525B"
-                  style={styles.inputField}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  style={styles.fieldInput}
+                  autoCapitalize="words"
                   autoCorrect={false}
                 />
               </View>
+            )}
+
+            <View style={styles.fieldCard}>
+              <Text style={styles.fieldLabel}>CORREO ELECTRÓNICO</Text>
+              <TextInput
+                testID="auth-email-input"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="nombre@ejemplo.com"
+                placeholderTextColor="#52525B"
+                style={styles.fieldInput}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
 
-            <View style={styles.fieldGroup}>
+            <View style={styles.fieldCard}>
               <Text style={styles.fieldLabel}>CONTRASEÑA</Text>
-              <View style={styles.inputWrapper}>
-                <Lock size={16} color="#71717A" style={styles.inputIcon} />
+              <View style={styles.passwordRow}>
                 <TextInput
+                  testID="auth-password-input"
                   value={password}
                   onChangeText={setPassword}
                   placeholder="••••••••"
                   placeholderTextColor="#52525B"
-                  style={styles.inputField}
-                  secureTextEntry
+                  style={styles.passwordInput}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
                 />
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('selection')
+                    setShowPassword(!showPassword)
+                  }}
+                  style={styles.passwordEyeBtn}
+                  hitSlop={8}
+                  accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color="#71717A" strokeWidth={2} />
+                  ) : (
+                    <Eye size={18} color="#71717A" strokeWidth={2} />
+                  )}
+                </Pressable>
               </View>
             </View>
 
-            {/* Botón Principal */}
-            <Pressable
-              onPress={handleSubmit}
-              disabled={submitting}
-              style={({ pressed }) => [
-                styles.submitButton,
-                pressed && styles.buttonPressed,
-                submitting && styles.buttonDisabled,
-              ]}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#09090B" />
-              ) : (
-                <>
-                  <Check size={16} color="#09090B" strokeWidth={2.8} />
-                  <Text style={styles.submitButtonText}>
-                    {authMode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            {/* Acciones del Formulario */}
+            <View style={styles.actionsGroup}>
+              {/* Botón Principal Blanco */}
+              <Pressable
+                testID="auth-submit-button"
+                onPress={handleSubmit}
+                disabled={submitting}
+                style={({ pressed }) => [
+                  styles.primaryWhiteBtn,
+                  pressed && styles.buttonPressed,
+                  submitting && styles.buttonDisabled,
+                ]}
+                accessibilityLabel={authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#09090B" />
+                ) : (
+                  <Text style={styles.primaryWhiteBtnText}>
+                    {authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
                   </Text>
-                </>
+                )}
+              </Pressable>
+
+              {/* Botón Secundario Biométrico (Solo en Iniciar Sesión) */}
+              {authMode === 'login' && (
+                <Pressable
+                  testID="auth-biometric-button"
+                  onPress={handleBiometricPress}
+                  style={({ pressed }) => [styles.secondaryBiometricBtn, pressed && styles.buttonPressed]}
+                  accessibilityLabel="Ingreso con Face ID o Huella"
+                >
+                  <Fingerprint size={18} color="#FFFFFF" strokeWidth={2.2} />
+                  <Text style={styles.secondaryBiometricBtnText}>Ingreso con Face ID / Huella</Text>
+                </Pressable>
               )}
-            </Pressable>
+            </View>
+          </Animated.View>
+
+          {/* Alternador de Modo (Crear cuenta / Iniciar sesión) */}
+          <View style={styles.toggleModeSection}>
+            {authMode === 'register' ? (
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleTextMuted}>¿Ya tienes una cuenta?</Text>
+                <Pressable
+                  testID="auth-toggle-mode-button"
+                  onPress={() => toggleAuthMode('login')}
+                  hitSlop={6}
+                >
+                  <Text style={styles.toggleTextAction}>Inicia sesión</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleTextMuted}>¿No tienes una cuenta?</Text>
+                <Pressable
+                  testID="auth-toggle-mode-button"
+                  onPress={() => toggleAuthMode('register')}
+                  hitSlop={6}
+                >
+                  <Text style={styles.toggleTextAction}>Regístrate</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
-
-          {/* Subtítulo informativo */}
-          <Text style={styles.footerNote}>
-            {authMode === 'login'
-              ? 'Tus horarios y tareas se sincronizan con tu grupo de clase.'
-              : 'Al crear tu cuenta tendrás acceso al horario y tareas de clase.'}
-          </Text>
-
-          {/* Enlace para volver a ver la introducción */}
-          <Pressable
-            testID="auth-view-welcome-button"
-            onPress={() => router.push('/welcome')}
-            style={styles.viewWelcomeButton}
-            hitSlop={8}
-          >
-            <Text style={styles.viewWelcomeButtonText}>Ver pantalla de bienvenida</Text>
-          </Pressable>
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -342,223 +383,197 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
   },
-  mainContainer: {
+  container: {
+    flex: 1,
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
-    gap: 18,
   },
-  brandHero: {
+
+  // Barra Superior
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-    position: 'relative',
+    justifyContent: 'flex-start',
+    marginBottom: 28,
   },
-  ambientGlow: {
-    position: 'absolute',
-    top: -16,
-    alignSelf: 'center',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  },
-  logoOrb: {
-    width: 68,
-    height: 68,
-    borderRadius: 20,
-    backgroundColor: '#121216',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  discreteBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  logoImage: {
-    width: 44,
-    height: 44,
+
+  // Encabezado
+  headerSection: {
+    marginBottom: 28,
+    gap: 8,
   },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+  titleText: {
+    fontSize: 28,
+    fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 5,
+    letterSpacing: -0.3,
   },
-  brandSubtitle: {
-    fontSize: 13.5,
+  subtitleText: {
+    fontSize: 14.5,
     color: '#A1A1AA',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    lineHeight: 18,
+    lineHeight: 20,
     fontWeight: '400',
   },
-  tabContainer: {
-    flexDirection: 'row',
-    position: 'relative',
-    backgroundColor: '#121215',
-    borderRadius: 14,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: '#1E1E24',
-    alignSelf: 'center',
-    width: 290,
-  },
-  tabIndicator: {
-    position: 'absolute',
-    top: 3,
-    bottom: 3,
-    width: 142,
-    backgroundColor: '#27272A',
-    borderRadius: 11,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  tabButtonText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#71717A',
-    letterSpacing: -0.2,
-  },
-  tabButtonTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  errorCard: {
+
+  // Alertas
+  alertCardError: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.25)',
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    marginBottom: 16,
   },
-  errorCardText: {
+  alertTextError: {
     color: '#EF4444',
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
     flex: 1,
   },
-  formCard: {
-    backgroundColor: '#121215',
-    borderRadius: 22,
+  alertCardInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#18181D',
     borderWidth: 1,
-    borderColor: '#1E1E24',
-    padding: 20,
-    gap: 15,
+    borderColor: '#27272A',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
   },
-  fieldGroup: {
-    gap: 6,
+  alertTextInfo: {
+    color: '#D4D4D8',
+    fontSize: 12.5,
+    fontWeight: '400',
+    flex: 1,
+  },
+
+  // Formulario y Cards
+  formContainer: {
+    gap: 14,
+  },
+  fieldCard: {
+    backgroundColor: '#121215',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#27272A',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   fieldLabel: {
     fontSize: 10.5,
     fontWeight: '700',
     color: '#71717A',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#18181B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#27272A',
-    paddingHorizontal: 12,
-  },
-  inputIcon: {
-    marginRight: 8,
-  },
-  inputField: {
-    flex: 1,
-    paddingVertical: 12,
-    color: '#FAFAFA',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  rolePickerRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  roleCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#18181B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#27272A',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  roleCardActive: {
-    backgroundColor: '#27272A',
-    borderColor: '#3F3F46',
-  },
-  roleCardText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#71717A',
-  },
-  roleCardTextActive: {
+  fieldInput: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '500',
+    paddingVertical: 4,
   },
-  submitButton: {
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  passwordInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500',
+    paddingVertical: 4,
+  },
+  passwordEyeBtn: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Acciones
+  actionsGroup: {
+    gap: 12,
+    marginTop: 10,
+  },
+  primaryWhiteBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  primaryWhiteBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#09090B',
+    letterSpacing: 0.1,
+  },
+  secondaryBiometricBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#09090B',
+    borderWidth: 1,
+    borderColor: '#27272A',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginTop: 6,
+    width: '100%',
+  },
+  secondaryBiometricBtnText: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   buttonPressed: {
-    opacity: 0.88,
+    opacity: 0.85,
+    transform: [{ scale: 0.985 }],
   },
   buttonDisabled: {
     opacity: 0.5,
   },
-  submitButtonText: {
-    color: '#09090B',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+
+  // Alternador inferior
+  toggleModeSection: {
+    marginTop: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  footerNote: {
-    fontSize: 11.5,
-    color: '#52525B',
-    textAlign: 'center',
-    lineHeight: 16,
-    paddingHorizontal: 16,
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  viewWelcomeButton: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 2,
-  },
-  viewWelcomeButtonText: {
-    fontSize: 13,
+  toggleTextMuted: {
+    fontSize: 13.5,
     color: '#71717A',
-    fontWeight: '500',
+    fontWeight: '400',
+  },
+  toggleTextAction: {
+    fontSize: 13.5,
+    color: '#FFFFFF',
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
 })

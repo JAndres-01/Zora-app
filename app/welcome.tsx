@@ -58,6 +58,11 @@ const SLIDES: SlideData[] = [
     title: 'Métricas de rendimiento',
     description: 'Resumen de entregas a tiempo, balance por materia y registro de actividad académica.',
   },
+  {
+    id: 'account',
+    title: 'Comienza con Zora',
+    description: 'Inicia sesión o crea una cuenta para sincronizar tu espacio académico y personal.',
+  },
 ]
 
 export default function WelcomeScreen() {
@@ -150,6 +155,16 @@ export default function WelcomeScreen() {
     }
   }
 
+  const handleNavigateAuth = async (mode: 'login' | 'register') => {
+    triggerHaptic('selection')
+    try {
+      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
+    } catch {
+      // Ignorar fallo no crítico de storage
+    }
+    router.push({ pathname: '/auth', params: { mode } })
+  }
+
   const handleFinish = async () => {
     triggerHaptic('light')
     try {
@@ -182,34 +197,56 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 20 }]}>
-      {/* Barra Superior: Logo e Indicador Omitir */}
+      {/* Barra Superior: Omitir discreto a la izquierda o Flecha de retroceso */}
       <View style={styles.topBar}>
+        <View style={styles.topLeftNav}>
+          {currentStep === 0 ? (
+            <Pressable
+              testID="welcome-skip-button"
+              onPress={handleFinish}
+              style={({ pressed }) => [styles.discreteSkipButton, pressed && styles.discreteButtonPressed]}
+              hitSlop={8}
+              accessibilityLabel="Omitir introducción"
+            >
+              <Text style={styles.discreteSkipText}>Omitir</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              testID="welcome-back-button"
+              onPress={handleBack}
+              style={({ pressed }) => [styles.discreteBackButton, pressed && styles.discreteButtonPressed]}
+              hitSlop={8}
+              accessibilityLabel="Pantalla anterior"
+            >
+              <ChevronLeft size={22} color="#A1A1AA" strokeWidth={2.4} />
+            </Pressable>
+          )}
+        </View>
+
         <View style={styles.brandRow}>
           <Image source={ZORA_LOGO} style={styles.topLogo} resizeMode="contain" />
           <Text style={styles.topBrandText}>ZORA</Text>
         </View>
 
-        <Pressable
-          testID="welcome-skip-button"
-          onPress={handleFinish}
-          style={({ pressed }) => [styles.skipButton, pressed && styles.skipButtonPressed]}
-          hitSlop={8}
-        >
-          <Text style={styles.skipText}>Omitir</Text>
-        </Pressable>
+        <View style={styles.topRightNav}>
+          {currentStep > 0 && currentStep < SLIDES.length - 1 ? (
+            <Pressable
+              testID="welcome-skip-button-secondary"
+              onPress={handleFinish}
+              style={({ pressed }) => [styles.discreteSkipButton, pressed && styles.discreteButtonPressed]}
+              hitSlop={8}
+              accessibilityLabel="Omitir introducción"
+            >
+              <Text style={styles.discreteSkipText}>Omitir</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.topRightPlaceholder} />
+          )}
+        </View>
       </View>
 
-      {/* Escenario Visual Principal: Formato Completo con Degradado y Figuras Dinámicas */}
+      {/* Escenario Visual Principal: Sin cards envolventes, lienzo minimalista negro */}
       <View style={styles.visualContainer}>
-        {/* Iluminación Ambiental de Fondo (Aura con Respiración Continua) */}
-        <StageAmbientGlow step={currentStep} />
-
-        {/* Marcas Geométricas Técnicas de Esquina */}
-        <Text style={[styles.cornerCross, styles.crossTL]}>+</Text>
-        <Text style={[styles.cornerCross, styles.crossTR]}>+</Text>
-        <Text style={[styles.cornerCross, styles.crossBL]}>+</Text>
-        <Text style={[styles.cornerCross, styles.crossBR]}>+</Text>
-
         {/* Degradado Superior de Fundido Suave */}
         <View style={styles.topFadeGradient} pointerEvents="none">
           <Svg width="100%" height="100%">
@@ -223,7 +260,7 @@ export default function WelcomeScreen() {
           </Svg>
         </View>
 
-        {/* Contenido Dinámico del Paso con Entrada y Microanimaciones */}
+        {/* Contenido Dinámico del Paso */}
         <Animated.View
           style={[
             styles.stageContentWrapper,
@@ -236,6 +273,7 @@ export default function WelcomeScreen() {
           {currentStep === 0 && <TasksMockup />}
           {currentStep === 1 && <ScheduleMockup />}
           {currentStep === 2 && <StatsMockup />}
+          {currentStep === 3 && <AccountLandingMockup />}
         </Animated.View>
 
         {/* Degradado Inferior de Fundido Suave */}
@@ -268,88 +306,114 @@ export default function WelcomeScreen() {
           <Text style={styles.slideDescription}>{slide.description}</Text>
         </Animated.View>
 
-        {/* Fila de Control: Paginación Fluida & Botones */}
-        <View style={styles.controlsRow}>
-          {/* Píldoras de Progreso con expansión dinámica */}
-          <View style={styles.paginationContainer} testID="welcome-pagination">
-            {SLIDES.map((_, index) => {
-              const isActive = index === currentStep
-              return (
-                <Animated.View
-                  key={index}
-                  style={[
-                    styles.paginationDot,
-                    {
-                      transform: [{ scaleX: dotScales[index] }],
-                      backgroundColor: isActive ? '#FFFFFF' : '#27272A',
-                    },
-                  ]}
-                />
-              )
-            })}
+        {currentStep === 3 ? (
+          /* 4ª Pantalla: Botones Crear cuenta y Ya tengo cuenta */
+          <View style={styles.accountActionsSection}>
+            {/* Píldoras de Progreso centradas */}
+            <View style={styles.paginationContainerCentered} testID="welcome-pagination">
+              {SLIDES.map((_, index) => {
+                const isActive = index === currentStep
+                return (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      {
+                        transform: [{ scaleX: dotScales[index] }],
+                        backgroundColor: isActive ? '#FFFFFF' : '#27272A',
+                      },
+                    ]}
+                  />
+                )
+              })}
+            </View>
+
+            {/* Botón 1: Crear cuenta (Blanco) */}
+            <Pressable
+              testID="welcome-create-account-button"
+              onPress={() => handleNavigateAuth('register')}
+              style={({ pressed }) => [styles.createAccountBtn, pressed && styles.btnPressed]}
+              accessibilityLabel="Crear cuenta"
+            >
+              <Text style={styles.createAccountBtnText}>Crear cuenta</Text>
+            </Pressable>
+
+            {/* Botón 2: Ya tengo cuenta (Negro con borde gris 1px) */}
+            <Pressable
+              testID="welcome-login-button"
+              onPress={() => handleNavigateAuth('login')}
+              style={({ pressed }) => [styles.loginBtn, pressed && styles.btnPressed]}
+              accessibilityLabel="Ya tengo cuenta"
+            >
+              <Text style={styles.loginBtnText}>Ya tengo cuenta</Text>
+            </Pressable>
           </View>
+        ) : (
+          /* Pasos 0, 1 y 2: Paginación y Botón Siguiente */
+          <View style={styles.controlsRow}>
+            {/* Píldoras de Progreso con expansión dinámica */}
+            <View style={styles.paginationContainer} testID="welcome-pagination">
+              {SLIDES.map((_, index) => {
+                const isActive = index === currentStep
+                return (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      {
+                        transform: [{ scaleX: dotScales[index] }],
+                        backgroundColor: isActive ? '#FFFFFF' : '#27272A',
+                      },
+                    ]}
+                  />
+                )
+              })}
+            </View>
 
-          {/* Botones de Navegación con feedback táctil elástico */}
-          <View style={styles.navButtonsGroup}>
-            {currentStep > 0 && (
-              <Pressable
-                testID="welcome-back-button"
-                onPress={handleBack}
-                style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-                hitSlop={4}
-                accessibilityLabel="Pantalla anterior"
-              >
-                <ChevronLeft size={22} color="#A1A1AA" strokeWidth={2.4} />
-              </Pressable>
-            )}
-
+            {/* Botón Siguiente con feedback táctil elástico */}
             <Animated.View style={{ transform: [{ scale: nextBtnScale }] }}>
               <Pressable
                 testID="welcome-next-button"
                 onPress={handleNext}
                 onPressIn={handlePressInNext}
                 onPressOut={handlePressOutNext}
-                style={[
-                  styles.nextButton,
-                  currentStep === SLIDES.length - 1 && styles.finishButton,
-                ]}
-                accessibilityLabel={
-                  currentStep === SLIDES.length - 1 ? 'Comenzar a usar Zora' : 'Siguiente pantalla'
-                }
+                style={styles.nextButton}
+                accessibilityLabel="Siguiente pantalla"
               >
-                {currentStep === SLIDES.length - 1 ? (
-                  <>
-                    <Text style={styles.finishButtonText}>Comenzar</Text>
-                    <ArrowRight size={18} color="#09090B" strokeWidth={2.6} />
-                  </>
-                ) : (
-                  <ChevronRight size={24} color="#09090B" strokeWidth={2.6} />
-                )}
+                <ChevronRight size={24} color="#09090B" strokeWidth={2.6} />
               </Pressable>
             </Animated.View>
           </View>
-        </View>
+        )}
       </View>
     </View>
   )
 }
 
-// ─── Iluminación Ambiental con Respiración Continua ─────────────────────────────
-function StageAmbientGlow({ step }: { step: number }) {
-  const pulseOpacity = useRef(new Animated.Value(0.12)).current
+// ─── 4. Paso 3: Hero de Marca Minimalista para Selección de Cuenta ───────────
+function AccountLandingMockup() {
+  const breathAnim = useRef(new Animated.Value(1)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 350,
+      easing: APPLE_EASING,
+      useNativeDriver: true,
+    }).start()
+
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseOpacity, {
-          toValue: 0.19,
-          duration: 2400,
+        Animated.timing(breathAnim, {
+          toValue: 1.04,
+          duration: 2200,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
-        Animated.timing(pulseOpacity, {
-          toValue: 0.11,
-          duration: 2400,
+        Animated.timing(breathAnim, {
+          toValue: 1,
+          duration: 2200,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
@@ -357,24 +421,29 @@ function StageAmbientGlow({ step }: { step: number }) {
     )
     loop.start()
     return () => loop.stop()
-  }, [pulseOpacity])
-
-  let glowColor = '#10B981' // Paso 0: Tareas (Esmeralda)
-  if (step === 1) glowColor = '#3B82F6' // Paso 1: Horario (Azul)
-  if (step === 2) glowColor = '#34D399' // Paso 2: Métricas (Menta)
+  }, [breathAnim, fadeAnim])
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { opacity: pulseOpacity }]} pointerEvents="none">
-      <Svg width="100%" height="100%">
-        <Defs>
-          <RadialGradient id="stageGlow" cx="50%" cy="48%" r="55%">
-            <Stop offset="0%" stopColor={glowColor} stopOpacity="1" />
-            <Stop offset="50%" stopColor={glowColor} stopOpacity="0.3" />
-            <Stop offset="100%" stopColor="#09090B" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#stageGlow)" />
-      </Svg>
+    <Animated.View style={[styles.accountLandingContainer, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.accountLogoCircle, { transform: [{ scale: breathAnim }] }]}>
+        <Image source={ZORA_LOGO} style={styles.accountHeroLogo} resizeMode="contain" />
+      </Animated.View>
+      <Text style={styles.accountHeroBrand}>ZORA</Text>
+      <Text style={styles.accountHeroTagline}>Tu espacio académico y personal minimalista</Text>
+
+      <View style={styles.accountFeaturePills}>
+        <View style={styles.accountFeaturePill}>
+          <Text style={styles.accountFeaturePillText}>Tareas</Text>
+        </View>
+        <Text style={styles.accountFeatureDot}>•</Text>
+        <View style={styles.accountFeaturePill}>
+          <Text style={styles.accountFeaturePillText}>Horarios</Text>
+        </View>
+        <Text style={styles.accountFeatureDot}>•</Text>
+        <View style={styles.accountFeaturePill}>
+          <Text style={styles.accountFeaturePillText}>Rendimiento</Text>
+        </View>
+      </View>
     </Animated.View>
   )
 }
@@ -804,38 +873,58 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
   },
+  topLeftNav: {
+    width: 68,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  topRightNav: {
+    width: 68,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  topRightPlaceholder: {
+    width: 68,
+  },
+  discreteSkipButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  discreteSkipText: {
+    fontSize: 14,
+    color: '#71717A',
+    fontWeight: '500',
+  },
+  discreteBackButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  discreteButtonPressed: {
+    opacity: 0.65,
+  },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   topLogo: {
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
   },
   topBrandText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 3,
   },
-  skipButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  skipButtonPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    opacity: 0.8,
-  },
-  skipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#71717A',
-  },
 
-  // ─── Escenario a Formato Completo con Degradados ─────────────────
+  // ─── Escenario Visual Sin Tarjetas Envolventes ─────────────────
   visualContainer: {
     flex: 1,
     width: '100%',
@@ -860,18 +949,6 @@ const styles = StyleSheet.create({
     height: 42,
     zIndex: 10,
   },
-  cornerCross: {
-    position: 'absolute',
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#3F3F46',
-    zIndex: 5,
-    fontFamily: 'monospace',
-  },
-  crossTL: { top: 6, left: 2 },
-  crossTR: { top: 6, right: 2 },
-  crossBL: { bottom: 6, left: 2 },
-  crossBR: { bottom: 6, right: 2 },
 
   stageContentWrapper: {
     width: '100%',
@@ -879,12 +956,8 @@ const styles = StyleSheet.create({
   },
   fullStageBox: {
     width: '100%',
-    backgroundColor: 'rgba(24, 24, 29, 0.60)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 16,
-    paddingVertical: 18,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
 
   // ─── Estilos Fieles de Tareas (media_1789186882005.png) ──────────
@@ -1191,5 +1264,110 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#09090B',
+  },
+
+  // ─── 4ª Pantalla (Hero ZORA y Acciones de Cuenta) ────────────────
+  accountLandingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 10,
+  },
+  accountLogoCircle: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  accountHeroLogo: {
+    width: 44,
+    height: 44,
+  },
+  accountHeroBrand: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: 4,
+    color: '#FFFFFF',
+  },
+  accountHeroTagline: {
+    fontSize: 13.5,
+    color: '#A1A1AA',
+    fontWeight: '400',
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  accountFeaturePills: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  accountFeaturePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#18181D',
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  accountFeaturePillText: {
+    fontSize: 12,
+    color: '#D4D4D8',
+    fontWeight: '500',
+  },
+  accountFeatureDot: {
+    fontSize: 12,
+    color: '#52525B',
+  },
+  accountActionsSection: {
+    gap: 12,
+    width: '100%',
+    paddingTop: 4,
+  },
+  paginationContainerCentered: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  createAccountBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  createAccountBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#09090B',
+    letterSpacing: 0.1,
+  },
+  loginBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#09090B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  loginBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.1,
+  },
+  btnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.985 }],
   },
 })

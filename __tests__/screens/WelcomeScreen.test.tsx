@@ -3,12 +3,12 @@ import { render, fireEvent, act } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import WelcomeScreen, { ONBOARDING_COMPLETED_KEY } from '../../app/welcome'
 
-describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
+describe('WelcomeScreen (4-Step Minimalist Onboarding)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  test('renderiza inicialmente el paso 1 (Tareas) con mockup fiel y controles sin comentarios //...', async () => {
+  test('renderiza inicialmente el paso 1 (Tareas) con omitir discreto a la izquierda', async () => {
     const { getByText, getByTestId, queryByTestId, queryByText } = await render(<WelcomeScreen />)
 
     // Barra superior
@@ -24,13 +24,13 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
     // Verificamos ausencia de comentarios tipo //...
     expect(queryByText('// 01 · TAREAS Y ENTREGAS')).toBeNull()
 
-    // Botones de control
+    // Botón de control siguiente presente, retroceso ausente en paso 1
     expect(getByTestId('welcome-next-button')).toBeTruthy()
     expect(queryByTestId('welcome-back-button')).toBeNull()
   })
 
-  test('avanza al paso 2 (Horario) y paso 3 (Métricas) sin racha ni comentarios //...', async () => {
-    const { getByText, getByTestId, queryByText } = await render(<WelcomeScreen />)
+  test('avanza por Horario, Métricas y la 4ª pantalla con Crear cuenta y Ya tengo cuenta', async () => {
+    const { getByText, getByTestId, queryByTestId, queryByText } = await render(<WelcomeScreen />)
 
     // Avanzar a paso 2: Horario
     await act(async () => {
@@ -52,19 +52,23 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
     expect(getByText('Métricas de rendimiento')).toBeTruthy()
     expect(getByText('Registro de Actividad')).toBeTruthy()
     expect(getByText('28 entregas registradas')).toBeTruthy()
-    expect(queryByText('// 03 · MAPA DE ACTIVIDAD')).toBeNull()
-
-    // Verificamos que no haya racha ni 14 días
-    expect(queryByText('14 Días')).toBeNull()
-    expect(queryByText('14 Días de racha')).toBeNull()
-    expect(queryByText('racha de 14 dias')).toBeNull()
-
-    // Verificamos que la semana empiece con D (Domingo) y el botón Comenzar
     expect(getByText('D')).toBeTruthy()
-    expect(getByText('Comenzar')).toBeTruthy()
+    expect(queryByText('14 Días')).toBeNull()
+
+    // Avanzar a la 4ª pantalla: Selección de Cuenta
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    expect(getByText('Comienza con Zora')).toBeTruthy()
+    expect(getByText('Tu espacio académico y personal minimalista')).toBeTruthy()
+    expect(getByTestId('welcome-create-account-button')).toBeTruthy()
+    expect(getByTestId('welcome-login-button')).toBeTruthy()
+    // El botón circular siguiente ya no debe mostrarse en la última pantalla
+    expect(queryByTestId('welcome-next-button')).toBeNull()
   })
 
-  test('permite retroceder al paso anterior con el botón de retroceso', async () => {
+  test('permite retroceder al paso anterior con el botón discreto de retroceso', async () => {
     const { getByText, getByTestId } = await render(<WelcomeScreen />)
 
     // Ir a paso 2
@@ -80,33 +84,64 @@ describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
     expect(getByText('Control y registro de tareas')).toBeTruthy()
   })
 
-  test('al completar el paso 3 (Comenzar) guarda en AsyncStorage y redirige a /auth', async () => {
-    const mockReplace = jest.fn()
+  test('en la 4ª pantalla, Crear cuenta redirige a /auth con mode=register', async () => {
+    const mockPush = jest.fn()
     jest.spyOn(require('expo-router'), 'useRouter').mockReturnValue({
-      push: jest.fn(),
-      replace: mockReplace,
+      push: mockPush,
+      replace: jest.fn(),
       back: jest.fn(),
     })
 
     const { getByTestId } = await render(<WelcomeScreen />)
 
-    // Avanzar a paso 2
+    // Avanzar hasta la 4ª pantalla (3 clics)
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
     await act(async () => {
       fireEvent.press(getByTestId('welcome-next-button'))
     })
 
-    // Avanzar a paso 3
+    // Pulsar Crear cuenta
     await act(async () => {
-      fireEvent.press(getByTestId('welcome-next-button'))
-    })
-
-    // Finalizar en paso 3 pulsando Comenzar
-    await act(async () => {
-      fireEvent.press(getByTestId('welcome-next-button'))
+      fireEvent.press(getByTestId('welcome-create-account-button'))
     })
 
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(ONBOARDING_COMPLETED_KEY, 'true')
-    expect(mockReplace).toHaveBeenCalledWith('/auth')
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/auth', params: { mode: 'register' } })
+  })
+
+  test('en la 4ª pantalla, Ya tengo cuenta redirige a /auth con mode=login', async () => {
+    const mockPush = jest.fn()
+    jest.spyOn(require('expo-router'), 'useRouter').mockReturnValue({
+      push: mockPush,
+      replace: jest.fn(),
+      back: jest.fn(),
+    })
+
+    const { getByTestId } = await render(<WelcomeScreen />)
+
+    // Avanzar hasta la 4ª pantalla
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    // Pulsar Ya tengo cuenta
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-login-button'))
+    })
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(ONBOARDING_COMPLETED_KEY, 'true')
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/auth', params: { mode: 'login' } })
   })
 
   test('al tocar Omitir guarda en AsyncStorage y redirige de inmediato a /auth', async () => {

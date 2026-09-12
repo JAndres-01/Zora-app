@@ -67,6 +67,7 @@ jest.mock('expo-router', () => ({
     const { useEffect } = require('react')
     useEffect(cb, [])
   },
+  Redirect: jest.fn(({ href }) => null),
 }))
 
 // Mock Expo Notifications

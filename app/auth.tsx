@@ -10,11 +10,11 @@ import {
   Platform,
   ScrollView,
   Animated,
+  Image,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import {
-  Globe,
   UserCheck,
   ShieldCheck,
   Check,
@@ -27,6 +27,8 @@ import { useClassAuth } from '@/context/ClassAuthContext'
 import type { UserRole } from '@/types/personal'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { APPLE_EASING, SPRING_SLIDE_INDICATOR } from '@/constants/animations'
+
+const ZORA_LOGO = require('../assets/icon.png')
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets()
@@ -164,14 +166,15 @@ export default function AuthScreen() {
         >
           {/* Header Hero */}
           <View style={styles.brandHero}>
+            <View style={styles.ambientGlow} pointerEvents="none" />
             <View style={styles.logoOrb}>
-              <Globe size={26} color="#FFFFFF" strokeWidth={2.4} />
+              <Image source={ZORA_LOGO} style={styles.logoImage} resizeMode="contain" />
             </View>
-            <Text style={styles.brandTitle}>ZORA</Text>
+            <Text style={styles.brandTitle}>Z O R A</Text>
             <Text style={styles.brandSubtitle}>
               {authMode === 'login'
-                ? 'Inicia sesión para sincronizar tus clases y tareas'
-                : 'Crea tu cuenta y conéctate al horario de tu clase'}
+                ? 'Acceso para sincronizar materias y tareas con tu grupo.'
+                : 'Registro de cuenta para integrarte al horario de tu clase.'}
             </Text>
           </View>
 
@@ -307,8 +310,8 @@ export default function AuthScreen() {
           {/* Subtítulo informativo */}
           <Text style={styles.footerNote}>
             {authMode === 'login'
-              ? 'Tus horarios y tareas se sincronizan automáticamente con tu clase.'
-              : 'Al crear tu cuenta tendrás acceso inmediato al horario y tareas de clase.'}
+              ? 'Tus horarios y tareas se sincronizan con tu grupo de clase.'
+              : 'Al crear tu cuenta tendrás acceso al horario y tareas de clase.'}
           </Text>
         </Animated.View>
       </ScrollView>
@@ -342,30 +345,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 6,
+    position: 'relative',
+  },
+  ambientGlow: {
+    position: 'absolute',
+    top: -16,
+    alignSelf: 'center',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   logoOrb: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#18181B',
-    borderWidth: 1.5,
-    borderColor: '#27272A',
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    backgroundColor: '#121216',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoImage: {
+    width: 44,
+    height: 44,
   },
   brandTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FAFAFA',
-    letterSpacing: 2,
+    color: '#FFFFFF',
+    letterSpacing: 5,
   },
   brandSubtitle: {
-    fontSize: 13,
-    color: '#71717A',
+    fontSize: 13.5,
+    color: '#A1A1AA',
     textAlign: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     lineHeight: 18,
+    fontWeight: '400',
   },
   tabContainer: {
     flexDirection: 'row',

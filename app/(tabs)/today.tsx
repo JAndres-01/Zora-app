@@ -145,6 +145,21 @@ export default function TodayScreen() {
     }
   }, [tasks, activeTask])
 
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
+
+  const handleTaskSaved = useCallback(
+    (savedTask?: Task | null) => {
+      loadData()
+      if (savedTask?.id) {
+        setHighlightedTaskId(savedTask.id)
+        setTimeout(() => {
+          setHighlightedTaskId(null)
+        }, 2500)
+      }
+    },
+    [loadData]
+  )
+
   const handleDeleteTask = useCallback(async (taskId: string) => {
     cancelTaskReminder(taskId)
     playTrashSound()
@@ -299,7 +314,7 @@ export default function TodayScreen() {
         }}
         onToggleStatus={handleToggleTaskStatus}
         onDeleteTask={handleDeleteTask}
-        onTaskSaved={loadData}
+        onTaskSaved={handleTaskSaved}
       />
     </View>
   )

@@ -321,6 +321,20 @@ export default function TasksScreen() {
     setTaskModalMode('edit')
   }, [])
 
+  const handleTaskSaved = useCallback(
+    (savedTask?: Task | null) => {
+      loadData()
+      if (savedTask?.id) {
+        LAYOUT_EASE(220)
+        setHighlightedTaskId(savedTask.id)
+        setTimeout(() => {
+          setHighlightedTaskId(null)
+        }, 2500)
+      }
+    },
+    [loadData]
+  )
+
   const renderTaskItem = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
       <Animated.View
@@ -521,7 +535,7 @@ export default function TasksScreen() {
         }}
         onToggleStatus={handleToggleStatus}
         onDeleteTask={handleDeleteTask}
-        onTaskSaved={loadData}
+        onTaskSaved={handleTaskSaved}
       />
 
       {/* Modal de Acceso / Estado de la Clase */}

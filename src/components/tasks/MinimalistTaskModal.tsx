@@ -104,7 +104,7 @@ interface MinimalistTaskModalProps {
   onClose: () => void
   onToggleStatus?: (taskId: string, currentStatus: string) => void
   onDeleteTask?: (taskId: string) => Promise<void>
-  onTaskSaved: () => void
+  onTaskSaved: (savedTask?: Task | null) => void
   initialAttachments?: TaskAttachment[]
   initialTitle?: string
   initialDescription?: string
@@ -430,9 +430,19 @@ export function MinimalistTaskModal({
           }
           await personalStorage.saveTask(fullTask)
         }
-      } else if (mode === 'edit' && task) {
-        if (task.is_class_task && task.class_task_id && isAdmin) {
-          await updateClassTask(task.class_task_id, {
+      }
+
+      let savedTaskObj: Task | null = null
+      if (mode === 'edit' && task) {
+        savedTaskObj = {
+          ...task,
+          ...payload,
+          is_locally_edited: task.is_class_task ? true : task.is_locally_edited,
+          updated_at: new Date().toISOString(),
+        }
+        if (task.is_class_task && isAdmin) {
+          const classTaskId = task.id.replace('class_', '')
+          await updateClassTask(classTaskId, {
             title: title.trim(),
             description: description.trim() || null,
             subject_name: selectedSubj?.name || task.subject?.name || 'General',
@@ -442,12 +452,7 @@ export function MinimalistTaskModal({
             attachments: attachments,
           })
         } else {
-          await personalStorage.saveTask({
-            ...task,
-            ...payload,
-            is_locally_edited: task.is_class_task ? true : task.is_locally_edited,
-            updated_at: new Date().toISOString(),
-          })
+          await personalStorage.saveTask(savedTaskObj)
         }
       } else {
         const fullTask: Task = {
@@ -456,12 +461,13 @@ export function MinimalistTaskModal({
           status: 'pending',
           created_at: new Date().toISOString(),
         }
+        savedTaskObj = fullTask
         await personalStorage.saveTask(fullTask)
       }
 
       playSaveSound()
       triggerHaptic('success')
-      onTaskSaved?.()
+      onTaskSaved?.(savedTaskObj)
       handleSmoothClose({ silent: true })
     } catch (err) {
       logger.error('Error al guardar tarea:', err)

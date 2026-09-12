@@ -79,22 +79,36 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       triggerHaptic('medium')
       liftAnim.setValue(0)
       highlightAnim.setValue(0)
+      scaleAnim.setValue(0.96)
+
       Animated.parallel([
-        Animated.spring(liftAnim, {
-          toValue: -5,
+        Animated.spring(scaleAnim, {
+          toValue: 1.025,
           stiffness: 450,
-          damping: 18,
+          damping: 16,
+          useNativeDriver: true,
+        }),
+        Animated.spring(liftAnim, {
+          toValue: -6,
+          stiffness: 450,
+          damping: 16,
           useNativeDriver: true,
         }),
         Animated.timing(highlightAnim, {
           toValue: 1,
-          duration: 350,
+          duration: 300,
           useNativeDriver: true,
         }),
       ]).start()
 
       const timer = setTimeout(() => {
         Animated.parallel([
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            stiffness: 280,
+            damping: 24,
+            useNativeDriver: true,
+          }),
           Animated.spring(liftAnim, {
             toValue: 0,
             stiffness: 280,
@@ -103,16 +117,17 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           }),
           Animated.timing(highlightAnim, {
             toValue: 0,
-            duration: 900,
+            duration: 850,
             useNativeDriver: true,
           }),
         ]).start()
-      }, 1600)
+      }, 1500)
 
       return () => clearTimeout(timer)
     } else {
       liftAnim.setValue(0)
       highlightAnim.setValue(0)
+      scaleAnim.setValue(1)
     }
   }, [isHighlighted])
 
@@ -578,9 +593,9 @@ const styles = StyleSheet.create({
   },
   highlightOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    borderWidth: 1,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    borderWidth: 1.5,
     borderRadius: 14,
   },
   rowContainer: {

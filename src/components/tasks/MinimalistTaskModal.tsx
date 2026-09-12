@@ -314,8 +314,10 @@ export function MinimalistTaskModal({
     }
   }, [mode, modalVisible, task, initialTitle, initialDescription, initialAttachments])
 
-  const handleSmoothClose = () => {
-    playModalCloseSound()
+  const handleSmoothClose = (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      playModalCloseSound()
+    }
     triggerHaptic('light')
     Keyboard.dismiss()
 
@@ -460,7 +462,7 @@ export function MinimalistTaskModal({
       playSaveSound()
       triggerHaptic('success')
       onTaskSaved?.()
-      handleSmoothClose()
+      handleSmoothClose({ silent: true })
     } catch (err) {
       logger.error('Error al guardar tarea:', err)
       Alert.alert('Error', 'No se pudo guardar la tarea.')
@@ -580,11 +582,11 @@ export function MinimalistTaskModal({
   if (!modalVisible) return null
 
   return (
-    <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
+    <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={() => handleSmoothClose()}>
       <View style={styles.modalRoot}>
         {/* Backdrop Estático con Fade */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
+          <Pressable style={styles.backdropTouch} onPress={() => handleSmoothClose()} />
         </Animated.View>
 
         {/* Hoja Inferior Deslizante con PanResponder */}

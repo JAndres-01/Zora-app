@@ -19,7 +19,6 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { Plus } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import {
-  playTaskCompleteSound,
   playConfettiSound,
   playTrashSound,
   playModalOpenSound,
@@ -101,7 +100,6 @@ export default function TodayScreen() {
 
     if (isCompleted) {
       cancelTaskReminder(taskId)
-      playTaskCompleteSound()
       const prefs = await personalStorage.getPreferences()
       if (prefs.confetti_enabled) {
         setConfettiBurstTrigger((prev) => prev + 1)

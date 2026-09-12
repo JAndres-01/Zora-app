@@ -62,11 +62,19 @@ export function useModalAnimation({
   }
 
   const handleSmoothClose = useCallback(
-    (callback?: (() => void) | unknown) => {
+    (callbackOrOptions?: (() => void) | { silent?: boolean } | unknown, options?: { silent?: boolean }) => {
       if (isClosingRef.current) return
       isClosingRef.current = true
 
-      playModalCloseSound()
+      const callback = typeof callbackOrOptions === 'function' ? (callbackOrOptions as () => void) : undefined
+      const isSilent = Boolean(
+        options?.silent ||
+        (callbackOrOptions && typeof callbackOrOptions === 'object' && 'silent' in callbackOrOptions && (callbackOrOptions as any).silent)
+      )
+
+      if (!isSilent) {
+        playModalCloseSound()
+      }
       triggerHaptic('light')
       Keyboard.dismiss()
 

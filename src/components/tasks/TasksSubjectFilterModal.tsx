@@ -51,7 +51,7 @@ export function TasksSubjectFilterModal({
     playChipSnapSound()
     triggerHaptic('selection')
     onSelectSubject(id)
-    handleClose()
+    handleClose({ silent: true })
   }
 
   if (!modalVisible) return null

@@ -110,30 +110,30 @@ if (!fs.existsSync(soundsDir)) {
   fs.writeFileSync(path.join(soundsDir, 'chip_snap.wav'), encodeWAV(mixed))
 }
 
-// 3. #16 Suspiro al Abrir Modal (Soft Air Up 90ms)
+// 3. #16 Suspiro al Abrir Modal (Discreto y suave, 45ms)
 {
-  const duration = 0.09
+  const duration = 0.045
   const numSamples = Math.floor(SAMPLE_RATE * duration)
   const samples = new Float32Array(numSamples)
   for (let i = 0; i < numSamples; i++) {
     const t = i / SAMPLE_RATE
-    const freq = 260 + (540 - 260) * (t / duration)
-    const env = Math.sin(Math.PI * (t / duration))
-    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.5
+    const freq = 380 + (430 - 380) * (t / duration)
+    const env = Math.pow(Math.sin(Math.PI * (t / duration)), 2)
+    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.18
   }
   fs.writeFileSync(path.join(soundsDir, 'modal_open.wav'), encodeWAV(samples))
 }
 
-// 4. #17 Exhalación al Descartar (Soft Air Down 80ms)
+// 4. #17 Exhalación al Descartar (Discreto y suave, 35ms)
 {
-  const duration = 0.08
+  const duration = 0.035
   const numSamples = Math.floor(SAMPLE_RATE * duration)
   const samples = new Float32Array(numSamples)
   for (let i = 0; i < numSamples; i++) {
     const t = i / SAMPLE_RATE
-    const freq = 520 - (520 - 220) * (t / duration)
-    const env = Math.sin(Math.PI * (t / duration))
-    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.45
+    const freq = 320 - (320 - 260) * (t / duration)
+    const env = Math.pow(Math.sin(Math.PI * (t / duration)), 2)
+    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.14
   }
   fs.writeFileSync(path.join(soundsDir, 'modal_close.wav'), encodeWAV(samples))
 }
@@ -152,14 +152,16 @@ if (!fs.existsSync(soundsDir)) {
   fs.writeFileSync(path.join(soundsDir, 'swipe_velvet.wav'), encodeWAV(samples))
 }
 
-// 6. #20 Obturador Guardar (Camera Shutter Soft 50ms)
+// 6. #20 Obturador Guardar (Camera Shutter + Confirmación Nítida, 85ms)
 {
-  const click1 = tone(1200, 0.015, 'triangle', 15)
-  const click2 = tone(1600, 0.02, 'triangle', 12)
+  const click1 = tone(1100, 0.02, 'triangle', 12)
+  const click2 = tone(1450, 0.025, 'triangle', 10)
+  const confirmTone = tone(1046.5, 0.06, 'sine', 6)
   const mixed = mix([
-    { startTimeSec: 0, samples: click1, volume: 0.5 },
-    { startTimeSec: 0.025, samples: click2, volume: 0.75 },
-  ], 0.055)
+    { startTimeSec: 0, samples: click1, volume: 0.7 },
+    { startTimeSec: 0.018, samples: click2, volume: 0.85 },
+    { startTimeSec: 0.025, samples: confirmTone, volume: 0.65 },
+  ], 0.085)
   fs.writeFileSync(path.join(soundsDir, 'shutter_save.wav'), encodeWAV(mixed))
 }
 
@@ -187,28 +189,28 @@ if (!fs.existsSync(soundsDir)) {
   fs.writeFileSync(path.join(soundsDir, 'class_reminder.wav'), encodeWAV(mixed))
 }
 
-// 9. #26 Eliminar / Desvanecer (Hollow Fade 320Hz -> 90Hz)
+// 9. #26 Eliminar / Desvanecer (Hollow Swoosh Pop 850Hz -> 340Hz, 80ms)
 {
-  const duration = 0.085
+  const duration = 0.08
   const numSamples = Math.floor(SAMPLE_RATE * duration)
   const samples = new Float32Array(numSamples)
   for (let i = 0; i < numSamples; i++) {
     const t = i / SAMPLE_RATE
-    const freq = 320 * Math.pow(90 / 320, t / duration)
-    const env = Math.pow(1 - (t / duration), 1.5)
-    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.6
+    const freq = 850 * Math.pow(340 / 850, t / duration)
+    const env = Math.pow(1 - (t / duration), 1.2)
+    samples[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.85
   }
   fs.writeFileSync(path.join(soundsDir, 'trash_delete.wav'), encodeWAV(samples))
 }
 
-// 10. #27 Aviso Suave / Límite (Soft Thud 280Hz -> 240Hz)
+// 10. #27 Aviso / Advertencia (Doble golpe perceptible D5 -> A4, 160ms)
 {
-  const t1 = tone(280, 0.07, 'sine', 8)
-  const t2 = tone(240, 0.09, 'sine', 7)
+  const t1 = tone(587.33, 0.06, 'triangle', 8)
+  const t2 = tone(440.00, 0.08, 'sine', 7)
   const mixed = mix([
-    { startTimeSec: 0, samples: t1, volume: 0.6 },
-    { startTimeSec: 0.08, samples: t2, volume: 0.5 },
-  ], 0.18)
+    { startTimeSec: 0, samples: t1, volume: 0.85 },
+    { startTimeSec: 0.065, samples: t2, volume: 0.75 },
+  ], 0.16)
   fs.writeFileSync(path.join(soundsDir, 'warning_thud.wav'), encodeWAV(mixed))
 }
 

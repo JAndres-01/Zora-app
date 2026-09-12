@@ -3,7 +3,6 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
 import { logger } from '@/lib/logger'
 
 export type SoundEffect =
-  | 'task_complete'   // #6 Doble tono Chime
   | 'chip_snap'       // #12 Snap de ficha / materia
   | 'modal_open'      // #16 Suspiro al abrir modal
   | 'modal_close'     // #17 Exhalación al cerrar modal
@@ -15,7 +14,6 @@ export type SoundEffect =
   | 'warning_thud'    // #27 Aviso suave / límite
 
 const SOUND_ASSETS: Record<SoundEffect, any> = {
-  task_complete: require('../../assets/sounds/task_complete.wav'),
   chip_snap: require('../../assets/sounds/chip_snap.wav'),
   modal_open: require('../../assets/sounds/modal_open.wav'),
   modal_close: require('../../assets/sounds/modal_close.wav'),
@@ -88,7 +86,8 @@ export async function playSound(effect: SoundEffect): Promise<void> {
 }
 
 // Helpers semánticos rápidos para cada acción del sistema:
-export const playTaskCompleteSound = () => playSound('task_complete') // #6
+// #6 eliminado a petición del usuario para evitar colisión con el sonido festivo de confetti
+export const playTaskCompleteSound = () => Promise.resolve()
 export const playChipSnapSound = () => playSound('chip_snap') // #12
 export const playModalOpenSound = () => playSound('modal_open') // #16
 export const playModalCloseSound = () => playSound('modal_close') // #17

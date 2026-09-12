@@ -25,7 +25,6 @@ import { TasksSegmentControl } from '@/components/tasks/TasksSegmentControl'
 import { TasksSubjectFilterModal } from '@/components/tasks/TasksSubjectFilterModal'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import {
-  playTaskCompleteSound,
   playConfettiSound,
   playTrashSound,
   playSwipeSound,
@@ -161,7 +160,6 @@ export default function TasksScreen() {
 
       if (nextStatus === 'completed') {
         cancelTaskReminder(taskId)
-        playTaskCompleteSound()
         personalStorage.getPreferences().then((prefs) => {
           if (prefs.confetti_enabled) {
             playConfettiSound()

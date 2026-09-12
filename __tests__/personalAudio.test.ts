@@ -30,7 +30,7 @@ describe('personalAudio', () => {
   })
 
   it('reproduce sonidos mediante expo-audio cuando el sonido está activo', async () => {
-    await playSound('task_complete')
+    await playSound('confetti')
     expect(createAudioPlayer).toHaveBeenCalled()
     const mockPlayer = (createAudioPlayer as jest.Mock).mock.results[0]?.value
     expect(mockPlayer.play).toHaveBeenCalled()
@@ -38,11 +38,11 @@ describe('personalAudio', () => {
 
   it('no reproduce sonidos si el sonido está deshabilitado', async () => {
     setGlobalSoundEnabled(false)
-    await playSound('task_complete')
+    await playSound('confetti')
     expect(createAudioPlayer).not.toHaveBeenCalled()
   })
 
-  it('ejecuta los 10 helpers semánticos sin errores', async () => {
+  it('ejecuta los helpers semánticos sin errores', async () => {
     await expect(playTaskCompleteSound()).resolves.not.toThrow()
     await expect(playChipSnapSound()).resolves.not.toThrow()
     await expect(playModalOpenSound()).resolves.not.toThrow()

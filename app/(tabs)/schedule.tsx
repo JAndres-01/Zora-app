@@ -21,7 +21,7 @@ import { MinimalistDayTasksModal } from '@/components/schedule/MinimalistDayTask
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LayoutGrid, CalendarDays, BookOpen } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
-import { playTaskCompleteSound } from '@/lib/personalAudio'
+import { playConfettiSound } from '@/lib/personalAudio'
 import { getActiveAcademicWeek } from '@/lib/academicDateUtils'
 import {
   cancelTaskReminder,
@@ -163,7 +163,11 @@ export default function ScheduleScreen() {
 
     if (isCompleted) {
       cancelTaskReminder(taskId)
-      playTaskCompleteSound()
+      personalStorage.getPreferences().then((prefs) => {
+        if (prefs.confetti_enabled) {
+          playConfettiSound()
+        }
+      })
     } else {
       const taskObj = tasks.find((t) => t.id === taskId)
       if (taskObj) {

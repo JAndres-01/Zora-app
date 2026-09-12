@@ -24,6 +24,7 @@ import {
 import { MinimalistVitalStats } from '@/components/stats/MinimalistVitalStats'
 import { MinimalistActivityHeatmap } from '@/components/stats/MinimalistActivityHeatmap'
 import { MinimalistSubjectBalance } from '@/components/stats/MinimalistSubjectBalance'
+import { DualBalanceWidget } from '@/components/widgets/DualBalanceWidget'
 import { MinimalistCredentialModal } from '@/components/profile/MinimalistCredentialModal'
 import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
@@ -57,7 +58,7 @@ export default function ProfileScreen() {
   const [springEnd, setSpringEnd] = useState(`${currentYear}-06-30`)
 
   // Animaciones de Entrada Escalonada
-  const cardEntranceAnims = useCardEntrance(4, 'settings')
+  const cardEntranceAnims = useCardEntrance(5, 'settings')
   const gearScaleAnim = useRef(new Animated.Value(1)).current
 
   const loadData = useCallback(async () => {
@@ -382,6 +383,21 @@ export default function ProfileScreen() {
         <Animated.View style={getAnimatedCardStyle(3)}>
           <MinimalistSubjectBalance />
         </Animated.View>
+
+        {/* Card 4: Previsualización de Widget #3A Dual Balance */}
+        <Animated.View style={getAnimatedCardStyle(4)}>
+          <View style={styles.widgetSectionCard}>
+            <View style={styles.widgetSectionHeader}>
+              <View>
+                <Text style={styles.widgetSectionTitle}>WIDGETS · PANTALLA DE INICIO</Text>
+                <Text style={styles.widgetSectionSubtitle}>#3A Dual Balance · Toca el widget para abrir Tareas</Text>
+              </View>
+            </View>
+            <View style={styles.widgetPreviewContainer}>
+              <DualBalanceWidget size="small" />
+            </View>
+          </View>
+        </Animated.View>
       </ScrollView>
 
       {/* Modal Principal de Ajustes del Sistema */}
@@ -473,5 +489,35 @@ const styles = StyleSheet.create({
     borderColor: '#27272A',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  widgetSectionCard: {
+    backgroundColor: '#18181B',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#27272A',
+    padding: 16,
+    gap: 14,
+  },
+  widgetSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  widgetSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#A1A1AA',
+    letterSpacing: 0.5,
+  },
+  widgetSectionSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#71717A',
+    marginTop: 2,
+  },
+  widgetPreviewContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
   },
 })

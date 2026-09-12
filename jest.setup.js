@@ -73,12 +73,15 @@ jest.mock('expo-blur', () => {
 })
 
 // Mock Expo Router
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  back: jest.fn(),
+  navigate: jest.fn(),
+}
 jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-  }),
+  router: mockRouter,
+  useRouter: () => mockRouter,
   useLocalSearchParams: () => ({}),
   useFocusEffect: (cb) => {
     const { useEffect } = require('react')

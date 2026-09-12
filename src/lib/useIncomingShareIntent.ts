@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useShareIntent } from 'expo-share-intent'
 import * as Linking from 'expo-linking'
+import { router } from 'expo-router'
 import { Platform } from 'react-native'
 import type { TaskAttachment } from '@/types/personal'
 import { triggerHaptic } from './personalHaptics'
@@ -151,6 +152,20 @@ export function useIncomingShareIntent() {
     const handleDeepLink = (event: { url: string }) => {
       try {
         const parsed = Linking.parse(event.url)
+
+        // Manejo de Deep Link directo desde widgets o enlaces externos hacia tareas (e.g. zora://tasks o zora://widget/tasks)
+        if (
+          parsed.path === 'tasks' ||
+          parsed.hostname === 'tasks' ||
+          parsed.path === '(tabs)/tasks' ||
+          parsed.path === 'widget/tasks' ||
+          (parsed.path === 'widget' && parsed.queryParams?.target === 'tasks')
+        ) {
+          triggerHaptic('light')
+          router.navigate('/(tabs)/tasks')
+          return
+        }
+
         if (parsed.path === 'share-task' || parsed.hostname === 'share-task' || parsed.path === 'share') {
           const params = parsed.queryParams || {}
           const uri = typeof params.uri === 'string' ? params.uri : typeof params.url === 'string' ? params.url : null

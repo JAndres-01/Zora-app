@@ -8,7 +8,7 @@ import {
   Image,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   ChevronLeft,
@@ -68,10 +68,12 @@ const SLIDES: SlideData[] = [
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const params = useLocalSearchParams<{ step?: string }>()
 
   // En entorno de producción se reproduce el splash dinámico inicial
   const [showSplash, setShowSplash] = useState(process.env.NODE_ENV !== 'test')
-  const [currentStep, setCurrentStep] = useState(0)
+  const initialStep = params.step !== undefined ? Math.min(Math.max(parseInt(params.step, 10), 0), 3) : 0
+  const [currentStep, setCurrentStep] = useState(initialStep)
 
   // Animaciones de transición del contenedor principal
   const cardFadeAnim = useRef(new Animated.Value(1)).current
@@ -82,9 +84,9 @@ export default function WelcomeScreen() {
   // Animación táctil del botón siguiente
   const nextBtnScale = useRef(new Animated.Value(1)).current
 
-  // Animación fluida de escala de píldoras de paginación con Native Driver
+  // Animación fluida de escala de píldoras de paginación para los primeros 3 pasos
   const dotScales = useRef(
-    SLIDES.map((_, i) => new Animated.Value(i === 0 ? 2.75 : 1))
+    [0, 1, 2].map((i) => new Animated.Value(i === initialStep ? 2.75 : 1))
   ).current
 
   const transitionToStep = (newStep: number, direction: 'forward' | 'backward') => {
@@ -100,7 +102,7 @@ export default function WelcomeScreen() {
     textFadeAnim.setValue(0.2)
 
     // Animación fluida de píldoras de paginación con scaleX nativo
-    SLIDES.forEach((_, i) => {
+    dotScales.forEach((_, i) => {
       Animated.spring(dotScales[i], {
         toValue: i === newStep ? 2.75 : 1,
         stiffness: 420,
@@ -197,50 +199,38 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 20 }]}>
-      {/* Barra Superior: Omitir discreto a la izquierda o Flecha de retroceso */}
+      {/* Barra Superior: Omitir arriba a la derecha, flecha sin fondo a la izquierda */}
       <View style={styles.topBar}>
-        <View style={styles.topLeftNav}>
-          {currentStep === 0 ? (
-            <Pressable
-              testID="welcome-skip-button"
-              onPress={handleFinish}
-              style={({ pressed }) => [styles.discreteSkipButton, pressed && styles.discreteButtonPressed]}
-              hitSlop={8}
-              accessibilityLabel="Omitir introducción"
-            >
-              <Text style={styles.discreteSkipText}>Omitir</Text>
-            </Pressable>
-          ) : (
+        <View style={styles.navSlotLeft}>
+          {currentStep > 0 && currentStep < 3 && (
             <Pressable
               testID="welcome-back-button"
               onPress={handleBack}
               style={({ pressed }) => [styles.discreteBackButton, pressed && styles.discreteButtonPressed]}
-              hitSlop={8}
+              hitSlop={12}
               accessibilityLabel="Pantalla anterior"
             >
-              <ChevronLeft size={22} color="#A1A1AA" strokeWidth={2.4} />
+              <ChevronLeft size={24} color="#A1A1AA" strokeWidth={2.4} />
             </Pressable>
           )}
         </View>
 
-        <View style={styles.brandRow}>
+        <View style={styles.navSlotCenter}>
           <Image source={ZORA_LOGO} style={styles.topLogo} resizeMode="contain" />
           <Text style={styles.topBrandText}>ZORA</Text>
         </View>
 
-        <View style={styles.topRightNav}>
-          {currentStep > 0 && currentStep < SLIDES.length - 1 ? (
+        <View style={styles.navSlotRight}>
+          {currentStep < 3 && (
             <Pressable
-              testID="welcome-skip-button-secondary"
+              testID="welcome-skip-button"
               onPress={handleFinish}
               style={({ pressed }) => [styles.discreteSkipButton, pressed && styles.discreteButtonPressed]}
-              hitSlop={8}
+              hitSlop={12}
               accessibilityLabel="Omitir introducción"
             >
               <Text style={styles.discreteSkipText}>Omitir</Text>
             </Pressable>
-          ) : (
-            <View style={styles.topRightPlaceholder} />
           )}
         </View>
       </View>
@@ -292,42 +282,61 @@ export default function WelcomeScreen() {
 
       {/* Sección Inferior: Información y Controles */}
       <View style={styles.bottomSection}>
-        {/* Texto Informativo Funcional con entrada dinámica */}
-        <Animated.View
-          style={[
-            styles.textWrapper,
-            {
-              opacity: textFadeAnim,
-              transform: [{ translateY: textSlideAnim }],
-            },
-          ]}
-        >
-          <Text style={styles.slideTitle}>{slide.title}</Text>
-          <Text style={styles.slideDescription}>{slide.description}</Text>
-        </Animated.View>
+        {currentStep < 3 ? (
+          <>
+            {/* Texto Informativo Funcional con entrada dinámica */}
+            <Animated.View
+              style={[
+                styles.textWrapper,
+                {
+                  opacity: textFadeAnim,
+                  transform: [{ translateY: textSlideAnim }],
+                },
+              ]}
+            >
+              <Text style={styles.slideTitle}>{slide.title}</Text>
+              <Text style={styles.slideDescription}>{slide.description}</Text>
+            </Animated.View>
 
-        {currentStep === 3 ? (
-          /* 4ª Pantalla: Botones Crear cuenta y Ya tengo cuenta */
-          <View style={styles.accountActionsSection}>
-            {/* Píldoras de Progreso centradas */}
-            <View style={styles.paginationContainerCentered} testID="welcome-pagination">
-              {SLIDES.map((_, index) => {
-                const isActive = index === currentStep
-                return (
-                  <Animated.View
-                    key={index}
-                    style={[
-                      styles.paginationDot,
-                      {
-                        transform: [{ scaleX: dotScales[index] }],
-                        backgroundColor: isActive ? '#FFFFFF' : '#27272A',
-                      },
-                    ]}
-                  />
-                )
-              })}
+            {/* Pasos 0, 1 y 2: Paginación y Botón Siguiente */}
+            <View style={styles.controlsRow}>
+              {/* Píldoras de Progreso con expansión dinámica */}
+              <View style={styles.paginationContainer} testID="welcome-pagination">
+                {dotScales.map((scale, index) => {
+                  const isActive = index === currentStep
+                  return (
+                    <Animated.View
+                      key={index}
+                      style={[
+                        styles.paginationDot,
+                        {
+                          transform: [{ scaleX: scale }],
+                          backgroundColor: isActive ? '#FFFFFF' : '#27272A',
+                        },
+                      ]}
+                    />
+                  )
+                })}
+              </View>
+
+              {/* Botón Siguiente con feedback táctil elástico */}
+              <Animated.View style={{ transform: [{ scale: nextBtnScale }] }}>
+                <Pressable
+                  testID="welcome-next-button"
+                  onPress={handleNext}
+                  onPressIn={handlePressInNext}
+                  onPressOut={handlePressOutNext}
+                  style={styles.nextButton}
+                  accessibilityLabel="Siguiente pantalla"
+                >
+                  <ChevronRight size={24} color="#09090B" strokeWidth={2.6} />
+                </Pressable>
+              </Animated.View>
             </View>
-
+          </>
+        ) : (
+          /* 4ª Pantalla: Sólo Botones Crear cuenta y Ya tengo cuenta (Sin barra de progreso) */
+          <View style={styles.accountActionsSection}>
             {/* Botón 1: Crear cuenta (Blanco) */}
             <Pressable
               testID="welcome-create-account-button"
@@ -347,42 +356,6 @@ export default function WelcomeScreen() {
             >
               <Text style={styles.loginBtnText}>Ya tengo cuenta</Text>
             </Pressable>
-          </View>
-        ) : (
-          /* Pasos 0, 1 y 2: Paginación y Botón Siguiente */
-          <View style={styles.controlsRow}>
-            {/* Píldoras de Progreso con expansión dinámica */}
-            <View style={styles.paginationContainer} testID="welcome-pagination">
-              {SLIDES.map((_, index) => {
-                const isActive = index === currentStep
-                return (
-                  <Animated.View
-                    key={index}
-                    style={[
-                      styles.paginationDot,
-                      {
-                        transform: [{ scaleX: dotScales[index] }],
-                        backgroundColor: isActive ? '#FFFFFF' : '#27272A',
-                      },
-                    ]}
-                  />
-                )
-              })}
-            </View>
-
-            {/* Botón Siguiente con feedback táctil elástico */}
-            <Animated.View style={{ transform: [{ scale: nextBtnScale }] }}>
-              <Pressable
-                testID="welcome-next-button"
-                onPress={handleNext}
-                onPressIn={handlePressInNext}
-                onPressOut={handlePressOutNext}
-                style={styles.nextButton}
-                accessibilityLabel="Siguiente pantalla"
-              >
-                <ChevronRight size={24} color="#09090B" strokeWidth={2.6} />
-              </Pressable>
-            </Animated.View>
           </View>
         )}
       </View>
@@ -425,25 +398,11 @@ function AccountLandingMockup() {
 
   return (
     <Animated.View style={[styles.accountLandingContainer, { opacity: fadeAnim }]}>
-      <Animated.View style={[styles.accountLogoCircle, { transform: [{ scale: breathAnim }] }]}>
+      <Animated.View style={[styles.accountLogoWrapper, { transform: [{ scale: breathAnim }] }]}>
         <Image source={ZORA_LOGO} style={styles.accountHeroLogo} resizeMode="contain" />
       </Animated.View>
       <Text style={styles.accountHeroBrand}>ZORA</Text>
-      <Text style={styles.accountHeroTagline}>Tu espacio académico y personal minimalista</Text>
-
-      <View style={styles.accountFeaturePills}>
-        <View style={styles.accountFeaturePill}>
-          <Text style={styles.accountFeaturePillText}>Tareas</Text>
-        </View>
-        <Text style={styles.accountFeatureDot}>•</Text>
-        <View style={styles.accountFeaturePill}>
-          <Text style={styles.accountFeaturePillText}>Horarios</Text>
-        </View>
-        <Text style={styles.accountFeatureDot}>•</Text>
-        <View style={styles.accountFeaturePill}>
-          <Text style={styles.accountFeaturePillText}>Rendimiento</Text>
-        </View>
-      </View>
+      <Text style={styles.accountHeroTagline}>Tu espacio académico y personal minimalista.</Text>
     </Animated.View>
   )
 }
@@ -871,23 +830,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    height: 44,
   },
-  topLeftNav: {
-    width: 68,
+  navSlotLeft: {
+    width: 60,
+    height: 44,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
-  topRightNav: {
-    width: 68,
+  navSlotCenter: {
+    flex: 1,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  navSlotRight: {
+    width: 60,
+    height: 44,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
-  topRightPlaceholder: {
-    width: 68,
-  },
   discreteSkipButton: {
-    paddingVertical: 6,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
     paddingHorizontal: 4,
   },
   discreteSkipText: {
@@ -896,22 +864,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   discreteBackButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
+    width: 44,
+    height: 44,
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   discreteButtonPressed: {
-    opacity: 0.65,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    opacity: 0.5,
   },
   topLogo: {
     width: 24,
@@ -1270,71 +1231,38 @@ const styles = StyleSheet.create({
   accountLandingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
-    gap: 10,
+    paddingVertical: 24,
+    gap: 12,
   },
-  accountLogoCircle: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: '#27272A',
+  accountLogoWrapper: {
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   accountHeroLogo: {
-    width: 44,
-    height: 44,
+    width: 68,
+    height: 68,
   },
   accountHeroBrand: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: 4,
+    letterSpacing: 5,
     color: '#FFFFFF',
   },
   accountHeroTagline: {
-    fontSize: 13.5,
+    fontSize: 14,
     color: '#A1A1AA',
     fontWeight: '400',
     textAlign: 'center',
-    maxWidth: 260,
-  },
-  accountFeaturePills: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 14,
-  },
-  accountFeaturePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: '#18181D',
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  accountFeaturePillText: {
-    fontSize: 12,
-    color: '#D4D4D8',
-    fontWeight: '500',
-  },
-  accountFeatureDot: {
-    fontSize: 12,
-    color: '#52525B',
+    lineHeight: 20,
+    maxWidth: 280,
   },
   accountActionsSection: {
     gap: 12,
     width: '100%',
-    paddingTop: 4,
-  },
-  paginationContainerCentered: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginBottom: 4,
+    paddingTop: 8,
   },
   createAccountBtn: {
     height: 52,

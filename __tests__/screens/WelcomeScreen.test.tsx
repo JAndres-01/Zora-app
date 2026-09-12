@@ -8,10 +8,10 @@ describe('WelcomeScreen (4-Step Minimalist Onboarding)', () => {
     jest.clearAllMocks()
   })
 
-  test('renderiza inicialmente el paso 1 (Tareas) con omitir discreto a la izquierda', async () => {
+  test('renderiza inicialmente el paso 1 (Tareas) con omitir arriba a la derecha y sin botón de retroceso', async () => {
     const { getByText, getByTestId, queryByTestId, queryByText } = await render(<WelcomeScreen />)
 
-    // Barra superior
+    // Barra superior centrada
     expect(getByText('ZORA')).toBeTruthy()
     expect(getByTestId('welcome-skip-button')).toBeTruthy()
 
@@ -24,12 +24,12 @@ describe('WelcomeScreen (4-Step Minimalist Onboarding)', () => {
     // Verificamos ausencia de comentarios tipo //...
     expect(queryByText('// 01 · TAREAS Y ENTREGAS')).toBeNull()
 
-    // Botón de control siguiente presente, retroceso ausente en paso 1
+    // Botón siguiente presente, retroceso ausente en paso 1
     expect(getByTestId('welcome-next-button')).toBeTruthy()
     expect(queryByTestId('welcome-back-button')).toBeNull()
   })
 
-  test('avanza por Horario, Métricas y la 4ª pantalla con Crear cuenta y Ya tengo cuenta', async () => {
+  test('avanza por Horario, Métricas y la 4ª pantalla final sin retroceso ni barra de progreso', async () => {
     const { getByText, getByTestId, queryByTestId, queryByText } = await render(<WelcomeScreen />)
 
     // Avanzar a paso 2: Horario
@@ -43,6 +43,7 @@ describe('WelcomeScreen (4-Step Minimalist Onboarding)', () => {
     expect(getByText('C1')).toBeTruthy()
     expect(queryByText('// 02 · CRONOGRAMA SEMANAL')).toBeNull()
     expect(getByTestId('welcome-back-button')).toBeTruthy()
+    expect(getByTestId('welcome-skip-button')).toBeTruthy()
 
     // Avanzar a paso 3: Métricas
     await act(async () => {
@@ -54,21 +55,29 @@ describe('WelcomeScreen (4-Step Minimalist Onboarding)', () => {
     expect(getByText('28 entregas registradas')).toBeTruthy()
     expect(getByText('D')).toBeTruthy()
     expect(queryByText('14 Días')).toBeNull()
+    expect(getByTestId('welcome-back-button')).toBeTruthy()
 
-    // Avanzar a la 4ª pantalla: Selección de Cuenta
+    // Avanzar a la 4ª pantalla: Selección de Cuenta Final
     await act(async () => {
       fireEvent.press(getByTestId('welcome-next-button'))
     })
 
-    expect(getByText('Comienza con Zora')).toBeTruthy()
-    expect(getByText('Tu espacio académico y personal minimalista')).toBeTruthy()
+    expect(getByText('Tu espacio académico y personal minimalista.')).toBeTruthy()
     expect(getByTestId('welcome-create-account-button')).toBeTruthy()
     expect(getByTestId('welcome-login-button')).toBeTruthy()
-    // El botón circular siguiente ya no debe mostrarse en la última pantalla
+
+    // Verificaciones estrictas para la 4ª pantalla final:
+    // 1. Sin botón de retroceso
+    expect(queryByTestId('welcome-back-button')).toBeNull()
+    // 2. Sin botón de omitir
+    expect(queryByTestId('welcome-skip-button')).toBeNull()
+    // 3. Sin barra de progreso (píldoras)
+    expect(queryByTestId('welcome-pagination')).toBeNull()
+    // 4. Sin botón circular siguiente
     expect(queryByTestId('welcome-next-button')).toBeNull()
   })
 
-  test('permite retroceder al paso anterior con el botón discreto de retroceso', async () => {
+  test('permite retroceder entre pasos de funciones con la flecha sin fondo', async () => {
     const { getByText, getByTestId } = await render(<WelcomeScreen />)
 
     // Ir a paso 2
@@ -144,7 +153,7 @@ describe('WelcomeScreen (4-Step Minimalist Onboarding)', () => {
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/auth', params: { mode: 'login' } })
   })
 
-  test('al tocar Omitir guarda en AsyncStorage y redirige de inmediato a /auth', async () => {
+  test('al tocar Omitir arriba a la derecha guarda en AsyncStorage y redirige a /auth', async () => {
     const mockReplace = jest.fn()
     jest.spyOn(require('expo-router'), 'useRouter').mockReturnValue({
       push: jest.fn(),

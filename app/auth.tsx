@@ -17,9 +17,7 @@ import {
   ChevronLeft,
   Eye,
   EyeOff,
-  Fingerprint,
   AlertCircle,
-  Info,
 } from 'lucide-react-native'
 import { useClassAuth } from '@/context/ClassAuthContext'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -39,7 +37,6 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [infoMessage, setInfoMessage] = useState<string | null>(null)
 
   // Animaciones de entrada suave
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -81,7 +78,6 @@ export default function AuthScreen() {
     if (newMode === authMode) return
     triggerHaptic('selection')
     setErrorMessage(null)
-    setInfoMessage(null)
 
     Animated.sequence([
       Animated.timing(modeFadeAnim, {
@@ -106,18 +102,12 @@ export default function AuthScreen() {
     if (router.canGoBack()) {
       router.back()
     } else {
-      router.replace('/welcome')
+      router.replace({ pathname: '/welcome', params: { step: '3' } })
     }
-  }
-
-  const handleBiometricPress = () => {
-    triggerHaptic('medium')
-    setInfoMessage('Autenticación biométrica disponible tras iniciar sesión por primera vez.')
   }
 
   const handleSubmit = async () => {
     setErrorMessage(null)
-    setInfoMessage(null)
     const trimmedEmail = email.trim()
     const trimmedPass = password.trim()
 
@@ -165,255 +155,238 @@ export default function AuthScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
+      <View style={[styles.screen, styles.loadingContainer, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color="#FFFFFF" />
       </View>
     )
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.keyboardView}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingTop: insets.top + 16,
-            paddingBottom: Math.max(insets.bottom, 24) + 24,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
+    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      {/* Botón Discreto de Retroceso: Arriba a la izquierda, sólo flecha sin fondo */}
+      <View style={styles.topBar}>
+        <Pressable
+          testID="auth-back-button"
+          onPress={handleBack}
+          style={({ pressed }) => [styles.discreteBackButton, pressed && styles.backButtonPressed]}
+          hitSlop={12}
+          accessibilityLabel="Volver a la pantalla anterior"
         >
-          {/* Barra Superior con Botón Discreto de Retroceso */}
-          <View style={styles.topBar}>
-            <Pressable
-              testID="auth-back-button"
-              onPress={handleBack}
-              style={({ pressed }) => [styles.discreteBackButton, pressed && styles.buttonPressed]}
-              hitSlop={8}
-              accessibilityLabel="Volver a la pantalla anterior"
-            >
-              <ChevronLeft size={22} color="#A1A1AA" strokeWidth={2.4} />
-            </Pressable>
-          </View>
+          <ChevronLeft size={24} color="#A1A1AA" strokeWidth={2.4} />
+        </Pressable>
+      </View>
 
-          {/* Encabezado Dinámico según Modo */}
-          <Animated.View style={[styles.headerSection, { opacity: modeFadeAnim }]}>
-            <Text style={styles.titleText}>
-              {authMode === 'register' ? 'Crear cuenta' : 'Bienvenido de vuelta'}
-            </Text>
-            <Text style={styles.subtitleText}>
-              {authMode === 'register'
-                ? 'Inicia tu espacio de trabajo minimalista.'
-                : 'Ingresa para continuar en tu espacio.'}
-            </Text>
-          </Animated.View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View
+            style={[
+              styles.centeredContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            {/* Encabezado Dinámico según Modo */}
+            <Animated.View style={[styles.headerSection, { opacity: modeFadeAnim }]}>
+              <Text style={styles.titleText}>
+                {authMode === 'register' ? 'Crear cuenta' : 'Bienvenido de vuelta'}
+              </Text>
+              <Text style={styles.subtitleText}>
+                {authMode === 'register'
+                  ? 'Inicia tu espacio de trabajo minimalista.'
+                  : 'Ingresa para continuar en tu espacio.'}
+              </Text>
+            </Animated.View>
 
-          {/* Banner de Mensaje Informativo o Error */}
-          {errorMessage && (
-            <View style={styles.alertCardError}>
-              <AlertCircle size={16} color="#EF4444" />
-              <Text style={styles.alertTextError}>{errorMessage}</Text>
-            </View>
-          )}
+            {/* Banner de Mensaje de Error */}
+            {errorMessage && (
+              <View style={styles.alertCardError}>
+                <AlertCircle size={16} color="#EF4444" />
+                <Text style={styles.alertTextError}>{errorMessage}</Text>
+              </View>
+            )}
 
-          {infoMessage && (
-            <View style={styles.alertCardInfo}>
-              <Info size={16} color="#A1A1AA" />
-              <Text style={styles.alertTextInfo}>{infoMessage}</Text>
-            </View>
-          )}
+            {/* Formulario Estilo Card Minimalista */}
+            <Animated.View style={[styles.formContainer, { opacity: modeFadeAnim }]}>
+              {authMode === 'register' && (
+                <View style={styles.fieldCard}>
+                  <Text style={styles.fieldLabel}>NOMBRE</Text>
+                  <TextInput
+                    testID="auth-name-input"
+                    value={fullName}
+                    onChangeText={setFullName}
+                    placeholder="Ej. Alex Rivera"
+                    placeholderTextColor="#52525B"
+                    style={styles.fieldInput}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+              )}
 
-          {/* Formulario Estilo Card Minimalista */}
-          <Animated.View style={[styles.formContainer, { opacity: modeFadeAnim }]}>
-            {authMode === 'register' && (
               <View style={styles.fieldCard}>
-                <Text style={styles.fieldLabel}>NOMBRE</Text>
+                <Text style={styles.fieldLabel}>CORREO ELECTRÓNICO</Text>
                 <TextInput
-                  testID="auth-name-input"
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder="Ej. Alex Rivera"
+                  testID="auth-email-input"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="nombre@ejemplo.com"
                   placeholderTextColor="#52525B"
                   style={styles.fieldInput}
-                  autoCapitalize="words"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                   autoCorrect={false}
                 />
               </View>
-            )}
 
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>CORREO ELECTRÓNICO</Text>
-              <TextInput
-                testID="auth-email-input"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="nombre@ejemplo.com"
-                placeholderTextColor="#52525B"
-                style={styles.fieldInput}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+              <View style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>CONTRASEÑA</Text>
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    testID="auth-password-input"
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor="#52525B"
+                    style={styles.passwordInput}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <Pressable
+                    onPress={() => {
+                      triggerHaptic('selection')
+                      setShowPassword(!showPassword)
+                    }}
+                    style={styles.passwordEyeBtn}
+                    hitSlop={8}
+                    accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} color="#71717A" strokeWidth={2} />
+                    ) : (
+                      <Eye size={18} color="#71717A" strokeWidth={2} />
+                    )}
+                  </Pressable>
+                </View>
+              </View>
 
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>CONTRASEÑA</Text>
-              <View style={styles.passwordRow}>
-                <TextInput
-                  testID="auth-password-input"
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor="#52525B"
-                  style={styles.passwordInput}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
+              {/* Acciones del Formulario: Sólo botón primario blanco, sin biométrico */}
+              <View style={styles.actionsGroup}>
                 <Pressable
-                  onPress={() => {
-                    triggerHaptic('selection')
-                    setShowPassword(!showPassword)
-                  }}
-                  style={styles.passwordEyeBtn}
-                  hitSlop={8}
-                  accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  testID="auth-submit-button"
+                  onPress={handleSubmit}
+                  disabled={submitting}
+                  style={({ pressed }) => [
+                    styles.primaryWhiteBtn,
+                    pressed && styles.buttonPressed,
+                    submitting && styles.buttonDisabled,
+                  ]}
+                  accessibilityLabel={authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
                 >
-                  {showPassword ? (
-                    <EyeOff size={18} color="#71717A" strokeWidth={2} />
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#09090B" />
                   ) : (
-                    <Eye size={18} color="#71717A" strokeWidth={2} />
+                    <Text style={styles.primaryWhiteBtnText}>
+                      {authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
+                    </Text>
                   )}
                 </Pressable>
               </View>
-            </View>
+            </Animated.View>
 
-            {/* Acciones del Formulario */}
-            <View style={styles.actionsGroup}>
-              {/* Botón Principal Blanco */}
-              <Pressable
-                testID="auth-submit-button"
-                onPress={handleSubmit}
-                disabled={submitting}
-                style={({ pressed }) => [
-                  styles.primaryWhiteBtn,
-                  pressed && styles.buttonPressed,
-                  submitting && styles.buttonDisabled,
-                ]}
-                accessibilityLabel={authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#09090B" />
-                ) : (
-                  <Text style={styles.primaryWhiteBtnText}>
-                    {authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
-                  </Text>
-                )}
-              </Pressable>
-
-              {/* Botón Secundario Biométrico (Solo en Iniciar Sesión) */}
-              {authMode === 'login' && (
-                <Pressable
-                  testID="auth-biometric-button"
-                  onPress={handleBiometricPress}
-                  style={({ pressed }) => [styles.secondaryBiometricBtn, pressed && styles.buttonPressed]}
-                  accessibilityLabel="Ingreso con Face ID o Huella"
-                >
-                  <Fingerprint size={18} color="#FFFFFF" strokeWidth={2.2} />
-                  <Text style={styles.secondaryBiometricBtnText}>Ingreso con Face ID / Huella</Text>
-                </Pressable>
+            {/* Alternador de Modo (Crear cuenta / Iniciar sesión) */}
+            <View style={styles.toggleModeSection}>
+              {authMode === 'register' ? (
+                <View style={styles.toggleRow}>
+                  <Text style={styles.toggleTextMuted}>¿Ya tienes una cuenta?</Text>
+                  <Pressable
+                    testID="auth-toggle-mode-button"
+                    onPress={() => toggleAuthMode('login')}
+                    hitSlop={6}
+                  >
+                    <Text style={styles.toggleTextAction}>Inicia sesión</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.toggleRow}>
+                  <Text style={styles.toggleTextMuted}>¿No tienes una cuenta?</Text>
+                  <Pressable
+                    testID="auth-toggle-mode-button"
+                    onPress={() => toggleAuthMode('register')}
+                    hitSlop={6}
+                  >
+                    <Text style={styles.toggleTextAction}>Regístrate</Text>
+                  </Pressable>
+                </View>
               )}
             </View>
           </Animated.View>
-
-          {/* Alternador de Modo (Crear cuenta / Iniciar sesión) */}
-          <View style={styles.toggleModeSection}>
-            {authMode === 'register' ? (
-              <View style={styles.toggleRow}>
-                <Text style={styles.toggleTextMuted}>¿Ya tienes una cuenta?</Text>
-                <Pressable
-                  testID="auth-toggle-mode-button"
-                  onPress={() => toggleAuthMode('login')}
-                  hitSlop={6}
-                >
-                  <Text style={styles.toggleTextAction}>Inicia sesión</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.toggleRow}>
-                <Text style={styles.toggleTextMuted}>¿No tienes una cuenta?</Text>
-                <Pressable
-                  testID="auth-toggle-mode-button"
-                  onPress={() => toggleAuthMode('register')}
-                  hitSlop={6}
-                >
-                  <Text style={styles.toggleTextAction}>Regístrate</Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
+  screen: {
     flex: 1,
     backgroundColor: '#09090B',
   },
   loadingContainer: {
-    flex: 1,
-    backgroundColor: '#09090B',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Barra Superior con Botón Discreto sin fondo
+  topBar: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    zIndex: 10,
+  },
+  discreteBackButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  backButtonPressed: {
+    opacity: 0.5,
+  },
+
+  // Contenedor centrado vertical y horizontalmente
+  keyboardView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 22,
-  },
-  container: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-  },
-
-  // Barra Superior
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginBottom: 28,
-  },
-  discreteBackButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 22,
+    paddingBottom: 24,
+  },
+  centeredContent: {
+    width: '100%',
+    maxWidth: 380,
+    alignSelf: 'center',
+    gap: 16,
   },
 
   // Encabezado
   headerSection: {
-    marginBottom: 28,
-    gap: 8,
+    marginBottom: 8,
+    gap: 6,
   },
   titleText: {
     fontSize: 28,
@@ -428,7 +401,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 
-  // Alertas
+  // Alerta de Error
   alertCardError: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -439,30 +412,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    marginBottom: 16,
   },
   alertTextError: {
     color: '#EF4444',
     fontSize: 13,
     fontWeight: '500',
-    flex: 1,
-  },
-  alertCardInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#18181D',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  alertTextInfo: {
-    color: '#D4D4D8',
-    fontSize: 12.5,
-    fontWeight: '400',
     flex: 1,
   },
 
@@ -512,8 +466,7 @@ const styles = StyleSheet.create({
 
   // Acciones
   actionsGroup: {
-    gap: 12,
-    marginTop: 10,
+    marginTop: 6,
   },
   primaryWhiteBtn: {
     height: 52,
@@ -529,23 +482,6 @@ const styles = StyleSheet.create({
     color: '#09090B',
     letterSpacing: 0.1,
   },
-  secondaryBiometricBtn: {
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#09090B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    width: '100%',
-  },
-  secondaryBiometricBtnText: {
-    fontSize: 14.5,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
   buttonPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.985 }],
@@ -556,7 +492,7 @@ const styles = StyleSheet.create({
 
   // Alternador inferior
   toggleModeSection: {
-    marginTop: 32,
+    marginTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },

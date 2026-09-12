@@ -29,15 +29,15 @@ jest.mock('@/context/ClassAuthContext', () => ({
   }),
 }))
 
-describe('AuthScreen (Minimalist Auth: Login & Register)', () => {
+describe('AuthScreen (Minimalist Auth: Centered & Clean)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockSearchParams = {}
   })
 
-  test('renderiza la pantalla Bienvenido de vuelta (Login) por defecto sin recuperación de contraseña ni botones de terceros', async () => {
+  test('renderiza Bienvenido de vuelta (Login) centrado, con retroceso sin fondo y sin botón biométrico', async () => {
     mockSearchParams = { mode: 'login' }
-    const { getByText, queryByText } = await render(<AuthScreen />)
+    const { getByText, queryByText, getByTestId, queryByTestId } = await render(<AuthScreen />)
 
     // Título y subtítulo
     expect(getByText('Bienvenido de vuelta')).toBeTruthy()
@@ -48,32 +48,39 @@ describe('AuthScreen (Minimalist Auth: Login & Register)', () => {
     expect(getByText('CONTRASEÑA')).toBeTruthy()
     expect(queryByText('NOMBRE')).toBeNull()
 
-    // Botones presentes
+    // Botón principal presente
     expect(getByText('Iniciar Sesión')).toBeTruthy()
-    expect(getByText('Ingreso con Face ID / Huella')).toBeTruthy()
 
-    // Verificaciones estrictas de requerimiento:
-    // 1. Sin opción de recuperar contraseña
+    // Verificaciones estrictas de requerimiento del usuario:
+    // 1. Botón biométrico eliminado
+    expect(queryByTestId('auth-biometric-button')).toBeNull()
+    expect(queryByText(/Face ID/i)).toBeNull()
+    expect(queryByText(/Huella/i)).toBeNull()
+
+    // 2. Sin opción de recuperar contraseña
     expect(queryByText(/olvidaste/i)).toBeNull()
     expect(queryByText(/recuperar/i)).toBeNull()
 
-    // 2. Sin botones de Apple ni Google
+    // 3. Sin botones de terceros (Apple / Google)
     expect(queryByText(/apple/i)).toBeNull()
     expect(queryByText(/google/i)).toBeNull()
 
-    // Enlace a registrarse
+    // 4. Botón de retroceso sin fondo presente para volver al onboarding
+    expect(getByTestId('auth-back-button')).toBeTruthy()
+
+    // Enlace a alternar modo
     expect(getByText('Regístrate')).toBeTruthy()
   })
 
-  test('renderiza la pantalla Crear cuenta cuando mode=register sólo para ingresar por correo', async () => {
+  test('renderiza Crear cuenta cuando mode=register sólo para ingresar por correo', async () => {
     mockSearchParams = { mode: 'register' }
-    const { getByText, queryByText } = await render(<AuthScreen />)
+    const { getByText, queryByText, getByTestId, queryByTestId } = await render(<AuthScreen />)
 
     // Título y subtítulo
     expect(getByText('Crear cuenta')).toBeTruthy()
     expect(getByText('Inicia tu espacio de trabajo minimalista.')).toBeTruthy()
 
-    // Campos requeridos en card style
+    // Campos requeridos
     expect(getByText('NOMBRE')).toBeTruthy()
     expect(getByText('CORREO ELECTRÓNICO')).toBeTruthy()
     expect(getByText('CONTRASEÑA')).toBeTruthy()
@@ -81,14 +88,17 @@ describe('AuthScreen (Minimalist Auth: Login & Register)', () => {
     // Botón de acción principal
     expect(getByText('Completar Registro')).toBeTruthy()
 
-    // Sin botón biométrico en registro
-    expect(queryByText('Ingreso con Face ID / Huella')).toBeNull()
+    // Sin botón biométrico
+    expect(queryByTestId('auth-biometric-button')).toBeNull()
 
     // Sin botones de Apple ni Google
     expect(queryByText(/apple/i)).toBeNull()
     expect(queryByText(/google/i)).toBeNull()
 
-    // Enlace a iniciar sesión
+    // Botón de retroceso presente
+    expect(getByTestId('auth-back-button')).toBeTruthy()
+
+    // Enlace a alternar modo
     expect(getByText('Inicia sesión')).toBeTruthy()
   })
 
@@ -116,7 +126,7 @@ describe('AuthScreen (Minimalist Auth: Login & Register)', () => {
     expect(queryByText('NOMBRE')).toBeNull()
   })
 
-  test('el botón discreto de retroceso ejecuta router.back()', async () => {
+  test('el botón de retroceso ejecuta router.back() para volver a la pantalla de cuenta', async () => {
     const { getByTestId } = await render(<AuthScreen />)
 
     await act(async () => {
@@ -124,16 +134,5 @@ describe('AuthScreen (Minimalist Auth: Login & Register)', () => {
     })
 
     expect(mockBack).toHaveBeenCalled()
-  })
-
-  test('al pulsar el botón biométrico muestra mensaje discreto', async () => {
-    mockSearchParams = { mode: 'login' }
-    const { getByTestId, getByText } = await render(<AuthScreen />)
-
-    await act(async () => {
-      fireEvent.press(getByTestId('auth-biometric-button'))
-    })
-
-    expect(getByText(/Autenticación biométrica disponible/i)).toBeTruthy()
   })
 })

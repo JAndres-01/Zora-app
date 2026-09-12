@@ -2,7 +2,7 @@ import React from 'react'
 import { render, act } from '@testing-library/react-native'
 import { MinimalistConfetti, MagicConfetti } from '@/components/effects/MinimalistConfetti'
 
-describe('MinimalistConfetti (Magic UI dual cannon)', () => {
+describe('MinimalistConfetti (Magic UI bottom cannon)', () => {
   beforeEach(() => {
     jest.useFakeTimers()
   })
@@ -27,7 +27,7 @@ describe('MinimalistConfetti (Magic UI dual cannon)', () => {
 
     expect(screen.queryByTestId('magic-confetti-overlay')).toBeTruthy()
     const particles = screen.getAllByTestId('magic-confetti-particle')
-    expect(particles.length).toBe(52)
+    expect(particles.length).toBe(36)
   })
 
   test('exporta MagicConfetti como alias idéntico para conveniencia', () => {

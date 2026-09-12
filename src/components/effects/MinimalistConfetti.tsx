@@ -6,14 +6,14 @@ interface ConfettiProps {
   burstTrigger: number
 }
 
-// Paleta vibrante y festiva característica de Magic UI Confetti
+// Paleta festiva vibrante estilo Magic UI
 const MAGIC_UI_PALETTE = [
-  '#A855F7', // Púrpura Eléctrico (Firma Magic UI)
-  '#EC4899', // Rosa Coral Neón
-  '#3B82F6', // Azul Real Vibrante
+  '#A855F7', // Púrpura Eléctrico Magic UI
+  '#EC4899', // Rosa Neón
+  '#3B82F6', // Azul Real
   '#06B6D4', // Cian Brillante
   '#10B981', // Verde Esmeralda
-  '#F59E0B', // Ámbar Dorado
+  '#F59E0B', // Oro Ámbar
   '#EF4444', // Rojo Festivo
   '#FFFFFF', // Blanco Destello
 ]
@@ -26,13 +26,18 @@ interface ParticleData {
   width: number
   height: number
   borderRadius: number
-  targetDeltaX: number
-  peakY: number
-  fallY: number
-  rotations: number
-  duration: number
-  delay: number
-  progress: Animated.Value
+  targetX: number
+  launchHeight: number
+  fallDistance: number
+  upDuration: number
+  downDuration: number
+  totalDuration: number
+  targetRotate: number
+  animX: Animated.Value
+  animY: Animated.Value
+  animRotate: Animated.Value
+  animOpacity: Animated.Value
+  animScale: Animated.Value
 }
 
 interface SingleBurst {
@@ -40,7 +45,7 @@ interface SingleBurst {
   particles: ParticleData[]
 }
 
-const TOTAL_PARTICLES = 52 // 26 por cada cañón lateral (equilibrio óptimo rendimiento/densidad visual)
+const TOTAL_PARTICLES = 36 // Cañón individual centrado: densidad óptima y 60fps constantes
 
 export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigger }: ConfettiProps) {
   const [bursts, setBursts] = useState<SingleBurst[]>([])
@@ -52,73 +57,122 @@ export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigge
     const burstId = Date.now() + Math.random()
     const particles: ParticleData[] = []
 
-    // Disparo dual estilo Magic UI: Cañón Izquierdo (60°) y Cañón Derecho (120°)
+    // Cañón individual centrado que dispara desde el borde inferior
     for (let i = 0; i < TOTAL_PARTICLES; i++) {
-      const isLeftCannon = i < TOTAL_PARTICLES / 2
+      // Ángulo en abanico simétrico centrado verticalmente (-90° +/- 45°)
+      const angle = -Math.PI / 2 + (Math.random() * 1.5 - 0.75)
+      const launchHeight = Math.random() * (SCREEN_HEIGHT * 0.38) + SCREEN_HEIGHT * 0.32
+      const targetX = Math.cos(angle) * (launchHeight * 0.75) + (Math.random() * 40 - 20)
+      const fallDistance = 60 + Math.random() * 80
 
-      // Origen de los cañones en las esquinas inferiores
-      const startX = isLeftCannon
-        ? SCREEN_WIDTH * 0.06 + (Math.random() * 30 - 15)
-        : SCREEN_WIDTH * 0.94 + (Math.random() * 30 - 15)
-      const startY = SCREEN_HEIGHT * 0.88 + (Math.random() * 40 - 20)
+      const upDuration = 480 + Math.random() * 90
+      const downDuration = 760 + Math.random() * 180
+      const totalDuration = upDuration + downDuration
 
-      // Trayectoria horizontal cruzada (hacia el centro y cuadrante opuesto)
-      const horizontalDistance = Math.random() * (SCREEN_WIDTH * 0.55) + (SCREEN_WIDTH * 0.22)
-      const targetDeltaX = isLeftCannon ? horizontalDistance : -horizontalDistance
-
-      // Trayectoria vertical con arco balístico hacia arriba y caída con gravedad
-      const peakY = -(Math.random() * (SCREEN_HEIGHT * 0.42) + SCREEN_HEIGHT * 0.32)
-      const fallY = Math.random() * (SCREEN_HEIGHT * 0.18) + SCREEN_HEIGHT * 0.06
-
-      // Morfología variada: tiras rectangulares (ribbons), cuadrados y círculos
+      // Morfología festiva variada: tiras rectangulares, cuadrados y círculos
       const shapeType = i % 3
-      let width = 6
-      let height = 12
+      let width = 5.5
+      let height = 11.5
       let borderRadius = 1.5
 
       if (shapeType === 1) {
-        // Cuadrado
-        width = 7
-        height = 7
+        width = 6.8
+        height = 6.8
         borderRadius = 2
       } else if (shapeType === 2) {
-        // Círculo
-        width = 8
-        height = 8
-        borderRadius = 4
+        width = 7.5
+        height = 7.5
+        borderRadius = 3.75
       }
 
       particles.push({
         id: i,
-        startX,
-        startY,
+        startX: SCREEN_WIDTH / 2 + (Math.random() * 40 - 20),
+        startY: SCREEN_HEIGHT + 10,
         color: MAGIC_UI_PALETTE[i % MAGIC_UI_PALETTE.length],
         width,
         height,
         borderRadius,
-        targetDeltaX,
-        peakY,
-        fallY,
-        rotations: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 4),
-        duration: 1800 + Math.random() * 500,
-        delay: Math.random() * 140,
-        progress: new Animated.Value(0),
+        targetX,
+        launchHeight,
+        fallDistance,
+        upDuration,
+        downDuration,
+        totalDuration,
+        targetRotate: (Math.random() > 0.5 ? 1 : -1) * (3 + Math.random() * 3),
+        animX: new Animated.Value(0),
+        animY: new Animated.Value(0),
+        animRotate: new Animated.Value(0),
+        animOpacity: new Animated.Value(1),
+        animScale: new Animated.Value(0.35),
       })
     }
 
     const newBurst: SingleBurst = { id: burstId, particles }
     setBursts((prev) => [...prev, newBurst])
 
-    // Animación fluida a 60fps con useNativeDriver
-    const animations = particles.map((p) =>
-      Animated.timing(p.progress, {
-        toValue: 1,
-        duration: p.duration,
-        delay: p.delay,
+    // Física fluida sin tirones: lanzamiento explosivo (Easing.out) y aceleración gravitatoria continua (Easing.in)
+    const animations = particles.flatMap((p) => [
+      // 1. Eje Y: Subida desacelerada hasta v=0 en el ápice, y caída gravitatoria acelerada pura
+      Animated.sequence([
+        Animated.timing(p.animY, {
+          toValue: -p.launchHeight,
+          duration: p.upDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(p.animY, {
+          toValue: p.fallDistance,
+          duration: p.downDuration,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // 2. Eje X: Dispersión lateral suave y continua con fricción de aire
+      Animated.timing(p.animX, {
+        toValue: p.targetX,
+        duration: p.totalDuration,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+
+      // 3. Rotación continua y fluida sincronizada con la duración del vuelo
+      Animated.timing(p.animRotate, {
+        toValue: p.targetRotate,
+        duration: p.totalDuration,
         easing: Easing.linear,
         useNativeDriver: true,
-      })
-    )
+      }),
+
+      // 4. Escala: Expulsión inicial y ligera reducción al caer
+      Animated.sequence([
+        Animated.timing(p.animScale, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.delay(Math.max(0, p.totalDuration - 400)),
+        Animated.timing(p.animScale, {
+          toValue: 0.5,
+          duration: 220,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // 5. Opacidad: Totalmente visible en vuelo y desvanecimiento progresivo al final
+      Animated.sequence([
+        Animated.delay(Math.max(0, p.totalDuration - 360)),
+        Animated.timing(p.animOpacity, {
+          toValue: 0,
+          duration: 360,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ]),
+    ])
 
     const compositeAnim = Animated.parallel(animations)
     activeAnimRef.current = compositeAnim
@@ -138,45 +192,16 @@ export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigge
     <View testID="magic-confetti-overlay" style={styles.overlay} pointerEvents="none">
       {bursts.map((burst) =>
         burst.particles.map((p) => {
-          // Curva parabólica: subida explosiva inicial, pausa en cenit, aceleración gravitatoria
-          const translateY = p.progress.interpolate({
-            inputRange: [0, 0.16, 0.38, 0.62, 0.82, 1],
-            outputRange: [0, p.peakY * 0.65, p.peakY, p.peakY * 0.72, p.peakY * 0.22, p.fallY],
+          // Giro 360° fluido
+          const rotate = p.animRotate.interpolate({
+            inputRange: [-6, 6],
+            outputRange: ['-720deg', '720deg'],
           })
 
-          // Resistencia del aire en el avance horizontal
-          const translateX = p.progress.interpolate({
-            inputRange: [0, 0.25, 0.5, 0.75, 1],
-            outputRange: [
-              0,
-              p.targetDeltaX * 0.45,
-              p.targetDeltaX * 0.76,
-              p.targetDeltaX * 0.92,
-              p.targetDeltaX,
-            ],
-          })
-
-          // Rotación espacial de giro (spin)
-          const rotate = p.progress.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', `${p.rotations * 360}deg`],
-          })
-
-          // Efecto de volteo 3D (Wobble Flip de canvas-confetti)
-          const scaleX = p.progress.interpolate({
-            inputRange: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
-            outputRange: [1, 0.15, 1, 0.15, 1, 0.15, 1, 0.15, 1, 0.15, 0.8],
-          })
-
-          // Escala de expulsión inicial y desvanecimiento final
-          const scale = p.progress.interpolate({
-            inputRange: [0, 0.08, 0.88, 1],
-            outputRange: [0.2, 1, 1, 0.6],
-          })
-
-          const opacity = p.progress.interpolate({
-            inputRange: [0, 0.75, 1],
-            outputRange: [1, 1, 0],
+          // Volteo 3D sincronizado orgánicamente con la rotación (sin frenar el movimiento vertical)
+          const scaleX = p.animRotate.interpolate({
+            inputRange: [-6, -4.5, -3, -1.5, 0, 1.5, 3, 4.5, 6],
+            outputRange: [1, 0.25, 1, 0.25, 1, 0.25, 1, 0.25, 1],
           })
 
           return (
@@ -192,8 +217,14 @@ export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigge
                   height: p.height,
                   backgroundColor: p.color,
                   borderRadius: p.borderRadius,
-                  opacity,
-                  transform: [{ translateX }, { translateY }, { rotate }, { scaleX }, { scale }],
+                  opacity: p.animOpacity,
+                  transform: [
+                    { translateX: p.animX },
+                    { translateY: p.animY },
+                    { rotate },
+                    { scaleX },
+                    { scale: p.animScale },
+                  ],
                 },
               ]}
             />
@@ -216,7 +247,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.18,
     shadowRadius: 1.5,
     elevation: 3,
   },

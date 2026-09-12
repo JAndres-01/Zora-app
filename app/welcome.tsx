@@ -30,6 +30,7 @@ import {
   SPRING_TOUCH_CONFIG,
 } from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { DynamicSplashScreen } from '@/components/common/DynamicSplashScreen'
 
 export const ONBOARDING_COMPLETED_KEY = '@zora_has_seen_onboarding_v2'
 
@@ -63,6 +64,8 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
 
+  // En entorno de producción se reproduce el splash dinámico inicial
+  const [showSplash, setShowSplash] = useState(process.env.NODE_ENV !== 'test')
   const [currentStep, setCurrentStep] = useState(0)
 
   // Animaciones de transición del contenedor principal
@@ -169,6 +172,10 @@ export default function WelcomeScreen() {
       toValue: 1,
       ...SPRING_TOUCH_CONFIG,
     }).start()
+  }
+
+  if (showSplash) {
+    return <DynamicSplashScreen onFinish={() => setShowSplash(false)} />
   }
 
   const slide = SLIDES[currentStep]

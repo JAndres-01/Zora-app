@@ -41,6 +41,13 @@ jest.mock('react-native/Libraries/Animated/Animated', () => {
       },
       stop: () => {},
     }),
+    parallel: (animations) => ({
+      start: (callback) => {
+        animations.forEach((anim) => anim.start())
+        if (callback) callback({ finished: true })
+      },
+      stop: () => {},
+    }),
     loop: (animation) => ({
       start: (callback) => {},
       stop: () => {},

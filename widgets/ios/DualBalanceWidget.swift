@@ -97,49 +97,55 @@ struct DualBalanceWidgetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Encabezado
-            HStack {
+            // Encabezado con amplio respiro
+            HStack(spacing: 8) {
                 Text("BALANCE GENERAL")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                     .foregroundColor(textSub)
-                    .tracking(0.5)
+                    .tracking(0.3)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Spacer()
                 Text("\(entry.completionRate)%")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 11, weight: .heavy))
                     .foregroundColor(emeraldAccent)
             }
             .padding(.bottom, 6)
 
             Spacer()
 
-            // Columnas Métricas Duales
-            HStack(alignment: .center, spacing: 0) {
+            // Columnas Métricas Duales equilibradas
+            HStack(alignment: .center, spacing: 4) {
                 // Pendientes
-                VStack(spacing: 2) {
+                VStack(spacing: 3) {
                     Text("\(entry.pendingCount)")
-                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
                     Text("PENDIENTES")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundColor(textMuted)
-                        .tracking(0.4)
+                        .tracking(0.2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
                 .frame(maxWidth: .infinity)
 
                 // Separador vertical
                 Rectangle()
                     .fill(Color.white.opacity(0.08))
-                    .frame(width: 1, height: 30)
+                    .frame(width: 1, height: 26)
 
                 // Entregadas
-                VStack(spacing: 2) {
+                VStack(spacing: 3) {
                     Text("\(entry.completedCount)")
-                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundColor(emeraldAccent)
                     Text("ENTREGADAS")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundColor(textMuted)
-                        .tracking(0.4)
+                        .tracking(0.2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -150,12 +156,16 @@ struct DualBalanceWidgetView: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
                     Text("\(entry.totalCount) \(entry.totalCount == 1 ? "tarea" : "tareas")")
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(textMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Spacer()
                     Text(entry.dueTodayCount > 0 ? "\(entry.dueTodayCount) para hoy" : (entry.pendingCount == 0 && entry.totalCount > 0 ? "¡Todo listo!" : "0 para hoy"))
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(textMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
 
                 // Barra de progreso segmentada
@@ -169,14 +179,14 @@ struct DualBalanceWidgetView: View {
                             .fill(barRemaining)
                             .frame(width: geo.size.width * CGFloat(1.0 - clampedRate))
                     }
-                    .frame(height: 5)
+                    .frame(height: 4.5)
                     .background(barBg)
-                    .cornerRadius(2.5)
+                    .cornerRadius(2.25)
                 }
-                .frame(height: 5)
+                .frame(height: 4.5)
             }
         }
-        .padding(14)
+        .padding(13)
         .background(bgCard)
         // Redirección directa al pulsar el widget en la pantalla de inicio de iOS
         .widgetURL(URL(string: "zora://tasks"))

@@ -383,8 +383,14 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         return { error }
       }
 
-      await syncClassTasks()
-      return { error: null, data: data as ClassTask }
+      const insertedTask = (data || newClassTask) as ClassTask
+      const currentCache = await personalStorage.getClassTasksCache()
+      const updatedCache = [insertedTask, ...currentCache.filter((t) => t.id !== insertedTask.id)]
+      await personalStorage.setClassTasksCache(updatedCache)
+      setClassTasks(updatedCache)
+
+      syncClassTasks().catch(() => {})
+      return { error: null, data: insertedTask }
     } catch (err: any) {
       logger.error('[ClassAuth] Error en publishClassTask:', err)
       return { error: err }

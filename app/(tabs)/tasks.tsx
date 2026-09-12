@@ -238,15 +238,16 @@ export default function TasksScreen() {
       cancelTaskReminder(taskId)
       playTrashSound()
       LAYOUT_EASE(200)
+      setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
+      setActiveTask((prev) => (prev?.id === taskId ? null : prev))
+      setTaskModalMode('none')
+
       if (taskId.startsWith('class_')) {
         const classTaskId = taskId.replace('class_', '')
         await deleteClassTask(classTaskId)
       } else {
         await personalStorage.removeTask(taskId)
       }
-      setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
-      setActiveTask((prev) => (prev?.id === taskId ? null : prev))
-      setTaskModalMode('none')
     },
     [deleteClassTask]
   )
@@ -325,8 +326,15 @@ export default function TasksScreen() {
 
   const handleTaskSaved = useCallback(
     (savedTask?: Task | null) => {
-      loadData()
       if (savedTask?.id) {
+        setTasks((prevTasks) => {
+          const exists = prevTasks.some((t) => t.id === savedTask.id)
+          if (exists) {
+            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+          }
+          return [savedTask, ...prevTasks]
+        })
+
         if (highlightTimeoutRef.current) {
           clearTimeout(highlightTimeoutRef.current)
         }
@@ -338,6 +346,7 @@ export default function TasksScreen() {
           }, 1100)
         })
       }
+      loadData()
     },
     [loadData]
   )

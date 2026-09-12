@@ -30,6 +30,8 @@ import {
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
+import { useClassAuth } from '@/context/ClassAuthContext'
+import { LAYOUT_EASE } from '@/constants/animations'
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets()
@@ -150,8 +152,15 @@ export default function TodayScreen() {
 
   const handleTaskSaved = useCallback(
     (savedTask?: Task | null) => {
-      loadData()
       if (savedTask?.id) {
+        setTasks((prevTasks) => {
+          const exists = prevTasks.some((t) => t.id === savedTask.id)
+          if (exists) {
+            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+          }
+          return [savedTask, ...prevTasks]
+        })
+
         if (highlightTimeoutRef.current) {
           clearTimeout(highlightTimeoutRef.current)
         }
@@ -163,17 +172,31 @@ export default function TodayScreen() {
           }, 1100)
         })
       }
+      loadData()
     },
     [loadData]
   )
 
-  const handleDeleteTask = useCallback(async (taskId: string) => {
-    cancelTaskReminder(taskId)
-    playTrashSound()
-    const updatedTasks = tasks.filter((t) => t.id !== taskId)
-    setTasks(updatedTasks)
-    await personalStorage.setTasks(updatedTasks)
-  }, [tasks])
+  const { deleteClassTask } = useClassAuth()
+
+  const handleDeleteTask = useCallback(
+    async (taskId: string) => {
+      cancelTaskReminder(taskId)
+      playTrashSound()
+      LAYOUT_EASE(200)
+      setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
+      setActiveTask((prev) => (prev?.id === taskId ? null : prev))
+      setTaskModalMode('none')
+
+      if (taskId.startsWith('class_')) {
+        const classTaskId = taskId.replace('class_', '')
+        await deleteClassTask(classTaskId)
+      } else {
+        await personalStorage.removeTask(taskId)
+      }
+    },
+    [deleteClassTask]
+  )
 
   // Animaciones de Entrada Escalonada hacia abajo
   const cardEntranceAnims = useCardEntrance(3, 'today')

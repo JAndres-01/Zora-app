@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -25,7 +25,11 @@ import Svg, {
   Rect,
   Circle,
 } from 'react-native-svg'
-import { APPLE_EASING } from '@/constants/animations'
+import {
+  APPLE_EASING,
+  SPRING_SLIDE_INDICATOR,
+  SPRING_TOUCH_CONFIG,
+} from '@/constants/animations'
 import { triggerHaptic } from '@/lib/personalHaptics'
 
 export const ONBOARDING_COMPLETED_KEY = '@zora_has_seen_onboarding_v2'
@@ -72,20 +76,44 @@ export default function WelcomeScreen() {
 
   const [currentStep, setCurrentStep] = useState(0)
 
-  // Animaciones de transición de paso
+  // Animaciones de transición del contenedor principal
   const cardFadeAnim = useRef(new Animated.Value(1)).current
   const cardSlideAnim = useRef(new Animated.Value(0)).current
   const textFadeAnim = useRef(new Animated.Value(1)).current
+  const textSlideAnim = useRef(new Animated.Value(0)).current
+
+  // Animación táctil del botón siguiente
+  const nextBtnScale = useRef(new Animated.Value(1)).current
+
+  // Animación fluida de escala de píldoras de paginación con Native Driver
+  const dotScales = useRef(
+    SLIDES.map((_, i) => new Animated.Value(i === 0 ? 2.75 : 1))
+  ).current
 
   const transitionToStep = (newStep: number, direction: 'forward' | 'backward') => {
     triggerHaptic('selection')
     setCurrentStep(newStep)
 
-    const inOffset = direction === 'forward' ? 24 : -24
+    // Desplazamiento elástico direccional
+    const inOffset = direction === 'forward' ? 28 : -28
     cardSlideAnim.setValue(inOffset)
-    cardFadeAnim.setValue(0.3)
-    textFadeAnim.setValue(0.3)
+    cardFadeAnim.setValue(0.2)
 
+    textSlideAnim.setValue(direction === 'forward' ? 12 : -12)
+    textFadeAnim.setValue(0.2)
+
+    // Animación fluida de píldoras de paginación con scaleX nativo
+    SLIDES.forEach((_, i) => {
+      Animated.spring(dotScales[i], {
+        toValue: i === newStep ? 2.75 : 1,
+        stiffness: 420,
+        damping: 32,
+        mass: 0.55,
+        useNativeDriver: true,
+      }).start()
+    })
+
+    // Transición en paralelo con curvas iOS
     Animated.parallel([
       Animated.timing(cardFadeAnim, {
         toValue: 1,
@@ -95,7 +123,7 @@ export default function WelcomeScreen() {
       }),
       Animated.spring(cardSlideAnim, {
         toValue: 0,
-        stiffness: 340,
+        stiffness: 360,
         damping: 26,
         mass: 0.6,
         useNativeDriver: true,
@@ -104,6 +132,13 @@ export default function WelcomeScreen() {
         toValue: 1,
         duration: 220,
         easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.spring(textSlideAnim, {
+        toValue: 0,
+        stiffness: 380,
+        damping: 28,
+        mass: 0.5,
         useNativeDriver: true,
       }),
     ]).start()
@@ -133,6 +168,20 @@ export default function WelcomeScreen() {
     router.replace('/auth')
   }
 
+  const handlePressInNext = () => {
+    Animated.spring(nextBtnScale, {
+      toValue: 0.93,
+      ...SPRING_TOUCH_CONFIG,
+    }).start()
+  }
+
+  const handlePressOutNext = () => {
+    Animated.spring(nextBtnScale, {
+      toValue: 1,
+      ...SPRING_TOUCH_CONFIG,
+    }).start()
+  }
+
   const slide = SLIDES[currentStep]
 
   return (
@@ -147,16 +196,16 @@ export default function WelcomeScreen() {
         <Pressable
           testID="welcome-skip-button"
           onPress={handleFinish}
-          style={styles.skipButton}
+          style={({ pressed }) => [styles.skipButton, pressed && styles.skipButtonPressed]}
           hitSlop={8}
         >
           <Text style={styles.skipText}>Omitir</Text>
         </Pressable>
       </View>
 
-      {/* Escenario Visual Principal: Formato Completo con Degradado y Figuras */}
+      {/* Escenario Visual Principal: Formato Completo con Degradado y Figuras Dinámicas */}
       <View style={styles.visualContainer}>
-        {/* Iluminación Ambiental de Fondo (Aura con Degradado Radial) */}
+        {/* Iluminación Ambiental de Fondo (Aura con Respiración Continua) */}
         <StageAmbientGlow step={currentStep} />
 
         {/* Marcas Geométricas Técnicas de Esquina */}
@@ -178,7 +227,7 @@ export default function WelcomeScreen() {
           </Svg>
         </View>
 
-        {/* Contenido Dinámico del Paso */}
+        {/* Contenido Dinámico del Paso con Entrada y Microanimaciones */}
         <Animated.View
           style={[
             styles.stageContentWrapper,
@@ -193,7 +242,7 @@ export default function WelcomeScreen() {
             <Text style={styles.tagHeaderText}>{slide.tag}</Text>
           </View>
 
-          {/* Renderizado del Paso Actual */}
+          {/* Renderizado de cada paso con sus microanimaciones dinámicas */}
           {currentStep === 0 && <GeneralWelcomeMockup />}
           {currentStep === 1 && <TasksMockup />}
           {currentStep === 2 && <ScheduleMockup />}
@@ -216,37 +265,48 @@ export default function WelcomeScreen() {
 
       {/* Sección Inferior: Información y Controles */}
       <View style={styles.bottomSection}>
-        {/* Texto Informativo Funcional */}
-        <Animated.View style={[styles.textWrapper, { opacity: textFadeAnim }]}>
+        {/* Texto Informativo Funcional con entrada dinámica */}
+        <Animated.View
+          style={[
+            styles.textWrapper,
+            {
+              opacity: textFadeAnim,
+              transform: [{ translateY: textSlideAnim }],
+            },
+          ]}
+        >
           <Text style={styles.slideTitle}>{slide.title}</Text>
           <Text style={styles.slideDescription}>{slide.description}</Text>
         </Animated.View>
 
-        {/* Fila de Control: Paginación & Botones */}
+        {/* Fila de Control: Paginación Fluida & Botones */}
         <View style={styles.controlsRow}>
-          {/* Píldoras de Progreso (4 pasos) */}
+          {/* Píldoras de Progreso con expansión dinámica */}
           <View style={styles.paginationContainer} testID="welcome-pagination">
             {SLIDES.map((_, index) => {
               const isActive = index === currentStep
               return (
-                <View
+                <Animated.View
                   key={index}
                   style={[
                     styles.paginationDot,
-                    isActive && styles.paginationDotActive,
+                    {
+                      transform: [{ scaleX: dotScales[index] }],
+                      backgroundColor: isActive ? '#FFFFFF' : '#27272A',
+                    },
                   ]}
                 />
               )
             })}
           </View>
 
-          {/* Botones de Navegación */}
+          {/* Botones de Navegación con feedback táctil elástico */}
           <View style={styles.navButtonsGroup}>
             {currentStep > 0 && (
               <Pressable
                 testID="welcome-back-button"
                 onPress={handleBack}
-                style={styles.backButton}
+                style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
                 hitSlop={4}
                 accessibilityLabel="Pantalla anterior"
               >
@@ -254,24 +314,30 @@ export default function WelcomeScreen() {
               </Pressable>
             )}
 
-            <Pressable
-              testID="welcome-next-button"
-              onPress={handleNext}
-              style={[
-                styles.nextButton,
-                currentStep === SLIDES.length - 1 && styles.finishButton,
-              ]}
-              accessibilityLabel={currentStep === SLIDES.length - 1 ? 'Comenzar a usar Zora' : 'Siguiente pantalla'}
-            >
-              {currentStep === SLIDES.length - 1 ? (
-                <>
-                  <Text style={styles.finishButtonText}>Comenzar</Text>
-                  <ArrowRight size={18} color="#09090B" strokeWidth={2.6} />
-                </>
-              ) : (
-                <ChevronRight size={24} color="#09090B" strokeWidth={2.6} />
-              )}
-            </Pressable>
+            <Animated.View style={{ transform: [{ scale: nextBtnScale }] }}>
+              <Pressable
+                testID="welcome-next-button"
+                onPress={handleNext}
+                onPressIn={handlePressInNext}
+                onPressOut={handlePressOutNext}
+                style={[
+                  styles.nextButton,
+                  currentStep === SLIDES.length - 1 && styles.finishButton,
+                ]}
+                accessibilityLabel={
+                  currentStep === SLIDES.length - 1 ? 'Comenzar a usar Zora' : 'Siguiente pantalla'
+                }
+              >
+                {currentStep === SLIDES.length - 1 ? (
+                  <>
+                    <Text style={styles.finishButtonText}>Comenzar</Text>
+                    <ArrowRight size={18} color="#09090B" strokeWidth={2.6} />
+                  </>
+                ) : (
+                  <ChevronRight size={24} color="#09090B" strokeWidth={2.6} />
+                )}
+              </Pressable>
+            </Animated.View>
           </View>
         </View>
       </View>
@@ -279,36 +345,116 @@ export default function WelcomeScreen() {
   )
 }
 
-// ─── Iluminación Ambiental con Degradado Radial ─────────────────────────────────
+// ─── Iluminación Ambiental con Respiración Continua ─────────────────────────────
 function StageAmbientGlow({ step }: { step: number }) {
-  // Ajuste sutil de color según el paso
-  let glowColor = '#818CF8' // Paso 0: Violeta/Blanco
-  if (step === 1) glowColor = '#10B981' // Paso 1: Esmeralda
-  if (step === 2) glowColor = '#3B82F6' // Paso 2: Azul
-  if (step === 3) glowColor = '#34D399' // Paso 3: Menta/Verde
+  const pulseOpacity = useRef(new Animated.Value(0.12)).current
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseOpacity, {
+          toValue: 0.19,
+          duration: 2400,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseOpacity, {
+          toValue: 0.11,
+          duration: 2400,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [pulseOpacity])
+
+  let glowColor = '#818CF8'
+  if (step === 1) glowColor = '#10B981'
+  if (step === 2) glowColor = '#3B82F6'
+  if (step === 3) glowColor = '#34D399'
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <Animated.View style={[StyleSheet.absoluteFill, { opacity: pulseOpacity }]} pointerEvents="none">
       <Svg width="100%" height="100%">
         <Defs>
           <RadialGradient id="stageGlow" cx="50%" cy="48%" r="55%">
-            <Stop offset="0%" stopColor={glowColor} stopOpacity="0.14" />
-            <Stop offset="50%" stopColor={glowColor} stopOpacity="0.04" />
+            <Stop offset="0%" stopColor={glowColor} stopOpacity="1" />
+            <Stop offset="50%" stopColor={glowColor} stopOpacity="0.3" />
             <Stop offset="100%" stopColor="#09090B" stopOpacity="0" />
           </RadialGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#stageGlow)" />
       </Svg>
-    </View>
+    </Animated.View>
   )
 }
 
-// ─── 0. Paso 0: Bienvenida General a la App con Figuras Geométricas ─────────────
+// ─── 0. Paso 0: Bienvenida General con Órbitas Giratorias y Respiración ──────────
 function GeneralWelcomeMockup() {
+  const breathAnim = useRef(new Animated.Value(1)).current
+  const orbitRotateAnim = useRef(new Animated.Value(0)).current
+
+  // Entrada escalonada de las 3 píldoras
+  const pill1Anim = useRef(new Animated.Value(0)).current
+  const pill2Anim = useRef(new Animated.Value(0)).current
+  const pill3Anim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    // 1. Respiración sutil del logo
+    const breathLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathAnim, {
+          toValue: 1.05,
+          duration: 2200,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(breathAnim, {
+          toValue: 1.0,
+          duration: 2200,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ])
+    )
+    breathLoop.start()
+
+    // 2. Rotación continua y suave de los satélites orbitales
+    const orbitLoop = Animated.loop(
+      Animated.timing(orbitRotateAnim, {
+        toValue: 1,
+        duration: 18000,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      })
+    )
+    orbitLoop.start()
+
+    // 3. Cascada de entrada de píldoras
+    Animated.stagger(70, [
+      Animated.spring(pill1Anim, { toValue: 1, stiffness: 360, damping: 24, useNativeDriver: true }),
+      Animated.spring(pill2Anim, { toValue: 1, stiffness: 360, damping: 24, useNativeDriver: true }),
+      Animated.spring(pill3Anim, { toValue: 1, stiffness: 360, damping: 24, useNativeDriver: true }),
+    ]).start()
+
+    return () => {
+      breathLoop.stop()
+      orbitLoop.stop()
+    }
+  }, [breathAnim, orbitRotateAnim, pill1Anim, pill2Anim, pill3Anim])
+
+  const orbitInterpolated = orbitRotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
+
   return (
     <View style={styles.welcomeGeneralStage}>
-      {/* Anillos orbitales concéntricos y nodos */}
+      {/* Canvas orbital */}
       <View style={styles.orbitalCanvasWrapper}>
+        {/* Anillos SVG estáticos */}
         <Svg width={240} height={190} viewBox="0 0 240 190">
           <Circle cx="120" cy="95" r="44" stroke="rgba(255, 255, 255, 0.14)" strokeWidth="1.2" />
           <Circle
@@ -327,44 +473,139 @@ function GeneralWelcomeMockup() {
             strokeWidth="1"
             strokeDasharray="3,8"
           />
-          {/* Nodos de satélite en órbita */}
-          <Circle cx="178" cy="62" r="3" fill="#818CF8" opacity="0.9" />
-          <Circle cx="64" cy="132" r="2.5" fill="#34D399" opacity="0.8" />
-          <Circle cx="194" cy="116" r="2" fill="#F59E0B" opacity="0.7" />
         </Svg>
-        {/* Emblema central de Zora */}
-        <View style={styles.centralLogoCircle}>
+
+        {/* Nodos satélite con rotación orbital continua */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ rotate: orbitInterpolated }],
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Svg width={240} height={190} viewBox="0 0 240 190">
+            <Circle cx="178" cy="62" r="3.5" fill="#818CF8" opacity="0.9" />
+            <Circle cx="64" cy="132" r="3" fill="#34D399" opacity="0.85" />
+            <Circle cx="194" cy="116" r="2.5" fill="#F59E0B" opacity="0.75" />
+          </Svg>
+        </Animated.View>
+
+        {/* Emblema central de Zora con respiración y resplandor vivo */}
+        <Animated.View
+          style={[
+            styles.centralLogoCircle,
+            {
+              transform: [{ scale: breathAnim }],
+            },
+          ]}
+        >
           <Image source={ZORA_LOGO} style={styles.welcomeHeroLogo} resizeMode="contain" />
-        </View>
+        </Animated.View>
       </View>
 
-      {/* Píldoras Técnicas de Arquitectura */}
+      {/* Píldoras Técnicas en Cascada */}
       <View style={styles.welcomePillsContainer}>
-        <View style={styles.welcomePill}>
+        <Animated.View
+          style={[
+            styles.welcomePill,
+            {
+              opacity: pill1Anim,
+              transform: [
+                {
+                  translateY: pill1Anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [14, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View style={[styles.welcomePillDot, { backgroundColor: '#10B981' }]} />
           <Text style={styles.welcomePillText}>Modo local sin dependencia de red</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.welcomePill}>
+        <Animated.View
+          style={[
+            styles.welcomePill,
+            {
+              opacity: pill2Anim,
+              transform: [
+                {
+                  translateY: pill2Anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [14, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View style={[styles.welcomePillDot, { backgroundColor: '#818CF8' }]} />
           <Text style={styles.welcomePillText}>Sincronización encriptada en reposo</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.welcomePill}>
+        <Animated.View
+          style={[
+            styles.welcomePill,
+            {
+              opacity: pill3Anim,
+              transform: [
+                {
+                  translateY: pill3Anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [14, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View style={[styles.welcomePillDot, { backgroundColor: '#F59E0B' }]} />
           <Text style={styles.welcomePillText}>Registro visual continuo de entregas</Text>
-        </View>
+        </Animated.View>
       </View>
     </View>
   )
 }
 
-// ─── 1. Paso 1: Mockup Fiel de Tareas (Réplica de MinimalistTaskRow) ────────────
+// ─── 1. Paso 1: Mockup Fiel de Tareas con Entrada Escalonada y Pop de Tags ──────
 function TasksMockup() {
+  const row1Anim = useRef(new Animated.Value(0)).current
+  const row2Anim = useRef(new Animated.Value(0)).current
+  const row3Anim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.stagger(75, [
+      Animated.spring(row1Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
+      Animated.spring(row2Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
+      Animated.spring(row3Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
+    ]).start()
+  }, [row1Anim, row2Anim, row3Anim])
+
   return (
     <View style={styles.fullStageBox}>
       {/* Tarea 1: Infografia */}
-      <View style={styles.taskRealRow}>
+      <Animated.View
+        style={[
+          styles.taskRealRow,
+          {
+            opacity: row1Anim,
+            transform: [
+              {
+                translateY: row1Anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [12, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Text style={styles.taskRealTitle}>Infografia</Text>
         <View style={styles.taskRealMetaRow}>
           <View style={[styles.taskRealDot, { backgroundColor: '#10B981' }]} />
@@ -372,12 +613,27 @@ function TasksMockup() {
           <Text style={styles.taskRealSep}>•</Text>
           <Text style={styles.taskRealDate}>Lun 14 Sep 10:00 AM</Text>
         </View>
-      </View>
+      </Animated.View>
 
       <View style={styles.realDivider} />
 
-      {/* Tarea 2: Expo de modelo */}
-      <View style={styles.taskRealRow}>
+      {/* Tarea 2: Expo de modelo con Tag Grupal pop */}
+      <Animated.View
+        style={[
+          styles.taskRealRow,
+          {
+            opacity: row2Anim,
+            transform: [
+              {
+                translateY: row2Anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [12, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Text style={styles.taskRealTitle}>Expo de modelo</Text>
         <View style={styles.taskRealMetaRow}>
           <View style={[styles.taskRealDot, { backgroundColor: '#A855F7' }]} />
@@ -387,12 +643,27 @@ function TasksMockup() {
           <Text style={styles.taskRealSep}>•</Text>
           <Text style={styles.taskRealGroupTag}>Grupal</Text>
         </View>
-      </View>
+      </Animated.View>
 
       <View style={styles.realDivider} />
 
-      {/* Tarea 3: 10 Consultas */}
-      <View style={styles.taskRealRow}>
+      {/* Tarea 3: 10 Consultas con Adjunto Pop */}
+      <Animated.View
+        style={[
+          styles.taskRealRow,
+          {
+            opacity: row3Anim,
+            transform: [
+              {
+                translateY: row3Anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [12, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Text style={styles.taskRealTitle}>10 Consultas</Text>
         <View style={styles.taskRealMetaRow}>
           <View style={[styles.taskRealDot, { backgroundColor: '#EC4899' }]} />
@@ -405,17 +676,70 @@ function TasksMockup() {
             <Text style={styles.taskRealAttachCount}>1</Text>
           </View>
         </View>
-      </View>
+      </Animated.View>
     </View>
   )
 }
 
-// ─── 2. Paso 2: Mockup Fiel de Horario (Réplica de MinimalistDayView) ───────────
+// ─── 2. Paso 2: Mockup Fiel de Horario con Cascada y Radar Beacon ───────────────
 function ScheduleMockup() {
+  const block1Anim = useRef(new Animated.Value(0)).current
+  const block2Anim = useRef(new Animated.Value(0)).current
+  const block3Anim = useRef(new Animated.Value(0)).current
+
+  // Radar beacon animado en la clase actual (C1)
+  const beaconScale = useRef(new Animated.Value(1)).current
+  const beaconOpacity = useRef(new Animated.Value(0.7)).current
+
+  useEffect(() => {
+    // Cascada de entrada
+    Animated.stagger(75, [
+      Animated.spring(block1Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
+      Animated.spring(block2Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
+      Animated.spring(block3Anim, { toValue: 1, stiffness: 350, damping: 24, useNativeDriver: true }),
+    ]).start()
+
+    // Pulso radar de clase en vivo
+    const beaconLoop = Animated.loop(
+      Animated.parallel([
+        Animated.timing(beaconScale, {
+          toValue: 2.2,
+          duration: 1600,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(beaconOpacity, {
+          toValue: 0,
+          duration: 1600,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ])
+    )
+    beaconLoop.start()
+
+    return () => beaconLoop.stop()
+  }, [block1Anim, block2Anim, block3Anim, beaconScale, beaconOpacity])
+
   return (
     <View style={styles.fullStageBox}>
-      {/* Bloque 1: C1 Ing de software */}
-      <View style={styles.schedRealRow}>
+      {/* Bloque 1: C1 Ing de software con radar beacon activo */}
+      <Animated.View
+        style={[
+          styles.schedRealRow,
+          {
+            opacity: block1Anim,
+            transform: [
+              {
+                translateX: block1Anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-14, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <View style={styles.schedTimeCol}>
           <Text style={styles.schedTimeStart}>07:00</Text>
           <Text style={styles.schedTimeEnd}>08:30</Text>
@@ -424,15 +748,41 @@ function ScheduleMockup() {
           </View>
         </View>
         <View style={styles.schedContentCol}>
-          <View style={[styles.schedDot, { backgroundColor: '#A855F7' }]} />
+          <View style={styles.beaconAnchor}>
+            <Animated.View
+              style={[
+                styles.beaconWave,
+                {
+                  transform: [{ scale: beaconScale }],
+                  opacity: beaconOpacity,
+                },
+              ]}
+            />
+            <View style={[styles.schedDot, { backgroundColor: '#A855F7' }]} />
+          </View>
           <Text style={styles.schedSubjectName}>Ing de software</Text>
         </View>
-      </View>
+      </Animated.View>
 
       <View style={styles.realDivider} />
 
       {/* Bloque 2: C2 Redes II */}
-      <View style={styles.schedRealRow}>
+      <Animated.View
+        style={[
+          styles.schedRealRow,
+          {
+            opacity: block2Anim,
+            transform: [
+              {
+                translateX: block2Anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-14, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <View style={styles.schedTimeCol}>
           <Text style={styles.schedTimeStart}>08:30</Text>
           <Text style={styles.schedTimeEnd}>10:00</Text>
@@ -444,12 +794,27 @@ function ScheduleMockup() {
           <View style={[styles.schedDot, { backgroundColor: '#3B82F6' }]} />
           <Text style={styles.schedSubjectName}>Redes II</Text>
         </View>
-      </View>
+      </Animated.View>
 
       <View style={styles.realDivider} />
 
       {/* Bloque 3: C3 Base de datos II */}
-      <View style={styles.schedRealRow}>
+      <Animated.View
+        style={[
+          styles.schedRealRow,
+          {
+            opacity: block3Anim,
+            transform: [
+              {
+                translateX: block3Anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-14, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <View style={styles.schedTimeCol}>
           <Text style={styles.schedTimeStart}>10:00</Text>
           <Text style={styles.schedTimeEnd}>11:30</Text>
@@ -461,12 +826,12 @@ function ScheduleMockup() {
           <View style={[styles.schedDot, { backgroundColor: '#EC4899' }]} />
           <Text style={styles.schedSubjectName}>Base de datos II</Text>
         </View>
-      </View>
+      </Animated.View>
     </View>
   )
 }
 
-// ─── 3. Paso 3: Mockup Fiel de Métricas (Iniciando en Domingo, sin "racha") ──────
+// ─── 3. Paso 3: Mockup Fiel de Métricas con Pop de Racha y Radar de Hoy ─────────
 const HEATMAP_MATRIX = [
   [0, 1, 0, 2, 0, 1, 0, 3, 2, 1, 0, 2, 1, 3, 0], // D (Domingo)
   [1, 0, 2, 0, 1, 0, 2, 1, 0, 2, 1, 0, 3, 1, 2], // L (Lunes)
@@ -484,24 +849,89 @@ const MONTH_LABELS = [
   { name: 'Nov', col: 12 },
 ]
 
-// Días de la semana iniciando estrictamente en Domingo (D, L, M, M, J, V, S)
 const HEATMAP_DAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
 function StatsMockup() {
+  const badgePopAnim = useRef(new Animated.Value(0)).current
+  const flamePulseAnim = useRef(new Animated.Value(1)).current
+  const todayPulseAnim = useRef(new Animated.Value(0.4)).current
+
+  useEffect(() => {
+    // 1. Pop elástico en el badge
+    Animated.spring(badgePopAnim, {
+      toValue: 1,
+      stiffness: 380,
+      damping: 22,
+      useNativeDriver: true,
+    }).start()
+
+    // 2. Pulso continuo en la flama
+    const flameLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flamePulseAnim, {
+          toValue: 1.15,
+          duration: 1000,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(flamePulseAnim, {
+          toValue: 1.0,
+          duration: 1000,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ])
+    )
+    flameLoop.start()
+
+    // 3. Resplandor pulsante continuo en la celda de hoy
+    const todayLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(todayPulseAnim, {
+          toValue: 1.0,
+          duration: 1200,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(todayPulseAnim, {
+          toValue: 0.35,
+          duration: 1200,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ])
+    )
+    todayLoop.start()
+
+    return () => {
+      flameLoop.stop()
+      todayLoop.stop()
+    }
+  }, [badgePopAnim, flamePulseAnim, todayPulseAnim])
+
   return (
     <View style={styles.fullStageBox}>
-      {/* Header Resumen: "14 Días" sin texto "racha" */}
+      {/* Header Resumen con badge animado */}
       <View style={styles.heatmapHeaderRow}>
-        <View style={styles.heatmapStreakBadge}>
-          <Flame size={13} color="#F59E0B" />
+        <Animated.View
+          style={[
+            styles.heatmapStreakBadge,
+            {
+              transform: [{ scale: badgePopAnim }],
+            },
+          ]}
+        >
+          <Animated.View style={{ transform: [{ scale: flamePulseAnim }] }}>
+            <Flame size={13} color="#F59E0B" />
+          </Animated.View>
           <Text style={styles.heatmapStreakText}>14 Días</Text>
-        </View>
+        </Animated.View>
         <Text style={styles.heatmapStatsSummary}>28 entregas registradas</Text>
       </View>
 
       {/* Área de la Cuadrícula del Mapa de Actividad */}
       <View style={styles.heatmapArea}>
-        {/* Etiquetas de Días comenzando en Domingo: D, L, M, M, J, V, S */}
+        {/* Etiquetas de Días: D, L, M, M, J, V, S */}
         <View style={styles.heatmapDaysCol}>
           {HEATMAP_DAYS.map((day, idx) => (
             <Text key={idx} style={styles.heatmapDayText}>
@@ -529,6 +959,23 @@ function StatsMockup() {
                   const level = HEATMAP_MATRIX[rowIdx][colIdx]
                   const isToday = colIdx === 14 && rowIdx === 3
 
+                  if (isToday) {
+                    return (
+                      <Animated.View
+                        key={rowIdx}
+                        style={[
+                          styles.heatmapSquare,
+                          styles.level3,
+                          styles.squareToday,
+                          {
+                            borderColor: '#FFFFFF',
+                            opacity: todayPulseAnim,
+                          },
+                        ]}
+                      />
+                    )
+                  }
+
                   return (
                     <View
                       key={rowIdx}
@@ -538,7 +985,6 @@ function StatsMockup() {
                         level === 1 && styles.level1,
                         level === 2 && styles.level2,
                         level === 3 && styles.level3,
-                        isToday && styles.squareToday,
                       ]}
                     />
                   )
@@ -595,6 +1041,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  skipButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    opacity: 0.8,
   },
   skipText: {
     fontSize: 13,
@@ -830,6 +1280,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  beaconAnchor: {
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  beaconWave: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: '#A855F7',
+  },
   schedDot: {
     width: 9,
     height: 9,
@@ -933,7 +1398,6 @@ const styles = StyleSheet.create({
   },
   squareToday: {
     borderWidth: 1,
-    borderColor: '#FFFFFF',
   },
   heatmapLegendRow: {
     flexDirection: 'row',
@@ -977,17 +1441,13 @@ const styles = StyleSheet.create({
   paginationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   paginationDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#27272A',
-  },
-  paginationDotActive: {
-    width: 22,
-    backgroundColor: '#FFFFFF',
+    marginHorizontal: 3,
   },
   navButtonsGroup: {
     flexDirection: 'row',
@@ -1003,6 +1463,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backButtonPressed: {
+    opacity: 0.75,
+    backgroundColor: '#27272A',
   },
   nextButton: {
     width: 48,

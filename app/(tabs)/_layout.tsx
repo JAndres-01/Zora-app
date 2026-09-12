@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Tabs, usePathname, useRouter } from 'expo-router'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, BackHandler } from 'react-native'
 import { MinimalistFloatingIsland, type TabKey } from '@/components/navigation/MinimalistFloatingIsland'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import { MinimalistTaskModal } from '@/components/tasks/MinimalistTaskModal'
@@ -67,6 +67,19 @@ export default function TabLayout() {
       unsubscribe()
     }
   }, [])
+
+  // Proteger la navegación en Android para no volver a pantallas de autenticación
+  useEffect(() => {
+    const onBackPress = () => {
+      if (activeTab !== 'today') {
+        handleSelectTab('today')
+        return true
+      }
+      return false
+    }
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress)
+    return () => backSubscription.remove()
+  }, [activeTab])
 
   const handleSelectTab = (tab: TabKey) => {
     if (tab === activeTab) return

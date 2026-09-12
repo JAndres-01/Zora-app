@@ -62,12 +62,13 @@ export default function RootLayout() {
                 headerShown: false,
                 animation: 'fade',
                 contentStyle: { backgroundColor: '#09090B' },
+                gestureEnabled: false,
               }}
             >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
-              <Stack.Screen name="auth" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
+              <Stack.Screen name="auth" options={{ animation: 'fade', gestureEnabled: false }} />
+              <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
             </Stack>
           </ClassAuthProvider>
         </PersonalAuthProvider>

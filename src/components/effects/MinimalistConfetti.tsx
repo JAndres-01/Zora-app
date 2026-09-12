@@ -1,140 +1,188 @@
-import { useEffect, useState, memo } from 'react'
-import { View, StyleSheet, Animated } from 'react-native'
+import { useEffect, useState, memo, useRef } from 'react'
+import { View, StyleSheet, Animated, Easing } from 'react-native'
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from '@/constants/layout'
 
-interface MinimalistConfettiProps {
+interface ConfettiProps {
   burstTrigger: number
 }
 
-// Paleta estética refinada estilo Apple Celebration
-const PREMIUM_PALETTE = [
-  '#FFFFFF', // Blanco Luminoso
-  '#F59E0B', // Oro Champán
+// Paleta vibrante y festiva característica de Magic UI Confetti
+const MAGIC_UI_PALETTE = [
+  '#A855F7', // Púrpura Eléctrico (Firma Magic UI)
+  '#EC4899', // Rosa Coral Neón
+  '#3B82F6', // Azul Real Vibrante
+  '#06B6D4', // Cian Brillante
   '#10B981', // Verde Esmeralda
-  '#38BDF8', // Cian Eléctrico
-  '#A855F7', // Violeta Suave
-  '#FB7185', // Rosa Coral
-  '#FCD34D', // Amarillo Sol
+  '#F59E0B', // Ámbar Dorado
+  '#EF4444', // Rojo Festivo
+  '#FFFFFF', // Blanco Destello
 ]
+
+interface ParticleData {
+  id: number
+  startX: number
+  startY: number
+  color: string
+  width: number
+  height: number
+  borderRadius: number
+  targetDeltaX: number
+  peakY: number
+  fallY: number
+  rotations: number
+  duration: number
+  delay: number
+  progress: Animated.Value
+}
 
 interface SingleBurst {
   id: number
-  particles: {
-    id: number
-    startX: number
-    startY: number
-    color: string
-    width: number
-    height: number
-    isCircle: boolean
-    animX: Animated.Value
-    animY: Animated.Value
-    animRotate: Animated.Value
-    animOpacity: Animated.Value
-    animScale: Animated.Value
-    targetX: number
-    targetY: number
-    targetRotate: number
-  }[]
+  particles: ParticleData[]
 }
 
-export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigger }: MinimalistConfettiProps) {
+const TOTAL_PARTICLES = 52 // 26 por cada cañón lateral (equilibrio óptimo rendimiento/densidad visual)
+
+export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigger }: ConfettiProps) {
   const [bursts, setBursts] = useState<SingleBurst[]>([])
+  const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null)
 
   useEffect(() => {
     if (burstTrigger <= 0) return
 
     const burstId = Date.now() + Math.random()
-    const particles = []
+    const particles: ParticleData[] = []
 
-    // 24 micro-partículas distribuidas en abanico
-    for (let i = 0; i < 24; i++) {
-      const angle = -Math.PI / 2 + (Math.random() * 1.4 - 0.7) // Abanico hacia arriba
-      const launchPower = Math.random() * (SCREEN_HEIGHT * 0.52) + SCREEN_HEIGHT * 0.32
+    // Disparo dual estilo Magic UI: Cañón Izquierdo (60°) y Cañón Derecho (120°)
+    for (let i = 0; i < TOTAL_PARTICLES; i++) {
+      const isLeftCannon = i < TOTAL_PARTICLES / 2
 
-      const targetX = Math.cos(angle) * (launchPower * 0.65) + (Math.random() * 70 - 35)
-      const targetY = -launchPower + (Math.random() * 70)
+      // Origen de los cañones en las esquinas inferiores
+      const startX = isLeftCannon
+        ? SCREEN_WIDTH * 0.06 + (Math.random() * 30 - 15)
+        : SCREEN_WIDTH * 0.94 + (Math.random() * 30 - 15)
+      const startY = SCREEN_HEIGHT * 0.88 + (Math.random() * 40 - 20)
+
+      // Trayectoria horizontal cruzada (hacia el centro y cuadrante opuesto)
+      const horizontalDistance = Math.random() * (SCREEN_WIDTH * 0.55) + (SCREEN_WIDTH * 0.22)
+      const targetDeltaX = isLeftCannon ? horizontalDistance : -horizontalDistance
+
+      // Trayectoria vertical con arco balístico hacia arriba y caída con gravedad
+      const peakY = -(Math.random() * (SCREEN_HEIGHT * 0.42) + SCREEN_HEIGHT * 0.32)
+      const fallY = Math.random() * (SCREEN_HEIGHT * 0.18) + SCREEN_HEIGHT * 0.06
+
+      // Morfología variada: tiras rectangulares (ribbons), cuadrados y círculos
+      const shapeType = i % 3
+      let width = 6
+      let height = 12
+      let borderRadius = 1.5
+
+      if (shapeType === 1) {
+        // Cuadrado
+        width = 7
+        height = 7
+        borderRadius = 2
+      } else if (shapeType === 2) {
+        // Círculo
+        width = 8
+        height = 8
+        borderRadius = 4
+      }
 
       particles.push({
         id: i,
-        startX: SCREEN_WIDTH / 2 + (Math.random() * 100 - 50),
-        startY: SCREEN_HEIGHT + 10,
-        color: PREMIUM_PALETTE[i % PREMIUM_PALETTE.length],
-        width: Math.random() > 0.45 ? 3.2 : 4.2,
-        height: Math.random() > 0.45 ? 6.8 : 4.2,
-        isCircle: Math.random() > 0.65,
-        animX: new Animated.Value(0),
-        animY: new Animated.Value(0),
-        animRotate: new Animated.Value(0),
-        animOpacity: new Animated.Value(1),
-        animScale: new Animated.Value(0.7),
-        targetX,
-        targetY,
-        targetRotate: (Math.random() - 0.5) * 10,
+        startX,
+        startY,
+        color: MAGIC_UI_PALETTE[i % MAGIC_UI_PALETTE.length],
+        width,
+        height,
+        borderRadius,
+        targetDeltaX,
+        peakY,
+        fallY,
+        rotations: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 4),
+        duration: 1800 + Math.random() * 500,
+        delay: Math.random() * 140,
+        progress: new Animated.Value(0),
       })
     }
 
     const newBurst: SingleBurst = { id: burstId, particles }
     setBursts((prev) => [...prev, newBurst])
 
-    // Animación de dispersión balística y desvanecimiento progresivo
-    const anims = particles.map((p) =>
-      Animated.parallel([
-        Animated.timing(p.animX, {
-          toValue: p.targetX,
-          duration: 1050,
-          useNativeDriver: true,
-        }),
-        Animated.timing(p.animY, {
-          toValue: p.targetY,
-          duration: 1050,
-          useNativeDriver: true,
-        }),
-        Animated.timing(p.animRotate, {
-          toValue: p.targetRotate,
-          duration: 1050,
-          useNativeDriver: true,
-        }),
-        Animated.timing(p.animScale, {
-          toValue: 1,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.delay(550),
-          Animated.timing(p.animOpacity, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ]),
-      ])
+    // Animación fluida a 60fps con useNativeDriver
+    const animations = particles.map((p) =>
+      Animated.timing(p.progress, {
+        toValue: 1,
+        duration: p.duration,
+        delay: p.delay,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
     )
 
-    const parallelAnim = Animated.parallel(anims)
-    parallelAnim.start(() => {
+    const compositeAnim = Animated.parallel(animations)
+    activeAnimRef.current = compositeAnim
+
+    compositeAnim.start(() => {
       setBursts((prev) => prev.filter((b) => b.id !== burstId))
     })
 
     return () => {
-      parallelAnim.stop()
+      compositeAnim.stop()
     }
   }, [burstTrigger])
 
   if (bursts.length === 0) return null
 
   return (
-    <View style={styles.overlay} pointerEvents="none">
+    <View testID="magic-confetti-overlay" style={styles.overlay} pointerEvents="none">
       {bursts.map((burst) =>
         burst.particles.map((p) => {
-          const rotate = p.animRotate.interpolate({
-            inputRange: [-6, 6],
-            outputRange: ['-540deg', '540deg'],
+          // Curva parabólica: subida explosiva inicial, pausa en cenit, aceleración gravitatoria
+          const translateY = p.progress.interpolate({
+            inputRange: [0, 0.16, 0.38, 0.62, 0.82, 1],
+            outputRange: [0, p.peakY * 0.65, p.peakY, p.peakY * 0.72, p.peakY * 0.22, p.fallY],
+          })
+
+          // Resistencia del aire en el avance horizontal
+          const translateX = p.progress.interpolate({
+            inputRange: [0, 0.25, 0.5, 0.75, 1],
+            outputRange: [
+              0,
+              p.targetDeltaX * 0.45,
+              p.targetDeltaX * 0.76,
+              p.targetDeltaX * 0.92,
+              p.targetDeltaX,
+            ],
+          })
+
+          // Rotación espacial de giro (spin)
+          const rotate = p.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', `${p.rotations * 360}deg`],
+          })
+
+          // Efecto de volteo 3D (Wobble Flip de canvas-confetti)
+          const scaleX = p.progress.interpolate({
+            inputRange: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+            outputRange: [1, 0.15, 1, 0.15, 1, 0.15, 1, 0.15, 1, 0.15, 0.8],
+          })
+
+          // Escala de expulsión inicial y desvanecimiento final
+          const scale = p.progress.interpolate({
+            inputRange: [0, 0.08, 0.88, 1],
+            outputRange: [0.2, 1, 1, 0.6],
+          })
+
+          const opacity = p.progress.interpolate({
+            inputRange: [0, 0.75, 1],
+            outputRange: [1, 1, 0],
           })
 
           return (
             <Animated.View
               key={`${burst.id}_${p.id}`}
+              testID="magic-confetti-particle"
               style={[
                 styles.confettiPiece,
                 {
@@ -143,15 +191,9 @@ export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigge
                   width: p.width,
                   height: p.height,
                   backgroundColor: p.color,
-                  borderRadius: p.isCircle ? p.width / 2 : 1.2,
-                  opacity: p.animOpacity,
-                  shadowColor: p.color,
-                  transform: [
-                    { translateX: p.animX },
-                    { translateY: p.animY },
-                    { rotate },
-                    { scale: p.animScale },
-                  ],
+                  borderRadius: p.borderRadius,
+                  opacity,
+                  transform: [{ translateX }, { translateY }, { rotate }, { scaleX }, { scale }],
                 },
               ]}
             />
@@ -162,6 +204,9 @@ export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigge
   )
 })
 
+export const MagicConfetti = MinimalistConfetti
+export default MinimalistConfetti
+
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
@@ -169,8 +214,10 @@ const styles = StyleSheet.create({
   },
   confettiPiece: {
     position: 'absolute',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+    elevation: 3,
   },
 })

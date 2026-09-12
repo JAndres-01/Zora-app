@@ -29,6 +29,12 @@ import {
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import {
+  playModalOpenSound,
+  playModalCloseSound,
+  playSaveSound,
+  playWarningSound,
+} from '@/lib/personalAudio'
 import { personalStorage } from '@/lib/personalStorage'
 import { MinimalistPdfViewerModal } from '@/components/common/MinimalistPdfViewerModal'
 import { MinimalistImageViewerModal } from '@/components/common/MinimalistImageViewerModal'
@@ -237,6 +243,7 @@ export function MinimalistTaskModal({
     let focusTimer: ReturnType<typeof setTimeout> | undefined
 
     if (mode !== 'none') {
+      playModalOpenSound()
       setCurrentView(mode === 'detail' ? 'detail' : 'form')
 
       if (mode === 'create') {
@@ -281,6 +288,7 @@ export function MinimalistTaskModal({
         }),
       ]).start()
     } else if (modalVisible) {
+      playModalCloseSound()
       Keyboard.dismiss()
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -307,6 +315,7 @@ export function MinimalistTaskModal({
   }, [mode, modalVisible, task, initialTitle, initialDescription, initialAttachments])
 
   const handleSmoothClose = () => {
+    playModalCloseSound()
     triggerHaptic('light')
     Keyboard.dismiss()
 
@@ -378,6 +387,7 @@ export function MinimalistTaskModal({
 
   const handleSave = async () => {
     if (!title.trim()) {
+      playWarningSound()
       Alert.alert('Título requerido', 'Por favor escribe el nombre de la tarea.')
       return
     }
@@ -447,6 +457,7 @@ export function MinimalistTaskModal({
         await personalStorage.saveTask(fullTask)
       }
 
+      playSaveSound()
       triggerHaptic('success')
       onTaskSaved?.()
       handleSmoothClose()

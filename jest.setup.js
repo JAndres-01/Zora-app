@@ -124,6 +124,23 @@ jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn().mockResolvedValue(true),
 }))
 
+// Mock expo-audio
+jest.mock('expo-audio', () => ({
+  createAudioPlayer: jest.fn(() => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+    remove: jest.fn(),
+    seekTo: jest.fn(),
+    volume: 1,
+  })),
+  useAudioPlayer: jest.fn(() => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+  })),
+  setIsAudioActiveAsync: jest.fn().mockResolvedValue(undefined),
+  setAudioModeAsync: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///mock/documents/',
   copyAsync: jest.fn().mockResolvedValue(undefined),
@@ -171,3 +188,18 @@ jest.mock('expo-share-intent', () => ({
     error: null,
   })),
 }))
+
+// Mock Expo Audio
+jest.mock('expo-audio', () => {
+  const mockPlayer = {
+    play: jest.fn(),
+    pause: jest.fn(),
+    seekTo: jest.fn().mockResolvedValue(undefined),
+    volume: 1,
+  }
+  return {
+    createAudioPlayer: jest.fn(() => mockPlayer),
+    useAudioPlayer: jest.fn(() => mockPlayer),
+  }
+})
+

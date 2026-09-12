@@ -6,6 +6,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '\\.(wav|mp3|m4a)$': '<rootDir>/__mocks__/fileMock.js',
   },
   testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
 }

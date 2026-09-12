@@ -32,6 +32,7 @@ import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
+import { setGlobalSoundEnabled, playSaveSound } from '@/lib/personalAudio'
 import { logger } from '@/lib/logger'
 
 export default function ProfileScreen() {
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   // Preferencias del Sistema
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
   const [confettiEnabled, setConfettiEnabled] = useState(true)
+  const [soundEnabled, setSoundEnabled] = useState(true)
   const [advanceReminderEnabled, setAdvanceReminderEnabled] = useState(true)
   const [advanceReminderTime, setAdvanceReminderTime] = useState(DEFAULT_ADVANCE_REMINDER_TIME)
   const [classReminderEnabled, setClassReminderEnabled] = useState(true)
@@ -65,6 +67,8 @@ export default function ProfileScreen() {
     const prefs = await personalStorage.getPreferences()
     setHapticsEnabled(prefs.haptics_enabled)
     setConfettiEnabled(prefs.confetti_enabled)
+    setSoundEnabled(prefs.sound_enabled ?? true)
+    setGlobalSoundEnabled(prefs.sound_enabled ?? true)
     setAdvanceReminderEnabled(prefs.advance_reminder_enabled)
     setAdvanceReminderTime(prefs.advance_reminder_time || DEFAULT_ADVANCE_REMINDER_TIME)
     setClassReminderEnabled(prefs.class_reminder_enabled)
@@ -150,6 +154,15 @@ export default function ProfileScreen() {
     triggerHaptic('selection')
     const current = await personalStorage.getPreferences()
     await personalStorage.setPreferences({ ...current, confetti_enabled: val })
+  }
+
+  const handleToggleSound = async (val: boolean) => {
+    setSoundEnabled(val)
+    setGlobalSoundEnabled(val)
+    triggerHaptic('selection')
+    if (val) playSaveSound()
+    const current = await personalStorage.getPreferences()
+    await personalStorage.setPreferences({ ...current, sound_enabled: val })
   }
 
   const handleToggleAdvanceReminder = async (val: boolean) => {
@@ -423,6 +436,8 @@ export default function ProfileScreen() {
         onToggleHaptics={handleToggleHaptics}
         confettiEnabled={confettiEnabled}
         onToggleConfetti={handleToggleConfetti}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleToggleSound}
         onClearData={handleClearAllData}
       />
 

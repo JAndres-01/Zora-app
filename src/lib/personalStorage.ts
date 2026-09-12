@@ -16,6 +16,7 @@ import {
   DEFAULT_ADVANCE_REMINDER_TIME,
 } from '@/constants/defaults'
 import { logger } from './logger'
+import { setGlobalSoundEnabled } from './personalAudio'
 
 const KEYS = {
   SUBJECTS: 'zora_personal_subjects_v2',
@@ -767,6 +768,7 @@ export const personalStorage = {
       const prefs: AppPreferences = {
         haptics_enabled: parsed.haptics_enabled ?? true,
         confetti_enabled: parsed.confetti_enabled ?? true,
+        sound_enabled: parsed.sound_enabled ?? true,
         advance_reminder_enabled: parsed.advance_reminder_enabled ?? true,
         advance_reminder_time: parsed.advance_reminder_time || DEFAULT_ADVANCE_REMINDER_TIME,
         class_reminder_enabled: parsed.class_reminder_enabled ?? true,
@@ -776,6 +778,7 @@ export const personalStorage = {
         semester_spring_end: parsed.semester_spring_end || `${currentYear}-06-30`,
       }
       _preferencesCache = prefs
+      setGlobalSoundEnabled(prefs.sound_enabled ?? true)
       return prefs
     } catch (err) {
       logger.warn('[personalStorage] Error leyendo preferencias, usando valores por defecto:', err)
@@ -783,6 +786,7 @@ export const personalStorage = {
       const defaultPrefs: AppPreferences = {
         haptics_enabled: true,
         confetti_enabled: true,
+        sound_enabled: true,
         advance_reminder_enabled: true,
         advance_reminder_time: DEFAULT_ADVANCE_REMINDER_TIME,
         class_reminder_enabled: true,
@@ -792,12 +796,14 @@ export const personalStorage = {
         semester_spring_end: `${currentYear}-06-30`,
       }
       _preferencesCache = defaultPrefs
+      setGlobalSoundEnabled(true)
       return defaultPrefs
     }
   },
 
   async setPreferences(prefs: AppPreferences): Promise<void> {
     _preferencesCache = { ...prefs }
+    setGlobalSoundEnabled(prefs.sound_enabled ?? true)
     notifyListeners()
     try {
       await AsyncStorage.setItem(KEYS.PREFERENCES, JSON.stringify(prefs))

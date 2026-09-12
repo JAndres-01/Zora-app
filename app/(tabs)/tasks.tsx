@@ -25,6 +25,12 @@ import { TasksSegmentControl } from '@/components/tasks/TasksSegmentControl'
 import { TasksSubjectFilterModal } from '@/components/tasks/TasksSubjectFilterModal'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import {
+  playTaskCompleteSound,
+  playConfettiSound,
+  playTrashSound,
+  playSwipeSound,
+} from '@/lib/personalAudio'
+import {
   cancelTaskReminder,
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
@@ -142,6 +148,7 @@ export default function TasksScreen() {
   // Handlers de Tareas
   const handleStatusChange = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
+    playSwipeSound()
     // Panel switch: easeOut para reposicionamiento fluido (desliza sin trabarse)
     // + fade rápido de entrada/salida de filas
     PANEL_SWITCH_LAYOUT(100, 150)
@@ -154,8 +161,10 @@ export default function TasksScreen() {
 
       if (nextStatus === 'completed') {
         cancelTaskReminder(taskId)
+        playTaskCompleteSound()
         personalStorage.getPreferences().then((prefs) => {
           if (prefs.confetti_enabled) {
+            playConfettiSound()
             setConfettiBurstTrigger((prev) => prev + 1)
           }
         })
@@ -229,6 +238,7 @@ export default function TasksScreen() {
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
       cancelTaskReminder(taskId)
+      playTrashSound()
       LAYOUT_EASE(200)
       if (taskId.startsWith('class_')) {
         const classTaskId = taskId.replace('class_', '')

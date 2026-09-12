@@ -19,6 +19,13 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { Plus } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import {
+  playTaskCompleteSound,
+  playConfettiSound,
+  playTrashSound,
+  playModalOpenSound,
+  playModalCloseSound,
+} from '@/lib/personalAudio'
+import {
   cancelTaskReminder,
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
@@ -94,9 +101,11 @@ export default function TodayScreen() {
 
     if (isCompleted) {
       cancelTaskReminder(taskId)
+      playTaskCompleteSound()
       const prefs = await personalStorage.getPreferences()
       if (prefs.confetti_enabled) {
         setConfettiBurstTrigger((prev) => prev + 1)
+        playConfettiSound()
       }
     } else {
       const taskObj = tasks.find((t) => t.id === taskId)
@@ -138,6 +147,7 @@ export default function TodayScreen() {
 
   const handleDeleteTask = useCallback(async (taskId: string) => {
     cancelTaskReminder(taskId)
+    playTrashSound()
     const updatedTasks = tasks.filter((t) => t.id !== taskId)
     setTasks(updatedTasks)
     await personalStorage.setTasks(updatedTasks)

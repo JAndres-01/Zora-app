@@ -13,6 +13,7 @@ import type { Schedule, Task } from '@/types/personal'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
 import { User, MapPin, CheckSquare } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { playSwipeSound } from '@/lib/personalAudio'
 import { getActiveAcademicWeek, isTaskForAcademicDay } from '@/lib/academicDateUtils'
 import { DAYS_WITH_SHORT } from '@/constants/dates'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
@@ -223,6 +224,7 @@ export function MinimalistDayView({
 
   const handleDayPress = (dayNum: number) => {
     if (dayNum === selectedDay || academicWeek.isDayDisabled(dayNum)) return
+    playSwipeSound()
     onSelectDay(dayNum)
   }
 

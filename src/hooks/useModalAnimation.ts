@@ -8,6 +8,7 @@ import {
 import { APPLE_EASING, SPRING_PANEL_CONFIG } from '@/constants/animations'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { playModalOpenSound, playModalCloseSound } from '@/lib/personalAudio'
 
 export interface UseModalAnimationOptions {
   visible: boolean
@@ -65,6 +66,7 @@ export function useModalAnimation({
       if (isClosingRef.current) return
       isClosingRef.current = true
 
+      playModalCloseSound()
       triggerHaptic('light')
       Keyboard.dismiss()
 
@@ -103,6 +105,7 @@ export function useModalAnimation({
   useEffect(() => {
     if (visible) {
       isClosingRef.current = false
+      playModalOpenSound()
       fadeAnim.setValue(0)
       slideAnim.setValue(SCREEN_HEIGHT)
       panY.setValue(0)
@@ -121,6 +124,7 @@ export function useModalAnimation({
       ]).start()
     } else if (modalVisible && !isClosingRef.current) {
       isClosingRef.current = true
+      playModalCloseSound()
       Keyboard.dismiss()
 
       Animated.parallel([

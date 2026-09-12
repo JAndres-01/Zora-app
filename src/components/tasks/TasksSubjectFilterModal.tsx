@@ -12,6 +12,7 @@ import { X, Check } from 'lucide-react-native'
 import type { Subject, Task } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { playChipSnapSound } from '@/lib/personalAudio'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { APPLE_EASING } from '@/constants/animations'
 
@@ -47,6 +48,7 @@ export function TasksSubjectFilterModal({
   })
 
   const handleSelect = (id: string) => {
+    playChipSnapSound()
     triggerHaptic('selection')
     onSelectSubject(id)
     handleClose()

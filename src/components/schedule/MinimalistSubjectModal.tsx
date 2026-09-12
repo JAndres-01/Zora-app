@@ -15,6 +15,12 @@ import {
 import type { Subject } from '@/types/personal'
 import { Trash2, Check, ArrowLeft } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import {
+  playSaveSound,
+  playTrashSound,
+  playWarningSound,
+  playChipSnapSound,
+} from '@/lib/personalAudio'
 import { personalStorage } from '@/lib/personalStorage'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { generateId } from '@/lib/idGenerator'
@@ -100,6 +106,7 @@ export function MinimalistSubjectModal({
 
   const handleSaveSubject = async () => {
     if (!name.trim()) {
+      playWarningSound()
       Alert.alert('Nombre requerido', 'Ingresa el nombre de la materia.')
       triggerHaptic('error')
       return
@@ -125,6 +132,7 @@ export function MinimalistSubjectModal({
           setLocalSubjects(updatedList)
         }
 
+        playSaveSound()
         triggerHaptic('success')
         onSubjectsUpdated()
         resetForm()
@@ -144,6 +152,7 @@ export function MinimalistSubjectModal({
           setLocalSubjects(updatedList)
         }
 
+        playSaveSound()
         triggerHaptic('success')
         onSubjectsUpdated()
         resetForm()
@@ -167,6 +176,7 @@ export function MinimalistSubjectModal({
       if (confirmed) {
         ;(async () => {
           try {
+            playTrashSound()
             triggerHaptic('error')
             if (editingSubject?.id === subjectId) {
               resetForm()
@@ -199,6 +209,7 @@ export function MinimalistSubjectModal({
           style: 'destructive',
           onPress: async () => {
             try {
+              playTrashSound()
               triggerHaptic('error')
               if (editingSubject?.id === subjectId) {
                 resetForm()
@@ -311,6 +322,7 @@ export function MinimalistSubjectModal({
                   <Pressable
                     key={color}
                     onPress={() => {
+                      playChipSnapSound()
                       triggerHaptic('selection')
                       setSelectedColor(color)
                     }}

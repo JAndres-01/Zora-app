@@ -80,7 +80,8 @@
       "expo-splash-screen",
       "expo-status-bar",
       "expo-asset",
-      "./plugins/withZoraWidget"
+      "./plugins/withZoraWidget",
+      "expo-audio"
     ],
     "extra": {
       "eas": {

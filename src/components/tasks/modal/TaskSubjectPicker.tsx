@@ -3,6 +3,7 @@ import { Check } from 'lucide-react-native'
 import type { Subject } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { playChipSnapSound } from '@/lib/personalAudio'
 
 export interface TaskSubjectPickerProps {
   subjects: Subject[]
@@ -32,6 +33,7 @@ export function TaskSubjectPicker({
         <Text style={styles.inlineMenuHeader}>Elegir materia</Text>
         <Pressable
           onPress={() => {
+            playChipSnapSound()
             triggerHaptic('selection')
             onSelectSubject(null)
           }}
@@ -51,6 +53,7 @@ export function TaskSubjectPicker({
             <Pressable
               key={s.id}
               onPress={() => {
+                playChipSnapSound()
                 triggerHaptic('selection')
                 onSelectSubject(s.id)
               }}

@@ -25,6 +25,7 @@ import {
   User,
   Smartphone,
   Sparkles,
+  Volume2,
   Trash2,
   Check,
 } from 'lucide-react-native'
@@ -64,6 +65,8 @@ export interface SystemSettingsModalProps {
   onToggleHaptics: (val: boolean) => void
   confettiEnabled: boolean
   onToggleConfetti: (val: boolean) => void
+  soundEnabled: boolean
+  onToggleSound: (val: boolean) => void
   onClearData: () => void
 }
 
@@ -110,6 +113,8 @@ export function SystemSettingsModal({
   onToggleHaptics,
   confettiEnabled,
   onToggleConfetti,
+  soundEnabled,
+  onToggleSound,
   onClearData,
 }: SystemSettingsModalProps) {
   const router = useRouter()
@@ -391,6 +396,26 @@ export function SystemSettingsModal({
                     onValueChange={onToggleConfetti}
                     trackColor={{ false: '#27272A', true: '#FFFFFF' }}
                     thumbColor={confettiEnabled ? '#09090B' : '#71717A'}
+                    ios_backgroundColor="#27272A"
+                  />
+                </View>
+
+                <View style={styles.rowDivider} />
+
+                {/* Efectos de Sonido */}
+                <View style={styles.listRow}>
+                  <View style={styles.iconBox}>
+                    <Volume2 size={16} color="#A1A1AA" />
+                  </View>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Efectos de sonido</Text>
+                    <Text style={styles.rowSubtitle}>Micro-sonidos para tareas y acciones</Text>
+                  </View>
+                  <Switch
+                    value={soundEnabled}
+                    onValueChange={onToggleSound}
+                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
+                    thumbColor={soundEnabled ? '#09090B' : '#71717A'}
                     ios_backgroundColor="#27272A"
                   />
                 </View>

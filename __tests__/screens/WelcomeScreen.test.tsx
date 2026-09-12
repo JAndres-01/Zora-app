@@ -1,31 +1,68 @@
 import React from 'react'
 import { render, fireEvent, act } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
 import WelcomeScreen, { ONBOARDING_COMPLETED_KEY } from '../../app/welcome'
 
-describe('WelcomeScreen (First-Launch Onboarding)', () => {
+describe('WelcomeScreen (3-Step Carousel Onboarding)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  test('renderiza el título, subtítulo funcional y las 3 capacidades de la app', async () => {
-    const { getByText, getByTestId } = await render(<WelcomeScreen />)
+  test('renderiza inicialmente el paso 1 (Tareas) con mockup y controles', async () => {
+    const { getByText, getByTestId, queryByTestId } = await render(<WelcomeScreen />)
 
-    expect(getByText('Z O R A')).toBeTruthy()
-    expect(getByText('Organización académica y tareas.')).toBeTruthy()
+    // Barra superior
+    expect(getByText('ZORA')).toBeTruthy()
+    expect(getByTestId('welcome-skip-button')).toBeTruthy()
 
-    // Capacidades funcionales sin marketing
-    expect(getByText('Horario y Materias')).toBeTruthy()
-    expect(getByText('Tareas y Entregas')).toBeTruthy()
-    expect(getByText('Modo Local o Sincronizado')).toBeTruthy()
+    // Contenido del paso 1
+    expect(getByText('Control y registro de tareas')).toBeTruthy()
+    expect(getByText('Taller de Cálculo Diferencial')).toBeTruthy()
 
-    // Botón de continuar
-    expect(getByTestId('welcome-continue-button')).toBeTruthy()
-    expect(getByText('Continuar')).toBeTruthy()
+    // Botones de control
+    expect(getByTestId('welcome-next-button')).toBeTruthy()
+    expect(queryByTestId('welcome-back-button')).toBeNull()
   })
 
-  test('al presionar Continuar guarda la bandera en AsyncStorage y navega a /auth', async () => {
+  test('avanza al paso 2 (Horario) y paso 3 (Métricas) al pulsar siguiente', async () => {
+    const { getByText, getByTestId } = await render(<WelcomeScreen />)
+
+    // Avanzar a paso 2
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    expect(getByText('Horario académico estructurado')).toBeTruthy()
+    expect(getByText('Álgebra Lineal')).toBeTruthy()
+    expect(getByTestId('welcome-back-button')).toBeTruthy()
+
+    // Avanzar a paso 3
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    expect(getByText('Métricas de rendimiento')).toBeTruthy()
+    expect(getByText('94%')).toBeTruthy()
+    expect(getByText('Comenzar')).toBeTruthy()
+  })
+
+  test('permite retroceder al paso anterior con el botón de retroceso', async () => {
+    const { getByText, getByTestId } = await render(<WelcomeScreen />)
+
+    // Ir a paso 2
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+    expect(getByText('Horario académico estructurado')).toBeTruthy()
+
+    // Retroceder al paso 1
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-back-button'))
+    })
+    expect(getByText('Control y registro de tareas')).toBeTruthy()
+  })
+
+  test('al completar el paso 3 guarda en AsyncStorage y redirige a /auth', async () => {
     const mockReplace = jest.fn()
     jest.spyOn(require('expo-router'), 'useRouter').mockReturnValue({
       push: jest.fn(),
@@ -35,10 +72,37 @@ describe('WelcomeScreen (First-Launch Onboarding)', () => {
 
     const { getByTestId } = await render(<WelcomeScreen />)
 
-    const continueButton = getByTestId('welcome-continue-button')
+    // Avanzar a paso 2
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    // Avanzar a paso 3
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    // Finalizar en paso 3
+    await act(async () => {
+      fireEvent.press(getByTestId('welcome-next-button'))
+    })
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(ONBOARDING_COMPLETED_KEY, 'true')
+    expect(mockReplace).toHaveBeenCalledWith('/auth')
+  })
+
+  test('al tocar Omitir guarda en AsyncStorage y redirige de inmediato a /auth', async () => {
+    const mockReplace = jest.fn()
+    jest.spyOn(require('expo-router'), 'useRouter').mockReturnValue({
+      push: jest.fn(),
+      replace: mockReplace,
+      back: jest.fn(),
+    })
+
+    const { getByTestId } = await render(<WelcomeScreen />)
 
     await act(async () => {
-      fireEvent.press(continueButton)
+      fireEvent.press(getByTestId('welcome-skip-button'))
     })
 
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(ONBOARDING_COMPLETED_KEY, 'true')

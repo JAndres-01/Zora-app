@@ -16,9 +16,6 @@ import {
   FileText,
   Users,
   Globe,
-  Check,
-  Edit2,
-  Trash2,
 } from 'lucide-react-native'
 import * as Sharing from 'expo-sharing'
 import * as Linking from 'expo-linking'
@@ -34,10 +31,6 @@ import { formatTaskTypeLabel } from './TaskTypePicker'
 export interface TaskDetailViewProps {
   task: Task | null
   panHandlers?: GestureResponderHandlers
-  canModify?: boolean
-  onToggleStatus?: (taskId: string, currentStatus: string) => void
-  onEdit?: () => void
-  onDelete?: () => void
   onOpenImage: (image: { uri: string; title: string }) => void
   onOpenPdf: (pdf: { uri: string; title: string }) => void
 }
@@ -45,20 +38,10 @@ export interface TaskDetailViewProps {
 export function TaskDetailView({
   task,
   panHandlers,
-  canModify = true,
-  onToggleStatus,
-  onEdit,
-  onDelete,
   onOpenImage,
   onOpenPdf,
 }: TaskDetailViewProps) {
   const isCompleted = task?.status === 'completed'
-
-  const handleToggle = () => {
-    if (!task) return
-    triggerHaptic('selection')
-    onToggleStatus?.(task.id, task.status)
-  }
 
   const formatDueDate = (dateStr?: string | null) => {
     if (!dateStr) return { text: '', isOverdue: false, isToday: false }
@@ -97,45 +80,14 @@ export function TaskDetailView({
           <View style={styles.dragHandle} />
         </View>
 
-        {/* 1. TÍTULO DE LA TAREA + CHECKBOX + ACCIONES */}
+        {/* 1. TÍTULO DE LA TAREA */}
         <View style={styles.detailTitleInlineRow}>
-          <Pressable
-            onPress={handleToggle}
-            style={[styles.checkbox, isCompleted && styles.checkboxDone]}
-            hitSlop={8}
-          >
-            {isCompleted && <Check size={12} color="#09090B" strokeWidth={3.5} />}
-          </Pressable>
-
           <Text
             style={[styles.detailHeroTitle, isCompleted && styles.detailHeroTitleDone]}
             numberOfLines={2}
           >
             {task?.title}
           </Text>
-
-          {canModify && (
-            <View style={styles.detailActionsRow}>
-              {onEdit && (
-                <Pressable
-                  onPress={onEdit}
-                  style={styles.detailActionBtn}
-                  hitSlop={8}
-                >
-                  <Edit2 size={18} color="#A1A1AA" />
-                </Pressable>
-              )}
-              {onDelete && (
-                <Pressable
-                  onPress={onDelete}
-                  style={styles.detailActionBtn}
-                  hitSlop={8}
-                >
-                  <Trash2 size={18} color="#EF4444" />
-                </Pressable>
-              )}
-            </View>
-          )}
         </View>
       </View>
 
@@ -395,20 +347,6 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     gap: 12,
   },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#52525B',
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxDone: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
-  },
   detailHeroTitle: {
     color: '#FFFFFF',
     fontSize: 22,
@@ -420,18 +358,6 @@ const styles = StyleSheet.create({
   detailHeroTitleDone: {
     color: '#71717A',
     textDecorationLine: 'line-through',
-  },
-  detailActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailActionBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   detailDescriptionText: {
     color: '#D4D4D8',

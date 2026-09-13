@@ -652,21 +652,6 @@ export const MinimalistTaskRow = memo(
               style={[styles.highlightOverlay, { opacity: highlightAnim, pointerEvents: 'none' }]}
             />
             <View style={[styles.rowContainer, !isLast && styles.rowBorder]}>
-              {/* Botón Circular de Completar / Desmarcar */}
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('medium')
-                  onToggleStatus(task.id, task.status)
-                }}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 8 }}
-                style={[
-                  styles.checkCircle,
-                  isVisuallyDone && styles.checkCircleDone,
-                ]}
-              >
-                {isVisuallyDone && <Check size={11} color="#09090B" strokeWidth={3.5} />}
-              </Pressable>
-
               {/* Contenido de la Tarea */}
               <Pressable
                 onPress={handleCardPress}
@@ -886,22 +871,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: 12,
-  },
-  checkCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#3F3F46',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 1,
-    backgroundColor: 'transparent',
-  },
-  checkCircleDone: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
   },
   rowBorder: {
     borderBottomWidth: 0.5,

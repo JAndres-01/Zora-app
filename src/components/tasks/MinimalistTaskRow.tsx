@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react'
+import { useRef, useEffect, useMemo, memo } from 'react'
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Animated,
   PanResponder,
-  type LayoutChangeEvent,
 } from 'react-native'
 import type { Task } from '@/types/personal'
 import { Check, Paperclip, Edit2, Trash2, RotateCcw } from 'lucide-react-native'
@@ -55,17 +54,11 @@ export const MinimalistTaskRow = memo(
     // Microinteracciones de escala y atenuación de la fila
     const scaleAnim = useRef(new Animated.Value(1)).current
     const rowFadeAnim = useRef(new Animated.Value(isVisuallyDone ? 0.65 : 1)).current
-    const maxHeightAnim = useRef(new Animated.Value(140)).current
-    const measuredHeight = useRef(0)
 
     // Animación de Brillo Blanco y Elevación al Resaltar
     const highlightAnim = useRef(new Animated.Value(0)).current
     const liftAnim = useRef(new Animated.Value(0)).current
-    const deleteAnim = useRef(new Animated.Value(0)).current
-    const shakeAnim = useRef(new Animated.Value(0)).current
-    const rotateAnim = useRef(new Animated.Value(0)).current
     const isDeleting = useRef(false)
-    const [isDeletingState, setIsDeletingState] = useState(false)
 
     // Animación de Desplazamiento Horizontal (Gestos estilo Spotify)
     const translateX = useRef(new Animated.Value(0)).current
@@ -75,14 +68,6 @@ export const MinimalistTaskRow = memo(
     const isGreenTriggered = useRef(false)
     const toggleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const deleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
-
-    const handleLayout = useCallback((e: LayoutChangeEvent) => {
-      const h = e.nativeEvent.layout.height
-      if (h > 0 && !isDeleting.current) {
-        measuredHeight.current = h
-        maxHeightAnim.setValue(h)
-      }
-    }, [maxHeightAnim])
 
     // Limpieza y reinicio solo si cambia el ID de la tarea
     useEffect(() => {
@@ -96,25 +81,13 @@ export const MinimalistTaskRow = memo(
       deleteTimersRef.current = []
 
       isDeleting.current = false
-      deleteAnim.stopAnimation()
-      deleteAnim.setValue(0)
-      shakeAnim.stopAnimation()
-      shakeAnim.setValue(0)
-      rotateAnim.stopAnimation()
-      rotateAnim.setValue(0)
       translateX.stopAnimation()
       rightSwipeDistance.stopAnimation()
       scaleAnim.stopAnimation()
-      maxHeightAnim.stopAnimation()
       translateX.setValue(0)
       rightSwipeDistance.setValue(0)
       scaleAnim.setValue(1)
       rowFadeAnim.setValue(isVisuallyDone ? 0.6 : 1)
-      if (measuredHeight.current > 0) {
-        maxHeightAnim.setValue(measuredHeight.current)
-      } else {
-        maxHeightAnim.setValue(140)
-      }
       isOpen.current = false
       isSwiping.current = false
       isGreenTriggered.current = false
@@ -435,11 +408,9 @@ export const MinimalistTaskRow = memo(
     const handleDeletePress = () => {
       if (isDeleting.current) return
       isDeleting.current = true
-      setIsDeletingState(true)
       isOpen.current = false
       isSwiping.current = false
 
-      // Limpiar temporizadores previos
       if (toggleTimerRef.current) {
         clearTimeout(toggleTimerRef.current)
         toggleTimerRef.current = null
@@ -447,94 +418,12 @@ export const MinimalistTaskRow = memo(
       deleteTimersRef.current.forEach(clearTimeout)
       deleteTimersRef.current = []
 
-      // Detener cualquier animación previa en curso
       translateX.stopAnimation()
       scaleAnim.stopAnimation()
       rowFadeAnim.stopAnimation()
-      shakeAnim.stopAnimation()
-      rotateAnim.stopAnimation()
-      deleteAnim.stopAnimation()
-      maxHeightAnim.stopAnimation()
 
-      // 1. Ráfaga háptica sincronizada con cada impacto del temblor y colapso
       triggerHaptic('heavy')
-      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('heavy'), 85))
-      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('medium'), 175))
-      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('medium'), 265))
-      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('light'), 355))
-
-      // 2. Efecto de Destrucción unificado: Regreso al centro + Temblor + Torsión + Implosión + Disolución + Colapso
-      Animated.parallel([
-        // Retornar la tarjeta inmediatamente al centro (0px) sin disparar gestos de rebote
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration: 90,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        // Destello sutil carmesí mate (sin neón)
-        Animated.timing(deleteAnim, {
-          toValue: 1,
-          duration: 90,
-          useNativeDriver: true,
-        }),
-        // Vibración / Temblor destructivo
-        Animated.sequence([
-          Animated.timing(shakeAnim, { toValue: 8, duration: 45, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: -8, duration: 45, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: 6, duration: 45, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: -6, duration: 45, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: 4, duration: 45, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: -3, duration: 45, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: 2, duration: 45, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
-        ]),
-        // Torsión / Micro-rotación de fractura
-        Animated.sequence([
-          Animated.timing(rotateAnim, { toValue: 1, duration: 45, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: -1, duration: 45, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: 0.7, duration: 45, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: -0.7, duration: 45, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: 0.4, duration: 45, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: -0.3, duration: 45, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
-        ]),
-        // Expansión breve y colapso / implosión en escala profundo hasta 0
-        Animated.sequence([
-          Animated.timing(scaleAnim, { toValue: 1.02, duration: 90, useNativeDriver: true }),
-          Animated.timing(scaleAnim, {
-            toValue: 0,
-            duration: 380,
-            easing: APPLE_EASING,
-            useNativeDriver: true,
-          }),
-        ]),
-        // Desvanecimiento progresivo continuo que disuelve la tarjeta por completo
-        Animated.sequence([
-          Animated.timing(rowFadeAnim, { toValue: 1, duration: 90, useNativeDriver: true }),
-          Animated.timing(rowFadeAnim, {
-            toValue: 0,
-            duration: 360,
-            easing: APPLE_EASING,
-            useNativeDriver: true,
-          }),
-        ]),
-        // Colapso de altura suave y sincronizado para cerrar el espacio entre tareas
-        Animated.sequence([
-          Animated.delay(120),
-          Animated.timing(maxHeightAnim, {
-            toValue: 0,
-            duration: 350,
-            easing: APPLE_EASING,
-            useNativeDriver: false,
-          }),
-        ]),
-      ]).start(() => {
-        deleteTimersRef.current.forEach(clearTimeout)
-        deleteTimersRef.current = []
-        // La fila permanece en escala 0, opacidad 0 y altura 0 mientras se elimina del estado
-        onDelete?.(task.id)
-      })
+      onDelete?.(task.id)
     }
 
     const dueInfo = useMemo(
@@ -544,13 +433,10 @@ export const MinimalistTaskRow = memo(
     const attachCount = Array.isArray(task.attachments) ? task.attachments.length : 0
 
     return (
-      <Animated.View
-        onLayout={handleLayout}
+      <View
         style={[
-          isDeletingState ? styles.collapseWrapper : styles.normalWrapper,
-          isDeletingState && { maxHeight: maxHeightAnim },
+          styles.normalWrapper,
           isHighlighted && styles.highlightedZIndex,
-          { pointerEvents: isDeletingState ? 'none' : 'auto' },
         ]}
       >
         <Animated.View
@@ -754,30 +640,33 @@ export const MinimalistTaskRow = memo(
 
           {/* 2. Capa Frontal Deslizable (La Tarjeta de la Tarea) */}
           <Animated.View
-            {...(isDeletingState ? {} : panResponder.panHandlers)}
+            {...panResponder.panHandlers}
             style={[
               styles.glowWrapper,
               {
-                pointerEvents: isDeletingState ? 'none' : 'auto',
-                transform: [
-                  { translateX: Animated.add(translateX, shakeAnim) },
-                  {
-                    rotate: rotateAnim.interpolate({
-                      inputRange: [-1, 0, 1],
-                      outputRange: ['-1.6deg', '0deg', '1.6deg'],
-                    }),
-                  },
-                ],
+                transform: [{ translateX }],
               },
             ]}
           >
             <Animated.View
               style={[styles.highlightOverlay, { opacity: highlightAnim, pointerEvents: 'none' }]}
             />
-            <Animated.View
-              style={[styles.deleteOverlay, { opacity: deleteAnim, pointerEvents: 'none' }]}
-            />
             <View style={[styles.rowContainer, !isLast && styles.rowBorder]}>
+              {/* Botón Circular de Completar / Desmarcar */}
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('medium')
+                  onToggleStatus(task.id, task.status)
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 8 }}
+                style={[
+                  styles.checkCircle,
+                  isVisuallyDone && styles.checkCircleDone,
+                ]}
+              >
+                {isVisuallyDone && <Check size={11} color="#09090B" strokeWidth={3.5} />}
+              </Pressable>
+
               {/* Contenido de la Tarea */}
               <Pressable
                 onPress={handleCardPress}
@@ -873,7 +762,7 @@ export const MinimalistTaskRow = memo(
             </View>
           </Animated.View>
         </Animated.View>
-      </Animated.View>
+      </View>
     )
   },
   (prev, next) => {
@@ -997,6 +886,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: 12,
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#3F3F46',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 1,
+    backgroundColor: 'transparent',
+  },
+  checkCircleDone: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   rowBorder: {
     borderBottomWidth: 0.5,

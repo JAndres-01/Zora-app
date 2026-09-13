@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import type { Session, User } from '@supabase/supabase-js'
@@ -75,6 +75,13 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
   const [classSubjects, setClassSubjects] = useState<Subject[]>(() => personalStorage.getCachedClassSubjects())
   const [classSchedules, setClassSchedules] = useState<Schedule[]>(() => personalStorage.getCachedClassSchedulesWithSubjects())
 
+  const userRef = useRef(user)
+  userRef.current = user
+  const roleRef = useRef(role)
+  roleRef.current = role
+  const profileRef = useRef(profile)
+  profileRef.current = profile
+
   const fetchUserProfile = async (userId: string): Promise<{ role: UserRole; fullName: string | null }> => {
     try {
       const { data, error } = await supabase
@@ -107,10 +114,14 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       const cached = await personalStorage.getClassTasksCache()
       setClassTasks(cached)
 
+      const currentUser = userRef.current
+      const currentRole = roleRef.current
+      const currentProfile = profileRef.current
+
       // Procesar cola de acciones pendientes si el usuario está autenticado
-      if (user && (role === 'admin' || role === 'publisher')) {
-        const publisherName = profile?.full_name || user.user_metadata?.full_name || 'Admin'
-        await processPendingClassActionsQueue(user.id, publisherName)
+      if (currentUser && (currentRole === 'admin' || currentRole === 'publisher')) {
+        const publisherName = currentProfile?.full_name || currentUser.user_metadata?.full_name || 'Admin'
+        await processPendingClassActionsQueue(currentUser.id, publisherName)
       }
 
       const { data, error } = await supabase
@@ -139,7 +150,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
           merged = [...uncommitted, ...data.filter((d) => !pendingPublishIds.has(d.id))]
         }
 
-        await personalStorage.setClassTasksCache(merged)
+        await personalStorage.setClassTasksCache(merged, { notify: true })
         setClassTasks(merged)
       }
     } catch (err) {
@@ -147,7 +158,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSyncing(false)
     }
-  }, [user, role, profile?.full_name])
+  }, [])
 
   const syncClassSchedule = useCallback(async () => {
     try {
@@ -251,7 +262,8 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(channel)
       appStateSub.remove()
     }
-  }, [syncClassTasks, syncClassSchedule])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     try {

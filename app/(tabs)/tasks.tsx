@@ -153,7 +153,7 @@ export default function TasksScreen() {
     if (newStatus === statusFilter) return
     // Panel switch: easeOut para reposicionamiento fluido (desliza sin trabarse)
     // + fade rápido de entrada/salida de filas
-    PANEL_SWITCH_LAYOUT(100, 150)
+    PANEL_SWITCH_LAYOUT()
     setStatusFilter(newStatus)
   }
 
@@ -385,7 +385,7 @@ export default function TasksScreen() {
       // 2. Iniciar animación de transición al despejar el modal (~100ms)
       // usando exactamente la misma animación de cambio de paneles (PANEL_SWITCH_LAYOUT)
       entranceTimeoutRef.current = setTimeout(() => {
-        PANEL_SWITCH_LAYOUT(100, 150)
+        PANEL_SWITCH_LAYOUT()
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -413,37 +413,44 @@ export default function TasksScreen() {
     [loadData, statusFilter, selectedSubjectId, searchQuery]
   )
 
+  const itemEntranceStyle = useMemo(
+    () => ({
+      opacity: cardEntranceAnims[2].interpolate({
+        inputRange: [0, 0.4, 1],
+        outputRange: [0, 0.7, 1],
+      }),
+      transform: [
+        {
+          translateY: cardEntranceAnims[2].interpolate({
+            inputRange: [0, 1],
+            outputRange: [-36, 0],
+          }),
+        },
+        {
+          scale: cardEntranceAnims[2].interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.96, 1],
+          }),
+        },
+      ],
+    }),
+    [cardEntranceAnims]
+  )
+
   const renderTaskItem = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
       <Animated.View
-        style={{
-          opacity: cardEntranceAnims[2].interpolate({
-            inputRange: [0, 0.4, 1],
-            outputRange: [0, 0.7, 1],
-          }),
-          transform: [
-            {
-              translateY: cardEntranceAnims[2].interpolate({
-                inputRange: [0, 1],
-                outputRange: [-36, 0],
-              }),
-            },
-            {
-              scale: cardEntranceAnims[2].interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.96, 1],
-              }),
-            },
-          ],
-          zIndex: highlightedTaskId === item.id ? 10 : 1,
-          elevation: highlightedTaskId === item.id ? 10 : 1,
-        }}
+        style={[
+          itemEntranceStyle,
+          highlightedTaskId === item.id ? styles.highlightedItemWrapper : styles.normalItemWrapper,
+        ]}
       >
         <MinimalistTaskRow
           task={item}
           statusFilter={statusFilter}
           isLast={index === filteredTasks.length - 1}
           isHighlighted={highlightedTaskId === item.id}
+          isAdmin={isAdmin}
           onToggleStatus={handleToggleStatus}
           onOpenDetail={handleOpenDetail}
           onEdit={handleEditTask}
@@ -453,10 +460,11 @@ export default function TasksScreen() {
       </Animated.View>
     ),
     [
-      cardEntranceAnims,
+      itemEntranceStyle,
       statusFilter,
       filteredTasks.length,
       highlightedTaskId,
+      isAdmin,
       handleToggleStatus,
       handleOpenDetail,
       handleEditTask,
@@ -565,10 +573,10 @@ export default function TasksScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={() => Keyboard.dismiss()}
-        initialNumToRender={12}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        removeClippedSubviews={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
       />
 
       {/* Modal Desplegable de Filtro de Materia */}
@@ -636,6 +644,14 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 1,
+  },
+  normalItemWrapper: {
+    zIndex: 1,
+    elevation: 1,
+  },
+  highlightedItemWrapper: {
+    zIndex: 10,
+    elevation: 10,
   },
   content: {
     paddingHorizontal: 16,

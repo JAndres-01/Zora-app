@@ -188,7 +188,7 @@ export default function TodayScreen() {
 
       // Iniciar animación de transición al despejar el modal (~100ms)
       entranceTimeoutRef.current = setTimeout(() => {
-        PANEL_SWITCH_LAYOUT(100, 150)
+        PANEL_SWITCH_LAYOUT()
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {

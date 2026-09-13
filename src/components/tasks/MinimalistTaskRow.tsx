@@ -15,7 +15,6 @@ import { formatTaskDueDate } from '@/lib/academicDateUtils'
 import { APPLE_EASING } from '@/constants/animations'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
-import { useClassAuth } from '@/context/ClassAuthContext'
 
 const ACTION_BUTTON_WIDTH = 56
 const TOTAL_ACTIONS_WIDTH = 112
@@ -26,6 +25,7 @@ interface MinimalistTaskRowProps {
   statusFilter?: 'pending' | 'completed' | 'all'
   isLast?: boolean
   isHighlighted?: boolean
+  isAdmin?: boolean
   onToggleStatus: (taskId: string, currentStatus: string) => void
   onOpenDetail: (task: Task) => void
   onEdit?: (task: Task) => void
@@ -38,6 +38,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   statusFilter,
   isLast = false,
   isHighlighted = false,
+  isAdmin = false,
   onToggleStatus,
   onOpenDetail,
   onEdit,
@@ -45,7 +46,6 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   onSwipeActiveChange,
 }: MinimalistTaskRowProps) {
   const isDone = task.status === 'completed'
-  const { isAdmin } = useClassAuth()
   const canModify = !task.is_class_task || isAdmin
   // Si estamos en la pestaña "Completadas", mientras la tarea realiza su animación de salida
   // debe mantenerse tachada y atenuada (nunca iluminarse en blanco antes de desaparecer)
@@ -84,7 +84,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     }
   }, [maxHeightAnim])
 
-  // Limpieza y reinicio inmediato de valores si la fila cambia de id o estado
+  // Limpieza y reinicio solo si cambia el ID de la tarea
   useEffect(() => {
     if (isDeleting.current) return
 
@@ -105,7 +105,6 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     translateX.stopAnimation()
     rightSwipeDistance.stopAnimation()
     scaleAnim.stopAnimation()
-    rowFadeAnim.stopAnimation()
     maxHeightAnim.stopAnimation()
     translateX.setValue(0)
     rightSwipeDistance.setValue(0)
@@ -128,16 +127,21 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       deleteTimersRef.current.forEach(clearTimeout)
       deleteTimersRef.current = []
     }
-  }, [task.id, task.status, isVisuallyDone, maxHeightAnim])
+  }, [task.id])
 
+  const isMountedRef = useRef(false)
   useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true
+      return
+    }
     if (isDeleting.current) return
     Animated.timing(rowFadeAnim, {
       toValue: isVisuallyDone ? 0.6 : 1,
       duration: 180,
       useNativeDriver: true,
     }).start()
-  }, [isVisuallyDone])
+  }, [isDone, isVisuallyDone])
 
   useEffect(() => {
     if (isDeleting.current) return

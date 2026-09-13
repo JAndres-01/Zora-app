@@ -64,8 +64,8 @@ export const ROW_COLLAPSE_LAYOUT = (duration: number = 220) =>
  * - create/delete: easeInEaseOut con opacity (fade rápido)
  */
 export const PANEL_SWITCH_LAYOUT = (
-  fadeDuration: number = 100,
-  updateDuration: number = 150
+  fadeDuration: number = 80,
+  updateDuration: number = 130
 ) =>
   LayoutAnimation.configureNext({
     duration: Math.max(fadeDuration, updateDuration),

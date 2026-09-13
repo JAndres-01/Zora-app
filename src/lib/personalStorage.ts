@@ -434,7 +434,7 @@ export const personalStorage = {
     return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])
   },
 
-  async setTasks(tasks: Task[]): Promise<void> {
+  async setTasks(tasks: Task[], options?: { notify?: boolean }): Promise<void> {
     // Filtrar tareas de clase para guardar solo tareas locales en KEYS.TASKS
     const onlyLocalTasks = tasks.filter((t) => !t.is_class_task)
     const normalizedTasks = onlyLocalTasks.map((t) => {
@@ -448,7 +448,9 @@ export const personalStorage = {
     })
     const safeList = sortTasksByDueDate(Array.isArray(normalizedTasks) ? normalizedTasks : [])
     _tasksCache = [...safeList]
-    notifyListeners()
+    if (options?.notify !== false) {
+      notifyListeners()
+    }
     try {
       const storageList = safeList.map((t) => {
         const { subject, ...rest } = t
@@ -460,7 +462,7 @@ export const personalStorage = {
     }
   },
 
-  async saveTask(task: Task): Promise<Task[]> {
+  async saveTask(task: Task, options?: { notify?: boolean }): Promise<Task[]> {
     if (task.is_class_task) {
       const classId = task.class_task_id || (task.id.startsWith('class_') ? task.id.replace('class_', '') : task.id)
       await this.setClassTaskStatus(classId, task.status)
@@ -484,7 +486,7 @@ export const personalStorage = {
       updated = [normalizedTask, ...list]
     }
     const sorted = sortTasksByDueDate(updated)
-    await this.setTasks(sorted)
+    await this.setTasks(sorted, options)
     return sorted
   },
 

@@ -95,8 +95,11 @@ export default function TodayScreen() {
     }, [loadData])
   )
 
+  const isSavingTaskRef = useRef(false)
+
   useEffect(() => {
     const unsubscribe = subscribeToPersonalStorage(() => {
+      if (isSavingTaskRef.current) return
       loadData()
     })
     return unsubscribe
@@ -170,7 +173,7 @@ export default function TodayScreen() {
   }, [])
 
   const handleTaskSaved = useCallback(
-    (savedTask?: Task | null) => {
+    (savedTask?: Task | null, isNew?: boolean) => {
       if (!savedTask?.id) {
         loadData()
         return
@@ -181,10 +184,13 @@ export default function TodayScreen() {
       if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
       setHighlightedTaskId(null)
 
-      const isNewTask = !tasksRef.current.some((t) => t.id === savedTask.id)
+      isSavingTaskRef.current = true
+
+      const isNewTask =
+        isNew !== undefined ? isNew : !tasksRef.current.some((t) => t.id === savedTask.id)
 
       if (isNewTask) {
-        // Cuando el modal empieza a despejar la pantalla (~180ms), disparar la animación de entrada
+        // Iniciar animación de entrada al despejar el modal (~100ms)
         entranceTimeoutRef.current = setTimeout(() => {
           PANEL_SWITCH_LAYOUT(100, 150)
           setTasks((prevTasks) => {
@@ -199,10 +205,11 @@ export default function TodayScreen() {
               setHighlightedTaskId(null)
             }, 1400)
           }, 160)
-        }, 180)
+        }, 100)
 
         // Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
         loadDataTimeoutRef.current = setTimeout(() => {
+          isSavingTaskRef.current = false
           loadData()
         }, 600)
       } else {
@@ -217,7 +224,10 @@ export default function TodayScreen() {
           }, 1400)
         }, 180)
 
-        loadData()
+        loadDataTimeoutRef.current = setTimeout(() => {
+          isSavingTaskRef.current = false
+          loadData()
+        }, 400)
       }
     },
     [loadData]

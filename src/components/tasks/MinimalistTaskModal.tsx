@@ -104,7 +104,7 @@ interface MinimalistTaskModalProps {
   onClose: () => void
   onToggleStatus?: (taskId: string, currentStatus: string) => void
   onDeleteTask?: (taskId: string) => Promise<void>
-  onTaskSaved: (savedTask?: Task | null) => void
+  onTaskSaved: (savedTask?: Task | null, isNew?: boolean) => void
   initialAttachments?: TaskAttachment[]
   initialTitle?: string
   initialDescription?: string
@@ -430,7 +430,7 @@ export function MinimalistTaskModal({
             status: 'pending',
             created_at: new Date().toISOString(),
           }
-          await personalStorage.saveTask(fullTask)
+          await personalStorage.saveTask(fullTask, { notify: false })
           savedTaskObj = fullTask
         } else {
           const rawId = classTaskData?.id
@@ -465,7 +465,7 @@ export function MinimalistTaskModal({
             attachments: attachments,
           })
         } else {
-          await personalStorage.saveTask(savedTaskObj)
+          await personalStorage.saveTask(savedTaskObj, { notify: false })
         }
       } else {
         const fullTask: Task = {
@@ -475,12 +475,13 @@ export function MinimalistTaskModal({
           created_at: new Date().toISOString(),
         }
         savedTaskObj = fullTask
-        await personalStorage.saveTask(fullTask)
+        await personalStorage.saveTask(fullTask, { notify: false })
       }
 
+      const isNew = mode === 'create'
       playSaveSound()
       triggerHaptic('success')
-      onTaskSaved?.(savedTaskObj)
+      onTaskSaved?.(savedTaskObj, isNew)
       handleSmoothClose({ silent: true })
     } catch (err) {
       logger.error('Error al guardar tarea:', err)

@@ -112,8 +112,11 @@ export default function TasksScreen() {
     }, [loadData])
   )
 
+  const isSavingTaskRef = useRef(false)
+
   useEffect(() => {
     const unsubscribe = subscribeToPersonalStorage(() => {
+      if (isSavingTaskRef.current) return
       loadData()
     })
     return () => unsubscribe()
@@ -346,7 +349,7 @@ export default function TasksScreen() {
   }, [])
 
   const handleTaskSaved = useCallback(
-    (savedTask?: Task | null) => {
+    (savedTask?: Task | null, isNew?: boolean) => {
       if (!savedTask?.id) {
         loadData()
         return
@@ -357,7 +360,12 @@ export default function TasksScreen() {
       if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
       setHighlightedTaskId(null)
 
-      const isNewTask = !tasksRef.current.some((t) => t.id === savedTask.id)
+      isSavingTaskRef.current = true
+
+      const isNewTask =
+        isNew !== undefined
+          ? isNew
+          : taskModalMode === 'create' || !tasksRef.current.some((t) => t.id === savedTask.id)
 
       if (isNewTask) {
         // 1. Si estaba en 'completed' y la tarea es 'pending', cambiar a 'pending' para mostrarla
@@ -380,7 +388,7 @@ export default function TasksScreen() {
         // Desplazar hacia arriba para que la inserción esté en foco
         flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
 
-        // 4. Cuando el modal empieza a despejar la pantalla (~180ms), disparar la animación de entrada
+        // 4. Iniciar animación de entrada mientras el modal despeja (~100ms),
         // usando exactamente la misma animación de cambio de paneles (PANEL_SWITCH_LAYOUT)
         entranceTimeoutRef.current = setTimeout(() => {
           PANEL_SWITCH_LAYOUT(100, 150)
@@ -397,10 +405,11 @@ export default function TasksScreen() {
               setHighlightedTaskId(null)
             }, 1400)
           }, 160)
-        }, 180)
+        }, 100)
 
         // 6. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
         loadDataTimeoutRef.current = setTimeout(() => {
+          isSavingTaskRef.current = false
           loadData()
         }, 600)
       } else {
@@ -417,10 +426,13 @@ export default function TasksScreen() {
           }, 1400)
         }, 180)
 
-        loadData()
+        loadDataTimeoutRef.current = setTimeout(() => {
+          isSavingTaskRef.current = false
+          loadData()
+        }, 400)
       }
     },
-    [loadData, statusFilter, selectedSubjectId, searchQuery]
+    [loadData, statusFilter, selectedSubjectId, searchQuery, taskModalMode]
   )
 
   const renderTaskItem = useCallback(
@@ -559,7 +571,7 @@ export default function TasksScreen() {
       <FlatList
         ref={flatListRef}
         data={filteredTasks}
-        extraData={`${statusFilter}_${highlightedTaskId}_${selectedSubjectId}`}
+        extraData={`${statusFilter}_${highlightedTaskId}_${selectedSubjectId}_${tasks.length}`}
         renderItem={renderTaskItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={renderListHeader}

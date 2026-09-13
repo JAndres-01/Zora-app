@@ -8,6 +8,7 @@ import type {
   ClassTask,
   TaskStatus,
   ClassTaskLocalState,
+  PendingClassAction,
 } from '@/types/personal'
 import { sortTasksByDueDate } from './taskSort'
 import {
@@ -29,6 +30,7 @@ const KEYS = {
   CLASS_TASK_STATES: 'zora_class_task_states_v2',
   CLASS_SUBJECTS: 'zora_class_subjects_v2',
   CLASS_SCHEDULES: 'zora_class_schedules_v2',
+  PENDING_CLASS_ACTIONS: 'zora_pending_class_actions_v2',
 }
 
 // ==========================================
@@ -44,6 +46,7 @@ let _classTaskStatusesCache: Record<string, TaskStatus> | null = null
 let _classTaskStatesCache: Record<string, ClassTaskLocalState> | null = null
 let _classSubjectsCache: Subject[] | null = null
 let _classSchedulesCache: Schedule[] | null = null
+let _pendingClassActionsCache: PendingClassAction[] | null = null
 
 const listeners = new Set<() => void>()
 
@@ -85,10 +88,10 @@ function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[]
   return result
 }
 
-function mapClassTasksToTaskObjects(
+export function mapClassTasksToTaskObjects(
   classTasks: ClassTask[],
   subjects: Subject[],
-  classStatuses: Record<string, TaskStatus>,
+  classStatuses: Record<string, TaskStatus> = {},
   classStates?: Record<string, ClassTaskLocalState>
 ): Task[] {
   const result: Task[] = []
@@ -122,6 +125,16 @@ function mapClassTasksToTaskObjects(
 
     const completedAt = localState?.completed_at || (status === 'completed' ? ct.updated_at || ct.created_at : null)
 
+    const isPendingSync = Boolean(
+      ct.is_pending_sync ||
+      _pendingClassActionsCache?.some(
+        (a) =>
+          a.class_task_id === rawClassId ||
+          a.class_task_id === finalId ||
+          a.class_task_id === ct.id
+      )
+    )
+
     result.push({
       id: finalId,
       title: ct.title,
@@ -136,6 +149,7 @@ function mapClassTasksToTaskObjects(
       publisher_name: ct.publisher_name,
       publisher_id: ct.publisher_id,
       has_class_update: isOfficialUpdated,
+      is_pending_sync: isPendingSync,
       official_class_task: ct,
       class_updated_at: ct.updated_at,
       created_at: ct.created_at,
@@ -833,6 +847,78 @@ export const personalStorage = {
   },
 
   // ==========================================
+  // COLA OFFLINE DE ACCIONES DE CLASE
+  // ==========================================
+  getCachedPendingClassActions(): PendingClassAction[] {
+    return _pendingClassActionsCache ? [..._pendingClassActionsCache] : []
+  },
+
+  async getPendingClassActions(): Promise<PendingClassAction[]> {
+    if (_pendingClassActionsCache !== null) {
+      return [..._pendingClassActionsCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.PENDING_CLASS_ACTIONS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _pendingClassActionsCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo cola de pending_class_actions:', err)
+    }
+    _pendingClassActionsCache = []
+    return []
+  },
+
+  async addPendingClassAction(action: PendingClassAction): Promise<PendingClassAction[]> {
+    const current = await this.getPendingClassActions()
+    // Si ya existe una acción del mismo tipo para la misma tarea, consolidarla/actualizarla
+    const filtered = current.filter(
+      (a) => !(a.class_task_id === action.class_task_id && a.type === action.type)
+    )
+    const updated = [...filtered, action]
+    _pendingClassActionsCache = updated
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.PENDING_CLASS_ACTIONS, JSON.stringify(updated))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando pending_class_action:', err)
+    }
+    return updated
+  },
+
+  async removePendingClassAction(actionId: string): Promise<PendingClassAction[]> {
+    const current = await this.getPendingClassActions()
+    const updated = current.filter((a) => a.id !== actionId && a.class_task_id !== actionId)
+    _pendingClassActionsCache = updated
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.PENDING_CLASS_ACTIONS, JSON.stringify(updated))
+    } catch (err) {
+      logger.error('[personalStorage] Error eliminando pending_class_action:', err)
+    }
+    return updated
+  },
+
+  async clearPendingClassActions(): Promise<void> {
+    _pendingClassActionsCache = []
+    notifyListeners()
+    try {
+      await AsyncStorage.removeItem(KEYS.PENDING_CLASS_ACTIONS)
+    } catch (err) {
+      logger.error('[personalStorage] Error limpiando pending_class_actions:', err)
+    }
+  },
+
+  async hasPendingClassActions(): Promise<boolean> {
+    const actions = await this.getPendingClassActions()
+    return actions.length > 0
+  },
+
+  // ==========================================
   // COPIAS DE SEGURIDAD (BACKUP / RESTORE)
   // ==========================================
   async exportBackup(): Promise<string> {
@@ -885,6 +971,7 @@ export const personalStorage = {
     _classTaskStatesCache = {}
     _classSubjectsCache = []
     _classSchedulesCache = []
+    _pendingClassActionsCache = []
     notifyListeners()
     try {
       await AsyncStorage.multiRemove([
@@ -898,6 +985,7 @@ export const personalStorage = {
         KEYS.CLASS_TASK_STATES,
         KEYS.CLASS_SUBJECTS,
         KEYS.CLASS_SCHEDULES,
+        KEYS.PENDING_CLASS_ACTIONS,
       ])
     } catch (err) {
       logger.error('[personalStorage] Error limpiando storage:', err)

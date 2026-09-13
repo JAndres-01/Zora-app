@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
+import { AppState, type AppStateStatus } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import type { Session, User } from '@supabase/supabase-js'
 import type { UserRole, ClassTask, TaskType, TaskAttachment, Subject, Schedule } from '@/types/personal'
@@ -8,6 +9,7 @@ import { generateId } from '@/lib/idGenerator'
 import { useProfile } from './PersonalAuthContext'
 import {
   uploadClassTaskAttachments,
+  processPendingClassActionsQueue,
   fetchClassSubjects,
   saveClassSubject as remoteSaveClassSubject,
   deleteClassSubject as remoteDeleteClassSubject,
@@ -105,6 +107,12 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       const cached = await personalStorage.getClassTasksCache()
       setClassTasks(cached)
 
+      // Procesar cola de acciones pendientes si el usuario está autenticado
+      if (user && (role === 'admin' || role === 'publisher')) {
+        const publisherName = profile?.full_name || user.user_metadata?.full_name || 'Admin'
+        await processPendingClassActionsQueue(user.id, publisherName)
+      }
+
       const { data, error } = await supabase
         .from('class_tasks')
         .select('*')
@@ -116,15 +124,30 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (Array.isArray(data)) {
-        await personalStorage.setClassTasksCache(data)
-        setClassTasks(data)
+        // Mantener las tareas pendientes locales que aún estén esperando sincronización
+        const pendingQueue = await personalStorage.getPendingClassActions()
+        const pendingPublishIds = new Set(
+          pendingQueue
+            .filter((a) => a.type === 'publish' && a.class_task_id)
+            .map((a) => a.class_task_id)
+        )
+
+        let merged = data as ClassTask[]
+        if (pendingPublishIds.size > 0) {
+          const currentCached = await personalStorage.getClassTasksCache()
+          const uncommitted = currentCached.filter((t) => pendingPublishIds.has(t.id))
+          merged = [...uncommitted, ...data.filter((d) => !pendingPublishIds.has(d.id))]
+        }
+
+        await personalStorage.setClassTasksCache(merged)
+        setClassTasks(merged)
       }
     } catch (err) {
       logger.error('[ClassAuth] Error en syncClassTasks:', err)
     } finally {
       setIsSyncing(false)
     }
-  }, [])
+  }, [user, role, profile?.full_name])
 
   const syncClassSchedule = useCallback(async () => {
     try {
@@ -214,10 +237,19 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       })
       .subscribe()
 
+    // 5. Listener de AppState para procesar cola pendiente y refrescar al volver a primer plano
+    const appStateSub = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        syncClassTasks().catch(() => {})
+        syncClassSchedule().catch(() => {})
+      }
+    })
+
     return () => {
       isMounted = false
       subscription.unsubscribe()
       supabase.removeChannel(channel)
+      appStateSub.remove()
     }
   }, [syncClassTasks, syncClassSchedule])
 
@@ -352,38 +384,46 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       return { error: new Error('No tienes permisos de administrador para publicar tareas en la clase.') }
     }
 
+    const publisherName = profile?.full_name || user.user_metadata?.full_name || 'Admin'
+    const newId = generateId('class')
+
+    const localClassTask: ClassTask = {
+      id: newId,
+      publisher_id: user.id,
+      publisher_name: publisherName,
+      subject_name: taskData.subject_name.trim(),
+      subject_code: taskData.subject_code?.trim() || null,
+      title: taskData.title.trim(),
+      description: taskData.description?.trim() || null,
+      type: taskData.type,
+      due_date: taskData.due_date || null,
+      attachments: taskData.attachments || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_pending_sync: false,
+    }
+
     try {
       const uploadedAttachments = taskData.attachments
         ? await uploadClassTaskAttachments(taskData.attachments, user.id)
         : []
 
-      const newClassTask = {
-        id: generateId('class'),
-        publisher_id: user.id,
-        publisher_name: profile?.full_name || user.user_metadata?.full_name || 'Admin',
-        subject_name: taskData.subject_name.trim(),
-        subject_code: taskData.subject_code?.trim() || null,
-        title: taskData.title.trim(),
-        description: taskData.description?.trim() || null,
-        type: taskData.type,
-        due_date: taskData.due_date || null,
+      const remoteTask = {
+        ...localClassTask,
         attachments: uploadedAttachments,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       }
 
       const { data, error } = await supabase
         .from('class_tasks')
-        .insert([newClassTask])
+        .insert([remoteTask])
         .select()
         .single()
 
       if (error) {
-        logger.error('[ClassAuth] Error publicando class_task en Supabase:', error)
-        return { error }
+        throw error
       }
 
-      const insertedTask = (data || newClassTask) as ClassTask
+      const insertedTask = (data || remoteTask) as ClassTask
       const currentCache = await personalStorage.getClassTasksCache()
       const updatedCache = [insertedTask, ...currentCache.filter((t) => t.id !== insertedTask.id)]
       await personalStorage.setClassTasksCache(updatedCache, { notify: false })
@@ -392,8 +432,35 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       syncClassTasks().catch(() => {})
       return { error: null, data: insertedTask }
     } catch (err: any) {
-      logger.error('[ClassAuth] Error en publishClassTask:', err)
-      return { error: err }
+      logger.warn('[ClassAuth] Fallo al publicar en la nube, encolando offline:', err)
+
+      const pendingTask: ClassTask = {
+        ...localClassTask,
+        is_pending_sync: true,
+      }
+
+      await personalStorage.addPendingClassAction({
+        id: generateId('queue'),
+        type: 'publish',
+        class_task_id: pendingTask.id,
+        payload: {
+          title: pendingTask.title,
+          description: pendingTask.description,
+          type: pendingTask.type,
+          due_date: pendingTask.due_date,
+          subject_name: pendingTask.subject_name,
+          subject_code: pendingTask.subject_code,
+          attachments: pendingTask.attachments || [],
+        },
+        created_at: new Date().toISOString(),
+      })
+
+      const currentCache = await personalStorage.getClassTasksCache()
+      const updatedCache = [pendingTask, ...currentCache.filter((t) => t.id !== pendingTask.id)]
+      await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+      setClassTasks(updatedCache)
+
+      return { error: null, data: pendingTask }
     }
   }
 
@@ -413,6 +480,9 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       return { error: new Error('No tienes permisos para editar tareas oficiales de la clase.') }
     }
 
+    const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
+    const prefixedId = `class_${rawId}`
+
     try {
       let uploadedAttachments = updates.attachments
       if (updates.attachments && updates.attachments.length > 0) {
@@ -424,9 +494,6 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         ...(uploadedAttachments !== undefined ? { attachments: uploadedAttachments } : {}),
         updated_at: new Date().toISOString(),
       }
-
-      const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
-      const prefixedId = `class_${rawId}`
 
       // Buscar por prefixedId primero, o retry con rawId
       let { data, error } = await supabase
@@ -450,15 +517,14 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (error) {
-        logger.error('[ClassAuth] Error actualizando class_task en Supabase:', error)
-        return { error }
+        throw error
       }
 
       const updatedTask = (data || { id: prefixedId, ...payload }) as ClassTask
       const currentCache = await personalStorage.getClassTasksCache()
       const updatedCache = currentCache.map((t) => {
         const tRaw = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
-        return tRaw === rawId ? { ...t, ...updatedTask } : t
+        return tRaw === rawId ? { ...t, ...updatedTask, is_pending_sync: false } : t
       })
       await personalStorage.setClassTasksCache(updatedCache, { notify: false })
       setClassTasks(updatedCache)
@@ -466,8 +532,38 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       syncClassTasks().catch(() => {})
       return { error: null, data: updatedTask }
     } catch (err: any) {
-      logger.error('[ClassAuth] Error en updateClassTask:', err)
-      return { error: err }
+      logger.warn('[ClassAuth] Fallo al actualizar en la nube, encolando offline:', err)
+
+      const currentCache = await personalStorage.getClassTasksCache()
+      let updatedTaskObj: ClassTask | undefined
+      const updatedCache = currentCache.map((t) => {
+        const tRaw = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
+        if (tRaw === rawId) {
+          updatedTaskObj = {
+            ...t,
+            ...updates,
+            updated_at: new Date().toISOString(),
+            is_pending_sync: true,
+          }
+          return updatedTaskObj
+        }
+        return t
+      })
+
+      if (updatedTaskObj) {
+        await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+        setClassTasks(updatedCache)
+
+        await personalStorage.addPendingClassAction({
+          id: generateId('queue'),
+          type: 'update',
+          class_task_id: prefixedId,
+          payload: updates,
+          created_at: new Date().toISOString(),
+        })
+      }
+
+      return { error: null, data: updatedTaskObj }
     }
   }
 
@@ -476,10 +572,10 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       return { error: new Error('No tienes permisos para eliminar tareas de la clase.') }
     }
 
-    try {
-      const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
-      const prefixedId = `class_${rawId}`
+    const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
+    const prefixedId = `class_${rawId}`
 
+    try {
       let { error } = await supabase
         .from('class_tasks')
         .delete()
@@ -496,8 +592,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (error) {
-        logger.error('[ClassAuth] Error eliminando class_task en Supabase:', error)
-        return { error }
+        throw error
       }
 
       const currentCache = await personalStorage.getClassTasksCache()
@@ -511,8 +606,24 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       syncClassTasks().catch(() => {})
       return { error: null }
     } catch (err: any) {
-      logger.error('[ClassAuth] Error en deleteClassTask:', err)
-      return { error: err }
+      logger.warn('[ClassAuth] Fallo al eliminar en la nube, encolando offline:', err)
+
+      const currentCache = await personalStorage.getClassTasksCache()
+      const updatedCache = currentCache.filter((t) => {
+        const tRaw = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
+        return tRaw !== rawId
+      })
+      await personalStorage.setClassTasksCache(updatedCache)
+      setClassTasks(updatedCache)
+
+      await personalStorage.addPendingClassAction({
+        id: generateId('queue'),
+        type: 'delete',
+        class_task_id: prefixedId,
+        created_at: new Date().toISOString(),
+      })
+
+      return { error: null }
     }
   }
 

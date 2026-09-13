@@ -59,6 +59,7 @@ export interface Task {
   publisher_id?: string
   is_locally_edited?: boolean
   has_class_update?: boolean
+  is_pending_sync?: boolean
   official_class_task?: ClassTask
   class_updated_at?: string
   created_at?: string
@@ -79,8 +80,28 @@ export interface ClassTask {
   type: TaskType
   due_date?: string | null
   attachments?: TaskAttachment[] | null
+  is_pending_sync?: boolean
   created_at?: string
   updated_at?: string
+}
+
+export type PendingClassActionType = 'publish' | 'update' | 'delete'
+
+export interface PendingClassAction {
+  id: string
+  type: PendingClassActionType
+  class_task_id: string
+  payload?: {
+    title?: string
+    description?: string | null
+    type?: TaskType
+    due_date?: string | null
+    subject_name?: string
+    subject_code?: string | null
+    attachments?: TaskAttachment[]
+  }
+  created_at: string
+  retry_count?: number
 }
 
 export interface ClassTaskLocalState {

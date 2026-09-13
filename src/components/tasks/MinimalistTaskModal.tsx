@@ -423,28 +423,23 @@ export function MinimalistTaskModal({
         })
         if (publishError) {
           logger.warn('[MinimalistTaskModal] Error al publicar en clase:', publishError)
-          Alert.alert('Aviso de Clase', 'Hubo un error al publicar en la nube.')
-          const fullTask: Task = {
-            id: generateId('task'),
-            ...payload,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-          }
-          await personalStorage.saveTask(fullTask, { notify: false })
-          savedTaskObj = fullTask
-        } else {
-          const rawId = classTaskData?.id
-            ? (classTaskData.id.startsWith('class_') ? classTaskData.id.replace('class_', '') : classTaskData.id)
-            : generateId('class').replace('class_', '')
-          const publishedId = `class_${rawId}`
-          savedTaskObj = {
-            id: publishedId,
-            is_class_task: true,
-            class_task_id: rawId,
-            ...payload,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-          }
+          Alert.alert('Error', publishError.message || 'No se pudo crear la tarea de clase.')
+          setSaveLoading(false)
+          return
+        }
+
+        const rawId = classTaskData?.id
+          ? (classTaskData.id.startsWith('class_') ? classTaskData.id.replace('class_', '') : classTaskData.id)
+          : generateId('class').replace('class_', '')
+        const publishedId = `class_${rawId}`
+        savedTaskObj = {
+          id: publishedId,
+          is_class_task: true,
+          class_task_id: rawId,
+          is_pending_sync: classTaskData?.is_pending_sync,
+          ...payload,
+          status: 'pending',
+          created_at: classTaskData?.created_at || new Date().toISOString(),
         }
       } else if (task && (mode === 'edit' || currentView === 'form')) {
         savedTaskObj = {

@@ -812,8 +812,18 @@ export const MinimalistTaskRow = memo(
               {task.is_class_task && (
                 <>
                   <Text style={styles.metaDot}>•</Text>
-                  <Text style={[styles.classMetaText, task.has_class_update && styles.classMetaTextUpdate]}>
-                    {task.has_class_update ? 'Clase · Actualizada' : 'Clase'}
+                  <Text
+                    style={[
+                      styles.classMetaText,
+                      task.has_class_update && styles.classMetaTextUpdate,
+                      task.is_pending_sync && styles.classMetaTextPending,
+                    ]}
+                  >
+                    {task.is_pending_sync
+                      ? 'Clase · En cola de subida'
+                      : task.has_class_update
+                      ? 'Clase · Actualizada'
+                      : 'Clase'}
                   </Text>
                 </>
               )}
@@ -1040,6 +1050,10 @@ const styles = StyleSheet.create({
   },
   classMetaTextUpdate: {
     color: '#A1A1AA',
+    fontWeight: '600',
+  },
+  classMetaTextPending: {
+    color: '#F59E0B',
     fontWeight: '600',
   },
   metaDot: {

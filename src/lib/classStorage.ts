@@ -1,7 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
-import type { TaskAttachment, Subject, Schedule } from '@/types/personal'
+import type { TaskAttachment, Subject, Schedule, ClassTask } from '@/types/personal'
+import { personalStorage } from './personalStorage'
 import { logger } from './logger'
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -262,5 +263,149 @@ export async function clearClassScheduleSlot(slotId: string): Promise<{ error: a
     logger.error('[classStorage] Error inesperado en clearClassScheduleSlot:', err)
     return { error: err }
   }
+}
+
+/**
+ * Procesa en segundo plano todas las acciones de clase encoladas mientras no había conexión.
+ */
+export async function processPendingClassActionsQueue(
+  userId: string,
+  publisherName: string = 'Admin'
+): Promise<{ processed: number; errors: number }> {
+  const pendingActions = await personalStorage.getPendingClassActions()
+  if (!Array.isArray(pendingActions) || pendingActions.length === 0) {
+    return { processed: 0, errors: 0 }
+  }
+
+  logger.log(`[classStorage] Procesando ${pendingActions.length} acciones de clase pendientes...`)
+  let processed = 0
+  let errors = 0
+
+  for (const action of pendingActions) {
+    try {
+      if (action.type === 'publish' && action.payload) {
+        const rawId = action.class_task_id.startsWith('class_')
+          ? action.class_task_id.replace('class_', '')
+          : action.class_task_id
+        const prefixedId = `class_${rawId}`
+
+        let uploadedAttachments: TaskAttachment[] = []
+        if (action.payload.attachments && action.payload.attachments.length > 0) {
+          uploadedAttachments = await uploadClassTaskAttachments(action.payload.attachments, userId)
+        }
+
+        const taskPayload = {
+          id: prefixedId,
+          publisher_id: userId,
+          publisher_name: publisherName,
+          subject_name: (action.payload.subject_name || 'General').trim(),
+          subject_code: action.payload.subject_code?.trim() || null,
+          title: action.payload.title?.trim() || 'Tarea',
+          description: action.payload.description?.trim() || null,
+          type: action.payload.type || 'individual',
+          due_date: action.payload.due_date || null,
+          attachments: uploadedAttachments,
+          created_at: action.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+        const { data, error } = await supabase
+          .from('class_tasks')
+          .upsert([taskPayload], { onConflict: 'id' })
+          .select()
+          .single()
+
+        if (error) {
+          logger.warn('[classStorage] Error sincronizando publish pendiente:', error)
+          errors++
+          continue
+        }
+
+        const syncedTask = (data || taskPayload) as ClassTask
+        const cached = await personalStorage.getClassTasksCache()
+        const updatedCache = [
+          syncedTask,
+          ...cached.filter((t) => {
+            const tRaw = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
+            return tRaw !== rawId
+          }),
+        ]
+        await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+        await personalStorage.removePendingClassAction(action.id)
+        processed++
+      } else if (action.type === 'update' && action.payload) {
+        const rawId = action.class_task_id.startsWith('class_')
+          ? action.class_task_id.replace('class_', '')
+          : action.class_task_id
+        const prefixedId = `class_${rawId}`
+
+        let uploadedAttachments = action.payload.attachments
+        if (action.payload.attachments && action.payload.attachments.length > 0) {
+          uploadedAttachments = await uploadClassTaskAttachments(action.payload.attachments, userId)
+        }
+
+        const updatePayload: Record<string, any> = {
+          ...action.payload,
+          ...(uploadedAttachments !== undefined ? { attachments: uploadedAttachments } : {}),
+          updated_at: new Date().toISOString(),
+        }
+
+        let { error } = await supabase
+          .from('class_tasks')
+          .update(updatePayload)
+          .eq('id', prefixedId)
+
+        if (error && rawId !== prefixedId) {
+          const retry = await supabase
+            .from('class_tasks')
+            .update(updatePayload)
+            .eq('id', rawId)
+          if (!retry.error) error = null
+        }
+
+        if (error) {
+          logger.warn('[classStorage] Error sincronizando update pendiente:', error)
+          errors++
+          continue
+        }
+
+        await personalStorage.removePendingClassAction(action.id)
+        processed++
+      } else if (action.type === 'delete') {
+        const rawId = action.class_task_id.startsWith('class_')
+          ? action.class_task_id.replace('class_', '')
+          : action.class_task_id
+        const prefixedId = `class_${rawId}`
+
+        let { error } = await supabase
+          .from('class_tasks')
+          .delete()
+          .eq('id', prefixedId)
+
+        if (error && rawId !== prefixedId) {
+          const retry = await supabase
+            .from('class_tasks')
+            .delete()
+            .eq('id', rawId)
+          if (!retry.error) error = null
+        }
+
+        if (error) {
+          logger.warn('[classStorage] Error sincronizando delete pendiente:', error)
+          errors++
+          continue
+        }
+
+        await personalStorage.removePendingClassAction(action.id)
+        processed++
+      }
+    } catch (itemErr) {
+      logger.error('[classStorage] Excepción procesando item de cola:', itemErr)
+      errors++
+    }
+  }
+
+  logger.log(`[classStorage] Cola procesada: ${processed} sincronizados, ${errors} errores`)
+  return { processed, errors }
 }
 

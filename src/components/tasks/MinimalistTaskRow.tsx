@@ -66,6 +66,19 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const isSwiping = useRef(false)
   const isGreenTriggered = useRef(false)
 
+  // Limpieza y reinicio inmediato de valores si la fila cambia de id o estado
+  useEffect(() => {
+    translateX.stopAnimation()
+    rightSwipeDistance.stopAnimation()
+    scaleAnim.stopAnimation()
+    translateX.setValue(0)
+    rightSwipeDistance.setValue(0)
+    scaleAnim.setValue(1)
+    isOpen.current = false
+    isSwiping.current = false
+    isGreenTriggered.current = false
+  }, [task.id, task.status])
+
   useEffect(() => {
     Animated.timing(rowFadeAnim, {
       toValue: isVisuallyDone ? 0.6 : 1,
@@ -153,12 +166,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: () => {
         isSwiping.current = true
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          stiffness: 600,
-          damping: 28,
-          useNativeDriver: true,
-        }).start()
+        translateX.stopAnimation()
+        rightSwipeDistance.stopAnimation()
+        scaleAnim.stopAnimation()
+        scaleAnim.setValue(1)
         onSwipeActiveChange?.(false)
         isGreenTriggered.current = false
       },
@@ -184,8 +195,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           // Deslizar hacia la izquierda (Revelar Editar Azul y Borrar Rojo sin texto)
           const clampedDx = Math.max(-150, dx)
           translateX.setValue(clampedDx)
+          rightSwipeDistance.setValue(0)
         } else {
           translateX.setValue(0)
+          rightSwipeDistance.setValue(0)
         }
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -196,40 +209,36 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           dx = dx - TOTAL_ACTIONS_WIDTH
         }
 
-        if (dx >= SWIPE_THRESHOLD) {
+        const isCompleteAction = dx >= SWIPE_THRESHOLD || (dx >= 45 && gestureState.vx > 0.35)
+
+        if (isCompleteAction) {
           // Activar palomita / desmarcar con animación de retorno suave y ultra rápida
           triggerHaptic('success')
           isGreenTriggered.current = false
           isOpen.current = false
 
-          // Animar simultáneamente el retorno a 0 y desvanecer el fondo verde antes de remover la fila
+          // Animar retorno limpio en paralelo sin promesas bloqueadas
           Animated.parallel([
-            Animated.sequence([
-              Animated.timing(scaleAnim, {
-                toValue: 0.98,
-                duration: 35,
-                useNativeDriver: true,
-              }),
-              Animated.spring(scaleAnim, {
-                toValue: 1,
-                stiffness: 600,
-                damping: 20,
-                useNativeDriver: true,
-              }),
-            ]),
             Animated.timing(translateX, {
               toValue: 0,
-              duration: 75,
+              duration: 70,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
             Animated.timing(rightSwipeDistance, {
               toValue: 0,
-              duration: 75,
+              duration: 70,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
+            Animated.timing(scaleAnim, {
+              toValue: 1,
+              duration: 70,
+              useNativeDriver: true,
+            }),
           ]).start(() => {
+            translateX.setValue(0)
+            rightSwipeDistance.setValue(0)
             onToggleStatus(task.id, task.status)
           })
         } else if (dx <= -48 && canModify) {
@@ -260,7 +269,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
-          ]).start()
+          ]).start(() => {
+            translateX.setValue(0)
+            rightSwipeDistance.setValue(0)
+          })
         }
       },
       onPanResponderTerminate: () => {
@@ -282,7 +294,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),
-        ]).start()
+        ]).start(() => {
+          translateX.setValue(0)
+          rightSwipeDistance.setValue(0)
+        })
       },
     })
   ).current

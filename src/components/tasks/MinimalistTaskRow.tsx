@@ -197,7 +197,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         }
 
         if (dx >= SWIPE_THRESHOLD) {
-          // Activar palomita / desmarcar con animación de retorno suave
+          // Activar palomita / desmarcar con animación de retorno suave y ultra rápida
           triggerHaptic('success')
           isGreenTriggered.current = false
           isOpen.current = false
@@ -207,25 +207,25 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
             Animated.sequence([
               Animated.timing(scaleAnim, {
                 toValue: 0.98,
-                duration: 70,
+                duration: 35,
                 useNativeDriver: true,
               }),
               Animated.spring(scaleAnim, {
                 toValue: 1,
-                stiffness: 500,
+                stiffness: 600,
                 damping: 20,
                 useNativeDriver: true,
               }),
             ]),
             Animated.timing(translateX, {
               toValue: 0,
-              duration: 140,
+              duration: 75,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
             Animated.timing(rightSwipeDistance, {
               toValue: 0,
-              duration: 140,
+              duration: 75,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
@@ -238,7 +238,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           isOpen.current = true
           Animated.timing(translateX, {
             toValue: -TOTAL_ACTIONS_WIDTH,
-            duration: 180,
+            duration: 160,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }).start()
@@ -250,13 +250,13 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           Animated.parallel([
             Animated.timing(translateX, {
               toValue: 0,
-              duration: 160,
+              duration: 80,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
             Animated.timing(rightSwipeDistance, {
               toValue: 0,
-              duration: 160,
+              duration: 80,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
@@ -272,13 +272,13 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         Animated.parallel([
           Animated.timing(translateX, {
             toValue: 0,
-            duration: 160,
+            duration: 80,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),
           Animated.timing(rightSwipeDistance, {
             toValue: 0,
-            duration: 160,
+            duration: 80,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),
@@ -312,7 +312,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       isOpen.current = false
       Animated.timing(translateX, {
         toValue: 0,
-        duration: 160,
+        duration: 80,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }).start()
@@ -327,7 +327,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     isOpen.current = false
     Animated.timing(translateX, {
       toValue: 0,
-      duration: 140,
+      duration: 75,
       easing: APPLE_EASING,
       useNativeDriver: true,
     }).start(() => {
@@ -341,13 +341,13 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     Animated.parallel([
       Animated.timing(translateX, {
         toValue: 0,
-        duration: 120,
+        duration: 80,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.timing(rowFadeAnim, {
         toValue: 0,
-        duration: 120,
+        duration: 80,
         useNativeDriver: true,
       }),
     ]).start(() => {

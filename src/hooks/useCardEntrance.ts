@@ -1,46 +1,20 @@
-import { useRef, useEffect } from 'react'
-import { Animated, Platform } from 'react-native'
-import { SPRING_ENTRANCE_CONFIG } from '@/constants/animations'
-
-const playedScreens = new Set<string>()
+import { useRef } from 'react'
+import { Animated } from 'react-native'
 
 /**
- * Hook reutilizable para animar escalonadamente los contenedores principales de una pantalla.
- * Se ejecuta una única vez por pantalla por sesión para evitar saltos bruscos al cambiar de tab.
- *
- * @param count Número de elementos/tarjetas a animar secuencialmente.
- * @param screenKey Identificador único de la pantalla (ej. 'today', 'tasks', 'schedule', 'settings').
- * @param staggerDelay Retardo en ms entre cada tarjeta animada (default: 80ms).
+ * Hook de animaciones de entrada seguras para componentes principales.
+ * Garantiza opacidad 1 y renderizado inmediato en móvil (iOS/Android) y web sin bloqueos de interfaz.
  */
+const playedScreens = new Set<string>()
+
 export function useCardEntrance(
   count: number,
-  screenKey: string,
-  staggerDelay: number = 80
+  _screenKey?: string,
+  _staggerDelay?: number
 ): Animated.Value[] {
-  const isWeb = Platform.OS === 'web'
-  const hasPlayed = isWeb || playedScreens.has(screenKey)
-
   const cardEntranceAnims = useRef<Animated.Value[]>(
-    Array.from({ length: count }, () => new Animated.Value(hasPlayed ? 1 : 0))
+    Array.from({ length: count }, () => new Animated.Value(1))
   ).current
-
-  useEffect(() => {
-    if (isWeb) return
-
-    if (!playedScreens.has(screenKey)) {
-      playedScreens.add(screenKey)
-      cardEntranceAnims.forEach((anim) => anim.setValue(0))
-
-      const staggerAnims = cardEntranceAnims.map((anim) =>
-        Animated.spring(anim, {
-          toValue: 1,
-          ...SPRING_ENTRANCE_CONFIG,
-        })
-      )
-
-      Animated.stagger(staggerDelay, staggerAnims).start()
-    }
-  }, [cardEntranceAnims, screenKey, staggerDelay, isWeb])
 
   return cardEntranceAnims
 }

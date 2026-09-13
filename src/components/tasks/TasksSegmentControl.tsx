@@ -15,13 +15,11 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 export interface TasksSegmentControlProps {
   statusFilter: 'pending' | 'completed' | 'all'
   onStatusChange: (status: 'pending' | 'completed' | 'all') => void
-  cardEntranceAnim?: Animated.Value
 }
 
 export function TasksSegmentControl({
   statusFilter,
   onStatusChange,
-  cardEntranceAnim,
 }: TasksSegmentControlProps) {
   const [containerWidth, setContainerWidth] = useState(SCREEN_WIDTH - 32)
   const segmentWidth = Math.max(0, (containerWidth - 6) / 3)
@@ -41,42 +39,18 @@ export function TasksSegmentControl({
     onStatusChange(newStatus)
   }
 
-  const containerStyle = cardEntranceAnim
-    ? {
-        opacity: cardEntranceAnim.interpolate({
-          inputRange: [0, 0.4, 1],
-          outputRange: [0, 0.7, 1],
-        }),
-        transform: [
-          {
-            translateY: cardEntranceAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [-36, 0],
-            }),
-          },
-          {
-            scale: cardEntranceAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.96, 1],
-            }),
-          },
-        ],
-      }
-    : {}
-
   return (
-    <Animated.View style={containerStyle}>
-      <BlurView
-        intensity={Platform.OS === 'ios' ? 55 : 90}
-        tint="dark"
-        style={styles.segmentedContainer}
-        onLayout={(e: LayoutChangeEvent) => {
-          const w = e.nativeEvent.layout.width
-          if (w > 0 && Math.abs(w - containerWidth) > 1) {
-            setContainerWidth(w)
-          }
-        }}
-      >
+    <BlurView
+      intensity={Platform.OS === 'ios' ? 55 : 90}
+      tint="dark"
+      style={styles.segmentedContainer}
+      onLayout={(e: LayoutChangeEvent) => {
+        const w = e.nativeEvent.layout.width
+        if (w > 0 && Math.abs(w - containerWidth) > 1) {
+          setContainerWidth(w)
+        }
+      }}
+    >
         {/* Indicador Deslizante Suave */}
         <Animated.View
           style={[
@@ -130,7 +104,6 @@ export function TasksSegmentControl({
           </Text>
         </Pressable>
       </BlurView>
-    </Animated.View>
   )
 }
 

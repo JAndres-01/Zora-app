@@ -30,7 +30,6 @@ import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
 import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
-import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
 import {
   setGlobalSoundEnabled,
@@ -64,8 +63,6 @@ export default function ProfileScreen() {
   const [springStart, setSpringStart] = useState(`${currentYear}-02-01`)
   const [springEnd, setSpringEnd] = useState(`${currentYear}-06-30`)
 
-  // Animaciones de Entrada Escalonada
-  const cardEntranceAnims = useCardEntrance(5, 'settings')
   const gearScaleAnim = useRef(new Animated.Value(1)).current
 
   const loadData = useCallback(async () => {
@@ -322,27 +319,6 @@ export default function ProfileScreen() {
     }).start()
   }
 
-  const getAnimatedCardStyle = (index: number) => ({
-    opacity: cardEntranceAnims[index].interpolate({
-      inputRange: [0, 0.4, 1],
-      outputRange: [0, 0.7, 1],
-    }),
-    transform: [
-      {
-        translateY: cardEntranceAnims[index].interpolate({
-          inputRange: [0, 1],
-          outputRange: [-36, 0],
-        }),
-      },
-      {
-        scale: cardEntranceAnims[index].interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.96, 1],
-        }),
-      },
-    ],
-  })
-
   return (
     <View style={styles.screenWrapper}>
       <ScrollView
@@ -382,44 +358,34 @@ export default function ProfileScreen() {
         </View>
 
         {/* Card 0: Tarjeta Hero de Perfil */}
-        <Animated.View style={getAnimatedCardStyle(0)}>
-          <ProfileHeroCard
-            fullName={profile?.full_name}
-            credentialUrl={profile?.student_credential_url}
-            onOpenCredential={() => setShowCredentialModal(true)}
-            onUploadCredential={handlePickCredential}
-          />
-        </Animated.View>
+        <ProfileHeroCard
+          fullName={profile?.full_name}
+          credentialUrl={profile?.student_credential_url}
+          onOpenCredential={() => setShowCredentialModal(true)}
+          onUploadCredential={handlePickCredential}
+        />
 
         {/* Card 1: Métricas Vitales Académicas */}
-        <Animated.View style={getAnimatedCardStyle(1)}>
-          <MinimalistVitalStats />
-        </Animated.View>
+        <MinimalistVitalStats />
 
         {/* Card 2: Mapa de Actividad Estilo GitHub */}
-        <Animated.View style={getAnimatedCardStyle(2)}>
-          <MinimalistActivityHeatmap />
-        </Animated.View>
+        <MinimalistActivityHeatmap />
 
         {/* Card 3: Balance de Materias */}
-        <Animated.View style={getAnimatedCardStyle(3)}>
-          <MinimalistSubjectBalance />
-        </Animated.View>
+        <MinimalistSubjectBalance />
 
         {/* Card 4: Previsualización de Widget #3A Dual Balance */}
-        <Animated.View style={getAnimatedCardStyle(4)}>
-          <View style={styles.widgetSectionCard}>
-            <View style={styles.widgetSectionHeader}>
-              <View>
-                <Text style={styles.widgetSectionTitle}>WIDGETS · PANTALLA DE INICIO</Text>
-                <Text style={styles.widgetSectionSubtitle}>#3A Dual Balance · Toca el widget para abrir Tareas</Text>
-              </View>
-            </View>
-            <View style={styles.widgetPreviewContainer}>
-              <DualBalanceWidget size="small" />
+        <View style={styles.widgetSectionCard}>
+          <View style={styles.widgetSectionHeader}>
+            <View>
+              <Text style={styles.widgetSectionTitle}>WIDGETS · PANTALLA DE INICIO</Text>
+              <Text style={styles.widgetSectionSubtitle}>#3A Dual Balance · Toca el widget para abrir Tareas</Text>
             </View>
           </View>
-        </Animated.View>
+          <View style={styles.widgetPreviewContainer}>
+            <DualBalanceWidget size="small" />
+          </View>
+        </View>
       </ScrollView>
 
       {/* Modal Principal de Ajustes del Sistema */}

@@ -28,7 +28,6 @@ import {
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
 import { useRouter, useFocusEffect } from 'expo-router'
-import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
 import { SCREEN_WIDTH } from '@/constants/layout'
 import { useClassAuth } from '@/context/ClassAuthContext'
@@ -210,9 +209,6 @@ export default function ScheduleScreen() {
     }, 120)
   }, [router])
 
-  // Animaciones de Entrada Escalonada hacia abajo
-  const cardEntranceAnims = useCardEntrance(2, 'schedule')
-
   return (
     <View style={styles.screenWrapper}>
       <ScrollView
@@ -249,118 +245,72 @@ export default function ScheduleScreen() {
         </View>
 
         {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
-        <Animated.View
-          style={{
-            opacity: cardEntranceAnims[0].interpolate({
-              inputRange: [0, 0.4, 1],
-              outputRange: [0, 0.7, 1],
-            }),
-            transform: [
+        <View style={styles.segmentedContainer}>
+          <Animated.View
+            style={[
+              styles.activeSegmentPill,
               {
-                translateY: cardEntranceAnims[0].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-36, 0],
-                }),
+                width: SEGMENT_WIDTH,
+                transform: [{ translateX: viewModeAnim }],
               },
-              {
-                scale: cardEntranceAnims[0].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.96, 1],
-                }),
-              },
-            ],
-          }}
-        >
-          <View style={styles.segmentedContainer}>
-            <Animated.View
-              style={[
-                styles.activeSegmentPill,
-                {
-                  width: SEGMENT_WIDTH,
-                  transform: [{ translateX: viewModeAnim }],
-                },
-              ]}
+            ]}
+          />
+
+          <Pressable
+            onPressIn={() => handleViewModeChange('day')}
+            style={styles.segmentButton}
+          >
+            <CalendarDays
+              size={13.5}
+              color={viewMode === 'day' ? '#09090B' : '#A1A1AA'}
             />
-
-            <Pressable
-              onPressIn={() => handleViewModeChange('day')}
-              style={styles.segmentButton}
+            <Text
+              style={[
+                styles.segmentButtonText,
+                viewMode === 'day' && styles.segmentButtonTextActive,
+              ]}
             >
-              <CalendarDays
-                size={13.5}
-                color={viewMode === 'day' ? '#09090B' : '#A1A1AA'}
-              />
-              <Text
-                style={[
-                  styles.segmentButtonText,
-                  viewMode === 'day' && styles.segmentButtonTextActive,
-                ]}
-              >
-                Vista Diaria
-              </Text>
-            </Pressable>
+              Vista Diaria
+            </Text>
+          </Pressable>
 
-            <Pressable
-              onPressIn={() => handleViewModeChange('week')}
-              style={styles.segmentButton}
+          <Pressable
+            onPressIn={() => handleViewModeChange('week')}
+            style={styles.segmentButton}
+          >
+            <LayoutGrid
+              size={13.5}
+              color={viewMode === 'week' ? '#09090B' : '#A1A1AA'}
+            />
+            <Text
+              style={[
+                styles.segmentButtonText,
+                viewMode === 'week' && styles.segmentButtonTextActive,
+              ]}
             >
-              <LayoutGrid
-                size={13.5}
-                color={viewMode === 'week' ? '#09090B' : '#A1A1AA'}
-              />
-              <Text
-                style={[
-                  styles.segmentButtonText,
-                  viewMode === 'week' && styles.segmentButtonTextActive,
-                ]}
-              >
-                Matriz Semanal
-              </Text>
-            </Pressable>
-          </View>
-        </Animated.View>
+              Matriz Semanal
+            </Text>
+          </Pressable>
+        </View>
 
         {/* Card 1: Vista Seleccionada (Diaria / Semanal) */}
-        <Animated.View
-          style={{
-            opacity: cardEntranceAnims[1].interpolate({
-              inputRange: [0, 0.4, 1],
-              outputRange: [0, 0.7, 1],
-            }),
-            transform: [
-              {
-                translateY: cardEntranceAnims[1].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-36, 0],
-                }),
-              },
-              {
-                scale: cardEntranceAnims[1].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.96, 1],
-                }),
-              },
-            ],
-          }}
-        >
-          {viewMode === 'day' ? (
-            <MinimalistDayView
-              schedules={activeSchedules}
-              tasks={tasks}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
-              onOpenDayTasks={handleOpenDayTasks}
-              onAssignSlot={canEdit ? handleOpenAssign : undefined}
-            />
-          ) : (
-            <MinimalistWeeklyMatrix
-              schedules={activeSchedules}
-              tasks={tasks}
-              onAssignSlot={canEdit ? handleOpenAssign : undefined}
-              onOpenDayTasks={handleOpenDayTasks}
-            />
-          )}
-        </Animated.View>
+        {viewMode === 'day' ? (
+          <MinimalistDayView
+            schedules={activeSchedules}
+            tasks={tasks}
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            onOpenDayTasks={handleOpenDayTasks}
+            onAssignSlot={canEdit ? handleOpenAssign : undefined}
+          />
+        ) : (
+          <MinimalistWeeklyMatrix
+            schedules={activeSchedules}
+            tasks={tasks}
+            onAssignSlot={canEdit ? handleOpenAssign : undefined}
+            onOpenDayTasks={handleOpenDayTasks}
+          />
+        )}
       </ScrollView>
 
       {/* Modal de Tareas del Día */}

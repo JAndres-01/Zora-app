@@ -25,7 +25,6 @@ export interface TasksHeaderProps {
   onOpenSubjectMenu: () => void
   onResetSubjectFilter: () => void
   onOpenClassAuth?: () => void
-  cardEntranceAnim?: Animated.Value
 }
 
 export function TasksHeader({
@@ -39,7 +38,6 @@ export function TasksHeader({
   onOpenSubjectMenu,
   onResetSubjectFilter,
   onOpenClassAuth,
-  cardEntranceAnim,
 }: TasksHeaderProps) {
   const { isConnected } = useClassAuth()
   const searchInputRef = useRef<TextInput>(null)
@@ -70,29 +68,6 @@ export function TasksHeader({
   }, [isSearchActive])
 
   const isSelectedWhite = isWhiteColor(selectedSubject?.color)
-
-  const card0Style = cardEntranceAnim
-    ? {
-        opacity: cardEntranceAnim.interpolate({
-          inputRange: [0, 0.4, 1],
-          outputRange: [0, 0.7, 1],
-        }),
-        transform: [
-          {
-            translateY: cardEntranceAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [-36, 0],
-            }),
-          },
-          {
-            scale: cardEntranceAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.96, 1],
-            }),
-          },
-        ],
-      }
-    : {}
 
   return (
     <View style={styles.headerContainer}>
@@ -173,55 +148,53 @@ export function TasksHeader({
       )}
 
       {/* Botón Desplegable para Filtrar por Materia */}
-      <Animated.View style={card0Style}>
-        <View style={styles.filterButtonRow}>
+      <View style={styles.filterButtonRow}>
+        <Pressable
+          onPress={onOpenSubjectMenu}
+          style={[
+            styles.subjectDropdownButton,
+            selectedSubjectId !== 'all' && {
+              borderColor: isSelectedWhite
+                ? '#FFFFFF'
+                : selectedSubject?.color || '#FFFFFF',
+              backgroundColor: isSelectedWhite
+                ? 'rgba(255, 255, 255, 0.15)'
+                : `${selectedSubject?.color || '#FFFFFF'}1F`,
+            },
+          ]}
+        >
+          <View style={styles.dropdownBtnLeft}>
+            <SlidersHorizontal size={13} color="#A1A1AA" />
+            {selectedSubject ? (
+              <View style={styles.selectedSubjectInfo}>
+                <View
+                  style={[
+                    styles.dot,
+                    { backgroundColor: selectedSubject.color || '#FFFFFF' },
+                    isSelectedWhite && styles.whiteDotBorder,
+                  ]}
+                />
+                <Text style={styles.dropdownBtnTextActive} numberOfLines={1}>
+                  {selectedSubject.name}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.dropdownBtnText}>Todas las materias</Text>
+            )}
+          </View>
+
+          <ChevronDown size={14} color="#A1A1AA" />
+        </Pressable>
+
+        {selectedSubjectId !== 'all' && (
           <Pressable
-            onPress={onOpenSubjectMenu}
-            style={[
-              styles.subjectDropdownButton,
-              selectedSubjectId !== 'all' && {
-                borderColor: isSelectedWhite
-                  ? '#FFFFFF'
-                  : selectedSubject?.color || '#FFFFFF',
-                backgroundColor: isSelectedWhite
-                  ? 'rgba(255, 255, 255, 0.15)'
-                  : `${selectedSubject?.color || '#FFFFFF'}1F`,
-              },
-            ]}
+            onPress={onResetSubjectFilter}
+            style={styles.resetFilterBtn}
           >
-            <View style={styles.dropdownBtnLeft}>
-              <SlidersHorizontal size={13} color="#A1A1AA" />
-              {selectedSubject ? (
-                <View style={styles.selectedSubjectInfo}>
-                  <View
-                    style={[
-                      styles.dot,
-                      { backgroundColor: selectedSubject.color || '#FFFFFF' },
-                      isSelectedWhite && styles.whiteDotBorder,
-                    ]}
-                  />
-                  <Text style={styles.dropdownBtnTextActive} numberOfLines={1}>
-                    {selectedSubject.name}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.dropdownBtnText}>Todas las materias</Text>
-              )}
-            </View>
-
-            <ChevronDown size={14} color="#A1A1AA" />
+            <Text style={styles.resetFilterText}>Ver todas</Text>
           </Pressable>
-
-          {selectedSubjectId !== 'all' && (
-            <Pressable
-              onPress={onResetSubjectFilter}
-              style={styles.resetFilterBtn}
-            >
-              <Text style={styles.resetFilterText}>Ver todas</Text>
-            </Pressable>
-          )}
-        </View>
-      </Animated.View>
+        )}
+      </View>
     </View>
   )
 }

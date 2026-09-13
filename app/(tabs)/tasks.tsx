@@ -33,7 +33,6 @@ import {
   cancelTaskReminder,
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
-import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { sortTasksByDueDate } from '@/lib/taskSort'
 import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
 import { useClassAuth } from '@/context/ClassAuthContext'
@@ -320,9 +319,6 @@ export default function TasksScreen() {
     }).start()
   }
 
-  // Animaciones de Entrada Escalonada
-  const cardEntranceAnims = useCardEntrance(3, 'tasks')
-
   const handleOpenDetail = useCallback((t: Task) => {
     setActiveTask(t)
     setTaskModalMode('detail')
@@ -454,14 +450,12 @@ export default function TasksScreen() {
           onOpenSubjectMenu={() => setShowSubjectMenu(true)}
           onResetSubjectFilter={() => setSelectedSubjectId('all')}
           onOpenClassAuth={() => setShowClassAuthModal(true)}
-          cardEntranceAnim={cardEntranceAnims[0]}
         />
 
         {/* Segmented Control iOS */}
         <TasksSegmentControl
           statusFilter={statusFilter}
           onStatusChange={handleStatusChange}
-          cardEntranceAnim={cardEntranceAnims[1]}
         />
       </View>
     )
@@ -471,7 +465,6 @@ export default function TasksScreen() {
     selectedSubject,
     selectedSubjectId,
     statusFilter,
-    cardEntranceAnims,
   ])
 
   const renderEmptyComponent = useMemo(() => {

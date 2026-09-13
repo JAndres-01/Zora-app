@@ -197,19 +197,17 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         }
 
         if (dx >= SWIPE_THRESHOLD) {
-          // Activar palomita / desmarcar inmediatamente sin latencia
+          // Activar palomita / desmarcar con animación de retorno suave
           triggerHaptic('success')
           isGreenTriggered.current = false
           isOpen.current = false
 
-          onToggleStatus(task.id, task.status)
-
-          // Micro rebote de éxito + reseteo fluido de posición en paralelo
+          // Animar simultáneamente el retorno a 0 y desvanecer el fondo verde antes de remover la fila
           Animated.parallel([
             Animated.sequence([
               Animated.timing(scaleAnim, {
                 toValue: 0.98,
-                duration: 80,
+                duration: 70,
                 useNativeDriver: true,
               }),
               Animated.spring(scaleAnim, {
@@ -221,11 +219,19 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
             ]),
             Animated.timing(translateX, {
               toValue: 0,
-              duration: 110,
+              duration: 140,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
-          ]).start()
+            Animated.timing(rightSwipeDistance, {
+              toValue: 0,
+              duration: 140,
+              easing: APPLE_EASING,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            onToggleStatus(task.id, task.status)
+          })
         } else if (dx <= -48 && canModify) {
           // Desplegar y anclar botones de Editar y Borrar
           triggerHaptic('selection')
@@ -237,17 +243,24 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
             useNativeDriver: true,
           }).start()
         } else {
-          // Restaurar a posición cerrada exactamente en 0 (sin rebote elástico)
+          // Restaurar a posición cerrada exactamente en 0
           isOpen.current = false
           isGreenTriggered.current = false
-          rightSwipeDistance.setValue(0)
 
-          Animated.timing(translateX, {
-            toValue: 0,
-            duration: 160,
-            easing: APPLE_EASING,
-            useNativeDriver: true,
-          }).start()
+          Animated.parallel([
+            Animated.timing(translateX, {
+              toValue: 0,
+              duration: 160,
+              easing: APPLE_EASING,
+              useNativeDriver: true,
+            }),
+            Animated.timing(rightSwipeDistance, {
+              toValue: 0,
+              duration: 160,
+              easing: APPLE_EASING,
+              useNativeDriver: true,
+            }),
+          ]).start()
         }
       },
       onPanResponderTerminate: () => {
@@ -255,14 +268,21 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         onSwipeActiveChange?.(true)
         isOpen.current = false
         isGreenTriggered.current = false
-        rightSwipeDistance.setValue(0)
 
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration: 160,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }).start()
+        Animated.parallel([
+          Animated.timing(translateX, {
+            toValue: 0,
+            duration: 160,
+            easing: APPLE_EASING,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rightSwipeDistance, {
+            toValue: 0,
+            duration: 160,
+            easing: APPLE_EASING,
+            useNativeDriver: true,
+          }),
+        ]).start()
       },
     })
   ).current
@@ -318,7 +338,21 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const handleDeletePress = () => {
     triggerHaptic('medium')
     isOpen.current = false
-    onDelete?.(task.id)
+    Animated.parallel([
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration: 120,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rowFadeAnim, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onDelete?.(task.id)
+    })
   }
 
   const dueInfo = formatTaskDueDate(task.due_date, isVisuallyDone)

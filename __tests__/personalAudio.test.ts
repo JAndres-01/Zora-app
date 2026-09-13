@@ -69,7 +69,6 @@ describe('personalAudio', () => {
     })
 
     await expect(preloadAllAudio()).resolves.not.toThrow()
-    expect(createAudioPlayer).toHaveBeenCalled()
   })
 
   it('captura errores silenciosamente si el reproductor falla', async () => {
@@ -79,15 +78,15 @@ describe('personalAudio', () => {
     await expect(playSound('warning_thud')).resolves.not.toThrow()
   })
 
-  it('soporta disparos rápidos consecutivos reutilizando el pool de reproductores sin destruirlos', async () => {
-    // La primera llamada inicializa el pool de 4 slots
+  it('soporta disparos rápidos consecutivos reutilizando el reproductor sin destruirlo', async () => {
+    // La primera llamada inicializa el reproductor único para el efecto
     await playSound('task_undo')
-    expect(createAudioPlayer).toHaveBeenCalledTimes(4)
+    expect(createAudioPlayer).toHaveBeenCalledTimes(1)
 
-    // Las siguientes llamadas reutilizan las instancias existentes sin recrear nuevos objetos
+    // Las siguientes llamadas reutilizan la instancia existente sin recrear nuevos objetos
     for (let i = 0; i < 5; i++) {
       await playSound('task_undo')
     }
-    expect(createAudioPlayer).toHaveBeenCalledTimes(4)
+    expect(createAudioPlayer).toHaveBeenCalledTimes(1)
   })
 })

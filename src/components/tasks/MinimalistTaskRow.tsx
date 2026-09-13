@@ -55,7 +55,6 @@ export const MinimalistTaskRow = memo(
     // Microinteracciones de escala y atenuación de la fila
     const scaleAnim = useRef(new Animated.Value(1)).current
     const rowFadeAnim = useRef(new Animated.Value(isVisuallyDone ? 0.65 : 1)).current
-    const rowSlideAnim = useRef(new Animated.Value(0)).current
     const maxHeightAnim = useRef(new Animated.Value(140)).current
     const measuredHeight = useRef(0)
 
@@ -560,7 +559,7 @@ export const MinimalistTaskRow = memo(
             {
               transform: [
                 { scale: scaleAnim },
-                { translateY: Animated.add(rowSlideAnim, liftAnim) },
+                { translateY: liftAnim },
               ],
               opacity: rowFadeAnim,
             },

@@ -18,31 +18,22 @@ const SOUND_ASSETS: Record<SoundEffect, any> = {
   shutter_save: require('../../assets/sounds/shutter_save.wav'),
 }
 
-const POOL_SIZE = 4
 let _globalSoundEnabled = true
-const _playerPool: Partial<Record<SoundEffect, AudioPlayer[]>> = {}
-const _poolPointers: Partial<Record<SoundEffect, number>> = {}
+const _nativePlayers: Partial<Record<SoundEffect, AudioPlayer>> = {}
+const _webAudioElements: Partial<Record<SoundEffect, HTMLAudioElement>> = {}
 const _webAssetUrls: Partial<Record<SoundEffect, string>> = {}
 let _audioModeConfigured = false
 
-function createPlayerInstance(effect: SoundEffect): AudioPlayer {
-  return createAudioPlayer(SOUND_ASSETS[effect], {
-    keepAudioSessionActive: true,
-    downloadFirst: true,
-  })
-}
-
-function getOrCreatePool(effect: SoundEffect): AudioPlayer[] {
-  let pool = _playerPool[effect]
-  if (!pool || pool.length === 0) {
-    pool = []
-    for (let i = 0; i < POOL_SIZE; i++) {
-      pool.push(createPlayerInstance(effect))
+function getOrCreateNativePlayer(effect: SoundEffect): AudioPlayer | null {
+  try {
+    if (!_nativePlayers[effect]) {
+      _nativePlayers[effect] = createAudioPlayer(SOUND_ASSETS[effect])
     }
-    _playerPool[effect] = pool
-    _poolPointers[effect] = 0
+    return _nativePlayers[effect]!
+  } catch (err) {
+    logger.warn(`[personalAudio] Error creando reproductor para ${effect}:`, err)
+    return null
   }
-  return pool
 }
 
 /**
@@ -50,19 +41,21 @@ function getOrCreatePool(effect: SoundEffect): AudioPlayer[] {
  */
 export function __resetAudioConfigForTesting(): void {
   _audioModeConfigured = false
-  for (const key of Object.keys(_playerPool) as SoundEffect[]) {
-    const pool = _playerPool[key]
-    if (pool) {
-      for (const player of pool) {
-        try {
-          if (typeof player.remove === 'function') {
-            player.remove()
-          }
-        } catch {}
-      }
+  for (const key of Object.keys(_nativePlayers) as SoundEffect[]) {
+    const player = _nativePlayers[key]
+    if (player) {
+      try {
+        if (typeof player.remove === 'function') {
+          player.remove()
+        }
+      } catch {}
     }
-    delete _playerPool[key]
-    delete _poolPointers[key]
+    delete _nativePlayers[key]
+  }
+  for (const key of Object.keys(_webAudioElements) as SoundEffect[]) {
+    delete _webAudioElements[key]
+  }
+  for (const key of Object.keys(_webAssetUrls) as SoundEffect[]) {
     delete _webAssetUrls[key]
   }
 }
@@ -105,18 +98,10 @@ export async function configureAudioMode(): Promise<void> {
 }
 
 /**
- * Precarga todos los efectos de audio nativos en memoria para reproducción instantánea sin latencia.
+ * Precarga de audio segura y bajo demanda (no-op para evitar picos de memoria innecesarios).
  */
 export async function preloadAllAudio(): Promise<void> {
-  if (Platform.OS === 'web') return
-  await configureAudioMode()
-  for (const key of Object.keys(SOUND_ASSETS) as SoundEffect[]) {
-    try {
-      getOrCreatePool(key)
-    } catch (err) {
-      logger.warn(`[personalAudio] Error precargando sonido ${key}:`, err)
-    }
-  }
+  // Inicialización diferida bajo demanda para optimizar memoria RAM a <50MB
 }
 
 /**
@@ -134,9 +119,7 @@ export function isGlobalSoundEnabled(): boolean {
 }
 
 /**
- * Reproduce de forma instantánea uno de los efectos de sonido de Zora.
- * Reutiliza instancias precargadas en memoria sin recrearlas para garantizar
- * latencia 0ms y fluidez total incluso en ráfagas rápidas de interacción.
+ * Reproduce de forma instantánea uno de los efectos de sonido de Zora de forma ligera.
  */
 export async function playSound(effect: SoundEffect): Promise<void> {
   if (!_globalSoundEnabled) return
@@ -146,8 +129,13 @@ export async function playSound(effect: SoundEffect): Promise<void> {
       if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
         const src = getWebAudioSrc(effect)
         if (src) {
-          const webAudio = new Audio(src)
-          webAudio.volume = 0.6
+          let webAudio = _webAudioElements[effect]
+          if (!webAudio) {
+            webAudio = new Audio(src)
+            webAudio.volume = 0.6
+            _webAudioElements[effect] = webAudio
+          }
+          webAudio.currentTime = 0
           webAudio.play().catch(() => {})
         }
       }
@@ -158,56 +146,21 @@ export async function playSound(effect: SoundEffect): Promise<void> {
       configureAudioMode().catch(() => {})
     }
 
-    const pool = getOrCreatePool(effect)
-    if (pool.length === 0) return
-
-    // Buscar un reproductor libre que no esté reproduciendo
-    let chosenPlayer: AudioPlayer | null = null
-    let chosenIdx = -1
-
-    for (let i = 0; i < pool.length; i++) {
-      const p = pool[i]
-      if (p && !p.playing) {
-        chosenPlayer = p
-        chosenIdx = i
-        break
-      }
-    }
-
-    // Si todos están ocupados (ráfaga ultra-rápida), rotación round-robin
-    if (!chosenPlayer) {
-      const currentIdx = _poolPointers[effect] ?? 0
-      _poolPointers[effect] = (currentIdx + 1) % pool.length
-      chosenPlayer = pool[currentIdx]
-      chosenIdx = currentIdx
-    }
-
-    if (!chosenPlayer) return
+    const player = getOrCreateNativePlayer(effect)
+    if (!player) return
 
     try {
-      if (chosenPlayer.currentTime > 0) {
-        chosenPlayer
-          .seekTo(0)
-          .then(() => {
-            try {
-              chosenPlayer?.play()
-            } catch {}
-          })
-          .catch(() => {
-            try {
-              chosenPlayer?.play()
-            } catch {}
-          })
+      if (player.currentTime > 0) {
+        player.seekTo(0).then(() => {
+          try { player.play() } catch {}
+        }).catch(() => {
+          try { player.play() } catch {}
+        })
       } else {
-        chosenPlayer.play()
+        player.play()
       }
     } catch (playErr) {
-      logger.warn(`[personalAudio] Error reproduciendo ${effect}, regenerando slot:`, playErr)
-      try {
-        const freshPlayer = createPlayerInstance(effect)
-        pool[chosenIdx] = freshPlayer
-        freshPlayer.play()
-      } catch {}
+      logger.warn(`[personalAudio] Error reproduciendo ${effect}:`, playErr)
     }
   } catch (err) {
     logger.warn(`[personalAudio] Error reproduciendo sonido ${effect}:`, err)

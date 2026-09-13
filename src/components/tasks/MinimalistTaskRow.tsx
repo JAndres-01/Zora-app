@@ -1,4 +1,4 @@
-import { useRef, useEffect, memo } from 'react'
+import { useRef, useEffect, useCallback, memo } from 'react'
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Animated,
   PanResponder,
+  type LayoutChangeEvent,
 } from 'react-native'
 import type { Task } from '@/types/personal'
 import { Check, Paperclip, Edit2, Trash2, RotateCcw } from 'lucide-react-native'
@@ -54,6 +55,8 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const scaleAnim = useRef(new Animated.Value(1)).current
   const rowFadeAnim = useRef(new Animated.Value(isVisuallyDone ? 0.65 : 1)).current
   const rowSlideAnim = useRef(new Animated.Value(0)).current
+  const maxHeightAnim = useRef(new Animated.Value(140)).current
+  const measuredHeight = useRef(0)
 
   // Animación de Brillo Blanco y Elevación al Resaltar
   const highlightAnim = useRef(new Animated.Value(0)).current
@@ -72,8 +75,18 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const toggleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const deleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
+  const handleLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height
+    if (h > 0 && !isDeleting.current) {
+      measuredHeight.current = h
+      maxHeightAnim.setValue(h)
+    }
+  }, [maxHeightAnim])
+
   // Limpieza y reinicio inmediato de valores si la fila cambia de id o estado
   useEffect(() => {
+    if (isDeleting.current) return
+
     if (toggleTimerRef.current) {
       clearTimeout(toggleTimerRef.current)
       toggleTimerRef.current = null
@@ -92,10 +105,16 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     rightSwipeDistance.stopAnimation()
     scaleAnim.stopAnimation()
     rowFadeAnim.stopAnimation()
+    maxHeightAnim.stopAnimation()
     translateX.setValue(0)
     rightSwipeDistance.setValue(0)
     scaleAnim.setValue(1)
     rowFadeAnim.setValue(isVisuallyDone ? 0.6 : 1)
+    if (measuredHeight.current > 0) {
+      maxHeightAnim.setValue(measuredHeight.current)
+    } else {
+      maxHeightAnim.setValue(140)
+    }
     isOpen.current = false
     isSwiping.current = false
     isGreenTriggered.current = false
@@ -108,9 +127,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       deleteTimersRef.current.forEach(clearTimeout)
       deleteTimersRef.current = []
     }
-  }, [task.id, task.status, isVisuallyDone])
+  }, [task.id, task.status, isVisuallyDone, maxHeightAnim])
 
   useEffect(() => {
+    if (isDeleting.current) return
     Animated.timing(rowFadeAnim, {
       toValue: isVisuallyDone ? 0.6 : 1,
       duration: 180,
@@ -456,11 +476,11 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         Animated.timing(rotateAnim, { toValue: -0.3, duration: 45, useNativeDriver: true }),
         Animated.timing(rotateAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
       ]),
-      // Expansión breve y colapso / implosión en escala profundo
+      // Expansión breve y colapso / implosión en escala profundo hasta 0
       Animated.sequence([
         Animated.timing(scaleAnim, { toValue: 1.02, duration: 90, useNativeDriver: true }),
         Animated.timing(scaleAnim, {
-          toValue: 0.65,
+          toValue: 0,
           duration: 380,
           easing: APPLE_EASING,
           useNativeDriver: true,
@@ -476,14 +496,20 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           useNativeDriver: true,
         }),
       ]),
+      // Colapso de altura suave y sincronizado para cerrar el espacio entre tareas
+      Animated.sequence([
+        Animated.delay(120),
+        Animated.timing(maxHeightAnim, {
+          toValue: 0,
+          duration: 350,
+          easing: APPLE_EASING,
+          useNativeDriver: false,
+        }),
+      ]),
     ]).start(() => {
       deleteTimersRef.current.forEach(clearTimeout)
       deleteTimersRef.current = []
-      translateX.setValue(0)
-      shakeAnim.setValue(0)
-      rotateAnim.setValue(0)
-      deleteAnim.setValue(0)
-      // La fila permanece desvanecida en opacidad 0 mientras se elimina del estado
+      // La fila permanece en escala 0, opacidad 0 y altura 0 mientras se elimina del estado
       onDelete?.(task.id)
     })
   }
@@ -493,17 +519,24 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
 
   return (
     <Animated.View
+      onLayout={handleLayout}
       style={[
-        styles.rowWrapper,
-        {
-          transform: [
-            { scale: scaleAnim },
-            { translateY: Animated.add(rowSlideAnim, liftAnim) },
-          ],
-          opacity: rowFadeAnim,
-        },
+        styles.collapseWrapper,
+        { maxHeight: maxHeightAnim },
       ]}
     >
+      <Animated.View
+        style={[
+          styles.rowWrapper,
+          {
+            transform: [
+              { scale: scaleAnim },
+              { translateY: Animated.add(rowSlideAnim, liftAnim) },
+            ],
+            opacity: rowFadeAnim,
+          },
+        ]}
+      >
       {/* 1. Capa de Fondo para Gestos estilo Spotify (100% invisible en reposo) */}
       <View style={styles.swipeBackgroundContainer}>
         {/* Fondo Base Gris Neutro (Inicial) */}
@@ -803,10 +836,14 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         </View>
       </Animated.View>
     </Animated.View>
+    </Animated.View>
   )
 })
 
 const styles = StyleSheet.create({
+  collapseWrapper: {
+    overflow: 'hidden',
+  },
   rowWrapper: {
     position: 'relative',
     borderRadius: 14,

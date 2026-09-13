@@ -46,6 +46,19 @@ export const LAYOUT_EASE = (
   })
 
 /**
+ * LayoutAnimation para cuando una fila ya completó su propia animación de salida (ej. destrucción)
+ * y solo se necesita reposicionar fluidamente el resto de las filas hacia arriba sin ghost snapshots.
+ */
+export const ROW_COLLAPSE_LAYOUT = (duration: number = 220) =>
+  LayoutAnimation.configureNext({
+    duration,
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      duration,
+    },
+  })
+
+/**
  * LayoutAnimation para switches de panel (Pendientes/Completadas/Todas).
  * - update: easeOut (arranca rápido y suaviza al llegar a destino → deslizamiento fluido)
  * - create/delete: easeInEaseOut con opacity (fade rápido)

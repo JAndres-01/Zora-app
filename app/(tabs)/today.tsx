@@ -183,7 +183,6 @@ export default function TodayScreen() {
     async (taskId: string) => {
       cancelTaskReminder(taskId)
       playTrashSound()
-      LAYOUT_EASE(200)
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
       setActiveTask((prev) => (prev?.id === taskId ? null : prev))
       setTaskModalMode('none')

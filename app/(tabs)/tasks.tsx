@@ -151,8 +151,6 @@ export default function TasksScreen() {
   // Handlers de Tareas
   const handleStatusChange = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
-    // Panel switch: easeOut para reposicionamiento fluido (desliza sin trabarse)
-    // + fade rápido de entrada/salida de filas
     PANEL_SWITCH_LAYOUT()
     setStatusFilter(newStatus)
   }
@@ -413,54 +411,22 @@ export default function TasksScreen() {
     [loadData, statusFilter, selectedSubjectId, searchQuery]
   )
 
-  const itemEntranceStyle = useMemo(
-    () => ({
-      opacity: cardEntranceAnims[2].interpolate({
-        inputRange: [0, 0.4, 1],
-        outputRange: [0, 0.7, 1],
-      }),
-      transform: [
-        {
-          translateY: cardEntranceAnims[2].interpolate({
-            inputRange: [0, 1],
-            outputRange: [-36, 0],
-          }),
-        },
-        {
-          scale: cardEntranceAnims[2].interpolate({
-            inputRange: [0, 1],
-            outputRange: [0.96, 1],
-          }),
-        },
-      ],
-    }),
-    [cardEntranceAnims]
-  )
-
   const renderTaskItem = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
-      <Animated.View
-        style={[
-          itemEntranceStyle,
-          highlightedTaskId === item.id ? styles.highlightedItemWrapper : styles.normalItemWrapper,
-        ]}
-      >
-        <MinimalistTaskRow
-          task={item}
-          statusFilter={statusFilter}
-          isLast={index === filteredTasks.length - 1}
-          isHighlighted={highlightedTaskId === item.id}
-          isAdmin={isAdmin}
-          onToggleStatus={handleToggleStatus}
-          onOpenDetail={handleOpenDetail}
-          onEdit={handleEditTask}
-          onDelete={handleDeleteTask}
-          onSwipeActiveChange={setIsScrollEnabled}
-        />
-      </Animated.View>
+      <MinimalistTaskRow
+        task={item}
+        statusFilter={statusFilter}
+        isLast={index === filteredTasks.length - 1}
+        isHighlighted={highlightedTaskId === item.id}
+        isAdmin={isAdmin}
+        onToggleStatus={handleToggleStatus}
+        onOpenDetail={handleOpenDetail}
+        onEdit={handleEditTask}
+        onDelete={handleDeleteTask}
+        onSwipeActiveChange={setIsScrollEnabled}
+      />
     ),
     [
-      itemEntranceStyle,
       statusFilter,
       filteredTasks.length,
       highlightedTaskId,
@@ -554,30 +520,57 @@ export default function TasksScreen() {
     <View style={styles.screenWrapper}>
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
-      <FlatList
-        ref={flatListRef}
-        data={filteredTasks}
-        extraData={`${statusFilter}_${highlightedTaskId}_${selectedSubjectId}_${tasks.length}`}
-        renderItem={renderTaskItem}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={renderListHeader}
-        ListEmptyComponent={renderEmptyComponent}
-        style={styles.flatList}
-        scrollEnabled={isScrollEnabled}
-        bounces={true}
-        alwaysBounceVertical={true}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 105 },
+      <Animated.View
+        style={[
+          styles.flatListWrapper,
+          {
+            opacity: cardEntranceAnims[2].interpolate({
+              inputRange: [0, 0.4, 1],
+              outputRange: [0, 0.7, 1],
+            }),
+            transform: [
+              {
+                translateY: cardEntranceAnims[2].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-36, 0],
+                }),
+              },
+              {
+                scale: cardEntranceAnims[2].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.96, 1],
+                }),
+              },
+            ],
+          },
         ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        onScrollBeginDrag={() => Keyboard.dismiss()}
-        initialNumToRender={10}
-        maxToRenderPerBatch={8}
-        windowSize={5}
-        removeClippedSubviews={Platform.OS === 'android'}
-      />
+      >
+        <FlatList
+          ref={flatListRef}
+          data={filteredTasks}
+          extraData={highlightedTaskId}
+          renderItem={renderTaskItem}
+          keyExtractor={keyExtractor}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderEmptyComponent}
+          style={styles.flatList}
+          scrollEnabled={isScrollEnabled}
+          bounces={true}
+          alwaysBounceVertical={true}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 105 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
+          initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          updateCellsBatchingPeriod={30}
+        />
+      </Animated.View>
 
       {/* Modal Desplegable de Filtro de Materia */}
       <TasksSubjectFilterModal
@@ -641,6 +634,9 @@ const styles = StyleSheet.create({
   screenWrapper: {
     flex: 1,
     backgroundColor: '#09090B',
+  },
+  flatListWrapper: {
+    flex: 1,
   },
   flatList: {
     flex: 1,

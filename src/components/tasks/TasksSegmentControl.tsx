@@ -10,6 +10,7 @@ import {
 import { BlurView } from 'expo-blur'
 import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
 import { SCREEN_WIDTH } from '@/constants/layout'
+import { triggerHaptic } from '@/lib/personalHaptics'
 
 export interface TasksSegmentControlProps {
   statusFilter: 'pending' | 'completed' | 'all'
@@ -36,6 +37,7 @@ export function TasksSegmentControl({
 
   const handlePress = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
+    triggerHaptic('selection')
     onStatusChange(newStatus)
   }
 

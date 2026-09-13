@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, memo } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react'
 import {
   View,
   Text,
@@ -33,30 +33,31 @@ interface MinimalistTaskRowProps {
   onSwipeActiveChange?: (isActive: boolean) => void
 }
 
-export const MinimalistTaskRow = memo(function MinimalistTaskRow({
-  task,
-  statusFilter,
-  isLast = false,
-  isHighlighted = false,
-  isAdmin = false,
-  onToggleStatus,
-  onOpenDetail,
-  onEdit,
-  onDelete,
-  onSwipeActiveChange,
-}: MinimalistTaskRowProps) {
-  const isDone = task.status === 'completed'
-  const canModify = !task.is_class_task || isAdmin
-  // Si estamos en la pestaña "Completadas", mientras la tarea realiza su animación de salida
-  // debe mantenerse tachada y atenuada (nunca iluminarse en blanco antes de desaparecer)
-  const isVisuallyDone = isDone || statusFilter === 'completed'
+export const MinimalistTaskRow = memo(
+  function MinimalistTaskRow({
+    task,
+    statusFilter,
+    isLast = false,
+    isHighlighted = false,
+    isAdmin = false,
+    onToggleStatus,
+    onOpenDetail,
+    onEdit,
+    onDelete,
+    onSwipeActiveChange,
+  }: MinimalistTaskRowProps) {
+    const isDone = task.status === 'completed'
+    const canModify = !task.is_class_task || isAdmin
+    // Si estamos en la pestaña "Completadas", mientras la tarea realiza su animación de salida
+    // debe mantenerse tachada y atenuada (nunca iluminarse en blanco antes de desaparecer)
+    const isVisuallyDone = isDone || statusFilter === 'completed'
 
-  // Microinteracciones de escala y atenuación de la fila
-  const scaleAnim = useRef(new Animated.Value(1)).current
-  const rowFadeAnim = useRef(new Animated.Value(isVisuallyDone ? 0.65 : 1)).current
-  const rowSlideAnim = useRef(new Animated.Value(0)).current
-  const maxHeightAnim = useRef(new Animated.Value(140)).current
-  const measuredHeight = useRef(0)
+    // Microinteracciones de escala y atenuación de la fila
+    const scaleAnim = useRef(new Animated.Value(1)).current
+    const rowFadeAnim = useRef(new Animated.Value(isVisuallyDone ? 0.65 : 1)).current
+    const rowSlideAnim = useRef(new Animated.Value(0)).current
+    const maxHeightAnim = useRef(new Animated.Value(140)).current
+    const measuredHeight = useRef(0)
 
   // Animación de Brillo Blanco y Elevación al Resaltar
   const highlightAnim = useRef(new Animated.Value(0)).current
@@ -537,7 +538,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     })
   }
 
-  const dueInfo = formatTaskDueDate(task.due_date, isVisuallyDone)
+  const dueInfo = useMemo(
+    () => formatTaskDueDate(task.due_date, isVisuallyDone),
+    [task.due_date, isVisuallyDone]
+  )
   const attachCount = Array.isArray(task.attachments) ? task.attachments.length : 0
 
   return (
@@ -863,6 +867,26 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       </Animated.View>
     </Animated.View>
     </Animated.View>
+  )
+},
+(prev, next) => {
+  return (
+    prev.task.id === next.task.id &&
+    prev.task.title === next.task.title &&
+    prev.task.description === next.task.description &&
+    prev.task.status === next.task.status &&
+    prev.task.due_date === next.task.due_date &&
+    prev.task.type === next.task.type &&
+    prev.task.is_class_task === next.task.is_class_task &&
+    prev.task.has_class_update === next.task.has_class_update &&
+    prev.task.subject?.id === next.task.subject?.id &&
+    prev.task.subject?.name === next.task.subject?.name &&
+    prev.task.subject?.color === next.task.subject?.color &&
+    (prev.task.attachments?.length ?? 0) === (next.task.attachments?.length ?? 0) &&
+    prev.isHighlighted === next.isHighlighted &&
+    prev.isLast === next.isLast &&
+    prev.isAdmin === next.isAdmin &&
+    prev.statusFilter === next.statusFilter
   )
 })
 

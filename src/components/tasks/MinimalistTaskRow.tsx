@@ -65,9 +65,14 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const isOpen = useRef(false)
   const isSwiping = useRef(false)
   const isGreenTriggered = useRef(false)
+  const toggleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Limpieza y reinicio inmediato de valores si la fila cambia de id o estado
   useEffect(() => {
+    if (toggleTimerRef.current) {
+      clearTimeout(toggleTimerRef.current)
+      toggleTimerRef.current = null
+    }
     translateX.stopAnimation()
     rightSwipeDistance.stopAnimation()
     scaleAnim.stopAnimation()
@@ -77,6 +82,13 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     isOpen.current = false
     isSwiping.current = false
     isGreenTriggered.current = false
+
+    return () => {
+      if (toggleTimerRef.current) {
+        clearTimeout(toggleTimerRef.current)
+        toggleTimerRef.current = null
+      }
+    }
   }, [task.id, task.status])
 
   useEffect(() => {
@@ -166,6 +178,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: () => {
         isSwiping.current = true
+        if (toggleTimerRef.current) {
+          clearTimeout(toggleTimerRef.current)
+          toggleTimerRef.current = null
+        }
         translateX.stopAnimation()
         rightSwipeDistance.stopAnimation()
         scaleAnim.stopAnimation()
@@ -212,35 +228,44 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         const isCompleteAction = dx >= SWIPE_THRESHOLD || (dx >= 45 && gestureState.vx > 0.35)
 
         if (isCompleteAction) {
-          // Activar palomita / desmarcar con animación de retorno suave y ultra rápida
+          // Activar palomita / desmarcar con efecto látigo y rebote elástico
           triggerHaptic('success')
           isGreenTriggered.current = false
           isOpen.current = false
 
-          // Animar retorno limpio en paralelo sin promesas bloqueadas
+          // Resorte de alta tensión con overshoot para rebote orgánico
           Animated.parallel([
-            Animated.timing(translateX, {
+            Animated.spring(translateX, {
               toValue: 0,
-              duration: 70,
-              easing: APPLE_EASING,
+              stiffness: 480,
+              damping: 24,
+              mass: 0.7,
+              overshootClamping: false,
               useNativeDriver: true,
             }),
             Animated.timing(rightSwipeDistance, {
               toValue: 0,
-              duration: 70,
+              duration: 100,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
-            Animated.timing(scaleAnim, {
+            Animated.spring(scaleAnim, {
               toValue: 1,
-              duration: 70,
+              stiffness: 500,
+              damping: 22,
               useNativeDriver: true,
             }),
-          ]).start(() => {
+          ]).start()
+
+          // Ejecutar el cambio de estado en el momento justo del rebote de látigo
+          if (toggleTimerRef.current) {
+            clearTimeout(toggleTimerRef.current)
+          }
+          toggleTimerRef.current = setTimeout(() => {
             translateX.setValue(0)
             rightSwipeDistance.setValue(0)
             onToggleStatus(task.id, task.status)
-          })
+          }, 105)
         } else if (dx <= -48 && canModify) {
           // Desplegar y anclar botones de Editar y Borrar
           triggerHaptic('selection')
@@ -252,20 +277,22 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
             useNativeDriver: true,
           }).start()
         } else {
-          // Restaurar a posición cerrada exactamente en 0
+          // Restaurar a posición cerrada con rebote elástico
           isOpen.current = false
           isGreenTriggered.current = false
 
           Animated.parallel([
-            Animated.timing(translateX, {
+            Animated.spring(translateX, {
               toValue: 0,
-              duration: 80,
-              easing: APPLE_EASING,
+              stiffness: 450,
+              damping: 25,
+              mass: 0.7,
+              overshootClamping: false,
               useNativeDriver: true,
             }),
             Animated.timing(rightSwipeDistance, {
               toValue: 0,
-              duration: 80,
+              duration: 90,
               easing: APPLE_EASING,
               useNativeDriver: true,
             }),
@@ -282,15 +309,17 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         isGreenTriggered.current = false
 
         Animated.parallel([
-          Animated.timing(translateX, {
+          Animated.spring(translateX, {
             toValue: 0,
-            duration: 80,
-            easing: APPLE_EASING,
+            stiffness: 450,
+            damping: 25,
+            mass: 0.7,
+            overshootClamping: false,
             useNativeDriver: true,
           }),
           Animated.timing(rightSwipeDistance, {
             toValue: 0,
-            duration: 80,
+            duration: 90,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),

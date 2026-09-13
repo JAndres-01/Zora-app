@@ -53,7 +53,7 @@ describe('Offline Class Tasks Queue & Sync Engine', () => {
       publisher_name: 'Admin',
       subject_name: 'Física',
       title: 'Taller 1',
-      type: 'taller',
+      type: 'individual',
       is_pending_sync: true,
     }
 

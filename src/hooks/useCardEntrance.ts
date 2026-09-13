@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react'
-import { Animated } from 'react-native'
+import { Animated, Platform } from 'react-native'
 import { SPRING_ENTRANCE_CONFIG } from '@/constants/animations'
 
 const playedScreens = new Set<string>()
@@ -10,20 +10,23 @@ const playedScreens = new Set<string>()
  *
  * @param count Número de elementos/tarjetas a animar secuencialmente.
  * @param screenKey Identificador único de la pantalla (ej. 'today', 'tasks', 'schedule', 'settings').
- * @param staggerDelay Retardo en ms entre cada tarjeta animada (default: 100ms).
+ * @param staggerDelay Retardo en ms entre cada tarjeta animada (default: 80ms).
  */
 export function useCardEntrance(
   count: number,
   screenKey: string,
-  staggerDelay: number = 100
+  staggerDelay: number = 80
 ): Animated.Value[] {
-  const hasPlayed = playedScreens.has(screenKey)
+  const isWeb = Platform.OS === 'web'
+  const hasPlayed = isWeb || playedScreens.has(screenKey)
 
   const cardEntranceAnims = useRef<Animated.Value[]>(
     Array.from({ length: count }, () => new Animated.Value(hasPlayed ? 1 : 0))
   ).current
 
   useEffect(() => {
+    if (isWeb) return
+
     if (!playedScreens.has(screenKey)) {
       playedScreens.add(screenKey)
       cardEntranceAnims.forEach((anim) => anim.setValue(0))
@@ -37,7 +40,7 @@ export function useCardEntrance(
 
       Animated.stagger(staggerDelay, staggerAnims).start()
     }
-  }, [cardEntranceAnims, screenKey, staggerDelay])
+  }, [cardEntranceAnims, screenKey, staggerDelay, isWeb])
 
   return cardEntranceAnims
 }

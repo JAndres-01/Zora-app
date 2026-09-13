@@ -476,25 +476,7 @@ export default function TasksScreen() {
 
   const renderEmptyComponent = useMemo(() => {
     return (
-      <Animated.View
-        style={[
-          styles.emptyContainer,
-          {
-            opacity: cardEntranceAnims[2].interpolate({
-              inputRange: [0, 0.4, 1],
-              outputRange: [0, 0.7, 1],
-            }),
-            transform: [
-              {
-                translateY: cardEntranceAnims[2].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-36, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.emptyContainer}>
         <CheckCircle2 size={36} color="#27272A" />
         <Text style={styles.emptyTitle}>
           {statusFilter === 'completed'
@@ -508,39 +490,15 @@ export default function TasksScreen() {
             ? 'Intenta buscar con otro término o selecciona otra materia.'
             : 'Toca el botón + flotante para añadir un nuevo pendiente o entrega.'}
         </Text>
-      </Animated.View>
+      </View>
     )
-  }, [cardEntranceAnims, statusFilter, debouncedQuery])
+  }, [statusFilter, debouncedQuery])
 
   return (
     <View style={styles.screenWrapper}>
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
-      <Animated.View
-        style={[
-          styles.flatListWrapper,
-          {
-            opacity: cardEntranceAnims[2].interpolate({
-              inputRange: [0, 0.4, 1],
-              outputRange: [0, 0.7, 1],
-            }),
-            transform: [
-              {
-                translateY: cardEntranceAnims[2].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-36, 0],
-                }),
-              },
-              {
-                scale: cardEntranceAnims[2].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.96, 1],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.flatListWrapper}>
         <FlatList
           ref={flatListRef}
           data={filteredTasks}
@@ -560,13 +518,12 @@ export default function TasksScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => Keyboard.dismiss()}
-          initialNumToRender={10}
-          maxToRenderPerBatch={8}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS === 'android'}
-          updateCellsBatchingPeriod={30}
+          initialNumToRender={15}
+          maxToRenderPerBatch={12}
+          windowSize={9}
+          removeClippedSubviews={false}
         />
-      </Animated.View>
+      </View>
 
       {/* Modal Desplegable de Filtro de Materia */}
       <TasksSubjectFilterModal

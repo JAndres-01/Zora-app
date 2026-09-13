@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, memo } from 'react'
+import { useRef, useEffect, useState, useCallback, memo } from 'react'
 import {
   View,
   Text,
@@ -65,6 +65,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const shakeAnim = useRef(new Animated.Value(0)).current
   const rotateAnim = useRef(new Animated.Value(0)).current
   const isDeleting = useRef(false)
+  const [isDeletingState, setIsDeletingState] = useState(false)
 
   // Animación de Desplazamiento Horizontal (Gestos estilo Spotify)
   const translateX = useRef(new Animated.Value(0)).current
@@ -139,6 +140,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   }, [isVisuallyDone])
 
   useEffect(() => {
+    if (isDeleting.current) return
     if (isHighlighted) {
       triggerHaptic('medium')
 
@@ -217,6 +219,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       },
       onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: () => {
+        if (isDeleting.current) return
         isSwiping.current = true
         if (toggleTimerRef.current) {
           clearTimeout(toggleTimerRef.current)
@@ -230,6 +233,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         isGreenTriggered.current = false
       },
       onPanResponderMove: (_, gestureState) => {
+        if (isDeleting.current) return
         let dx = gestureState.dx
         if (isOpen.current) {
           dx = dx - TOTAL_ACTIONS_WIDTH
@@ -258,6 +262,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         }
       },
       onPanResponderRelease: (_, gestureState) => {
+        if (isDeleting.current) return
         isSwiping.current = false
         onSwipeActiveChange?.(true)
         let dx = gestureState.dx
@@ -343,6 +348,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         }
       },
       onPanResponderTerminate: () => {
+        if (isDeleting.current) return
         isSwiping.current = false
         onSwipeActiveChange?.(true)
         isOpen.current = false
@@ -425,11 +431,26 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const handleDeletePress = () => {
     if (isDeleting.current) return
     isDeleting.current = true
+    setIsDeletingState(true)
     isOpen.current = false
+    isSwiping.current = false
 
     // Limpiar temporizadores previos
+    if (toggleTimerRef.current) {
+      clearTimeout(toggleTimerRef.current)
+      toggleTimerRef.current = null
+    }
     deleteTimersRef.current.forEach(clearTimeout)
     deleteTimersRef.current = []
+
+    // Detener cualquier animación previa en curso
+    translateX.stopAnimation()
+    scaleAnim.stopAnimation()
+    rowFadeAnim.stopAnimation()
+    shakeAnim.stopAnimation()
+    rotateAnim.stopAnimation()
+    deleteAnim.stopAnimation()
+    maxHeightAnim.stopAnimation()
 
     // 1. Ráfaga háptica sincronizada con cada impacto del temblor y colapso
     triggerHaptic('heavy')
@@ -438,23 +459,21 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     deleteTimersRef.current.push(setTimeout(() => triggerHaptic('medium'), 265))
     deleteTimersRef.current.push(setTimeout(() => triggerHaptic('light'), 355))
 
-    // 2. Retornar la tarjeta inmediatamente al centro (0px)
-    Animated.timing(translateX, {
-      toValue: 0,
-      duration: 85,
-      easing: APPLE_EASING,
-      useNativeDriver: true,
-    }).start()
-
-    // 3. Destello sutil carmesí mate (sin neón)
-    Animated.timing(deleteAnim, {
-      toValue: 1,
-      duration: 85,
-      useNativeDriver: true,
-    }).start()
-
-    // 4. Efecto de Destrucción: Temblor + Torsión de fractura + Implosión y desvanecimiento
+    // 2. Efecto de Destrucción unificado: Regreso al centro + Temblor + Torsión + Implosión + Disolución + Colapso
     Animated.parallel([
+      // Retornar la tarjeta inmediatamente al centro (0px) sin disparar gestos de rebote
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration: 90,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      // Destello sutil carmesí mate (sin neón)
+      Animated.timing(deleteAnim, {
+        toValue: 1,
+        duration: 90,
+        useNativeDriver: true,
+      }),
       // Vibración / Temblor destructivo
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: 8, duration: 45, useNativeDriver: true }),
@@ -488,7 +507,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       ]),
       // Desvanecimiento progresivo continuo que disuelve la tarjeta por completo
       Animated.sequence([
-        Animated.timing(rowFadeAnim, { toValue: 1, duration: 110, useNativeDriver: true }),
+        Animated.timing(rowFadeAnim, { toValue: 1, duration: 90, useNativeDriver: true }),
         Animated.timing(rowFadeAnim, {
           toValue: 0,
           duration: 360,
@@ -519,6 +538,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
 
   return (
     <Animated.View
+      pointerEvents={isDeletingState ? 'none' : 'auto'}
       onLayout={handleLayout}
       style={[
         styles.collapseWrapper,
@@ -726,7 +746,8 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
 
       {/* 2. Capa Frontal Deslizable (La Tarjeta de la Tarea) */}
       <Animated.View
-        {...panResponder.panHandlers}
+        {...(isDeletingState ? {} : panResponder.panHandlers)}
+        pointerEvents={isDeletingState ? 'none' : 'auto'}
         style={[
           styles.glowWrapper,
           {

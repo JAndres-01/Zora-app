@@ -252,10 +252,9 @@ export default function TasksScreen() {
 
       if (taskId.startsWith('class_')) {
         const classTaskId = taskId.replace('class_', '')
+        await personalStorage.setClassTaskLocalState(classTaskId, { deleted_locally: true })
         if (isAdmin) {
           await deleteClassTask(classTaskId)
-        } else {
-          await personalStorage.setClassTaskLocalState(classTaskId, { deleted_locally: true })
         }
       } else {
         await personalStorage.removeTask(taskId)

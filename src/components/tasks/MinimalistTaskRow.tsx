@@ -59,6 +59,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const highlightAnim = useRef(new Animated.Value(0)).current
   const liftAnim = useRef(new Animated.Value(0)).current
   const deleteAnim = useRef(new Animated.Value(0)).current
+  const shakeAnim = useRef(new Animated.Value(0)).current
   const isDeleting = useRef(false)
 
   // Animación de Desplazamiento Horizontal (Gestos estilo Spotify)
@@ -78,6 +79,8 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     isDeleting.current = false
     deleteAnim.stopAnimation()
     deleteAnim.setValue(0)
+    shakeAnim.stopAnimation()
+    shakeAnim.setValue(0)
     translateX.stopAnimation()
     rightSwipeDistance.stopAnimation()
     scaleAnim.stopAnimation()
@@ -394,31 +397,63 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     triggerHaptic('heavy')
     isOpen.current = false
 
-    // Animación personalizada de eliminación: destello carmesí + aceleración hacia la izquierda + compresión de escala
+    // 1. Retornar la tarjeta inmediatamente al punto de origen (0) para centrarla
+    Animated.timing(translateX, {
+      toValue: 0,
+      duration: 75,
+      easing: APPLE_EASING,
+      useNativeDriver: true,
+    }).start()
+
+    // 2. Destello carmesí intenso de sobrecarga
+    Animated.timing(deleteAnim, {
+      toValue: 1,
+      duration: 70,
+      useNativeDriver: true,
+    }).start()
+
+    // Micro-vibración háptica secundaria a mitad de la implosión
+    const hapticTimer = setTimeout(() => {
+      triggerHaptic('heavy')
+    }, 110)
+
+    // 3. Efecto de Destrucción: Temblor violento + Shockwave pop + Implosión y desvanecimiento
     Animated.parallel([
-      Animated.timing(deleteAnim, {
-        toValue: 1,
-        duration: 90,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateX, {
-        toValue: -340,
-        duration: 175,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 175,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rowFadeAnim, {
-        toValue: 0,
-        duration: 165,
-        useNativeDriver: true,
-      }),
+      // Vibración / Temblor destructivo
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 7, duration: 35, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -7, duration: 35, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 5, duration: 35, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -5, duration: 35, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 3, duration: 35, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -2, duration: 35, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 35, useNativeDriver: true }),
+      ]),
+      // Expansión breve de sobrecarga seguida de colapso / implosión en escala
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 1.03, duration: 75, useNativeDriver: true }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.7,
+          duration: 250,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Desvanecimiento orgánico durante la implosión
+      Animated.sequence([
+        Animated.timing(rowFadeAnim, { toValue: 1, duration: 75, useNativeDriver: true }),
+        Animated.timing(rowFadeAnim, {
+          toValue: 0,
+          duration: 250,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ]),
     ]).start(() => {
+      clearTimeout(hapticTimer)
+      translateX.setValue(0)
+      shakeAnim.setValue(0)
+      deleteAnim.setValue(0)
       onDelete?.(task.id)
     })
   }
@@ -632,7 +667,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         style={[
           styles.glowWrapper,
           {
-            transform: [{ translateX }],
+            transform: [{ translateX: Animated.add(translateX, shakeAnim) }],
           },
         ]}
       >
@@ -814,9 +849,9 @@ const styles = StyleSheet.create({
   },
   deleteOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(239, 68, 68, 0.24)',
-    borderColor: 'rgba(239, 68, 68, 0.75)',
-    borderWidth: 1.5,
+    backgroundColor: 'rgba(239, 68, 68, 0.32)',
+    borderColor: 'rgba(239, 68, 68, 0.85)',
+    borderWidth: 2,
     borderRadius: 14,
   },
   rowContainer: {

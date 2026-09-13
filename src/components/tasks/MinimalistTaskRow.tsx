@@ -60,6 +60,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const liftAnim = useRef(new Animated.Value(0)).current
   const deleteAnim = useRef(new Animated.Value(0)).current
   const shakeAnim = useRef(new Animated.Value(0)).current
+  const rotateAnim = useRef(new Animated.Value(0)).current
   const isDeleting = useRef(false)
 
   // Animación de Desplazamiento Horizontal (Gestos estilo Spotify)
@@ -69,6 +70,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const isSwiping = useRef(false)
   const isGreenTriggered = useRef(false)
   const toggleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const deleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   // Limpieza y reinicio inmediato de valores si la fila cambia de id o estado
   useEffect(() => {
@@ -76,17 +78,24 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       clearTimeout(toggleTimerRef.current)
       toggleTimerRef.current = null
     }
+    deleteTimersRef.current.forEach(clearTimeout)
+    deleteTimersRef.current = []
+
     isDeleting.current = false
     deleteAnim.stopAnimation()
     deleteAnim.setValue(0)
     shakeAnim.stopAnimation()
     shakeAnim.setValue(0)
+    rotateAnim.stopAnimation()
+    rotateAnim.setValue(0)
     translateX.stopAnimation()
     rightSwipeDistance.stopAnimation()
     scaleAnim.stopAnimation()
+    rowFadeAnim.stopAnimation()
     translateX.setValue(0)
     rightSwipeDistance.setValue(0)
     scaleAnim.setValue(1)
+    rowFadeAnim.setValue(isVisuallyDone ? 0.6 : 1)
     isOpen.current = false
     isSwiping.current = false
     isGreenTriggered.current = false
@@ -96,8 +105,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         clearTimeout(toggleTimerRef.current)
         toggleTimerRef.current = null
       }
+      deleteTimersRef.current.forEach(clearTimeout)
+      deleteTimersRef.current = []
     }
-  }, [task.id, task.status])
+  }, [task.id, task.status, isVisuallyDone])
 
   useEffect(() => {
     Animated.timing(rowFadeAnim, {
@@ -394,10 +405,20 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const handleDeletePress = () => {
     if (isDeleting.current) return
     isDeleting.current = true
-    triggerHaptic('heavy')
     isOpen.current = false
 
-    // 1. Retornar la tarjeta inmediatamente al punto de origen (0) para centrarla
+    // Limpiar temporizadores previos
+    deleteTimersRef.current.forEach(clearTimeout)
+    deleteTimersRef.current = []
+
+    // 1. Ráfaga háptica sincronizada con cada impacto del temblor y colapso
+    triggerHaptic('heavy')
+    deleteTimersRef.current.push(setTimeout(() => triggerHaptic('heavy'), 85))
+    deleteTimersRef.current.push(setTimeout(() => triggerHaptic('medium'), 175))
+    deleteTimersRef.current.push(setTimeout(() => triggerHaptic('medium'), 265))
+    deleteTimersRef.current.push(setTimeout(() => triggerHaptic('light'), 355))
+
+    // 2. Retornar la tarjeta inmediatamente al centro (0px)
     Animated.timing(translateX, {
       toValue: 0,
       duration: 85,
@@ -405,21 +426,16 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       useNativeDriver: true,
     }).start()
 
-    // 2. Destello sutil carmesí mate (sin brillo neón invasivo)
+    // 3. Destello sutil carmesí mate (sin neón)
     Animated.timing(deleteAnim, {
       toValue: 1,
       duration: 85,
       useNativeDriver: true,
     }).start()
 
-    // Micro-vibración háptica secundaria a mitad de la implosión
-    const hapticTimer = setTimeout(() => {
-      triggerHaptic('medium')
-    }, 160)
-
-    // 3. Efecto de Destrucción: Temblor rítmico + Implosión en escala + Desvanecimiento progresivo
+    // 4. Efecto de Destrucción: Temblor + Torsión de fractura + Implosión y desvanecimiento
     Animated.parallel([
-      // Vibración / Temblor estructurado y visible
+      // Vibración / Temblor destructivo
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: 8, duration: 45, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: -8, duration: 45, useNativeDriver: true }),
@@ -430,33 +446,44 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         Animated.timing(shakeAnim, { toValue: 2, duration: 45, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
       ]),
-      // Expansión sutil inicial y colapso / implosión en escala pausado
+      // Torsión / Micro-rotación de fractura
+      Animated.sequence([
+        Animated.timing(rotateAnim, { toValue: 1, duration: 45, useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: -1, duration: 45, useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: 0.7, duration: 45, useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: -0.7, duration: 45, useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: 0.4, duration: 45, useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: -0.3, duration: 45, useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
+      ]),
+      // Expansión breve y colapso / implosión en escala profundo
       Animated.sequence([
         Animated.timing(scaleAnim, { toValue: 1.02, duration: 90, useNativeDriver: true }),
         Animated.timing(scaleAnim, {
-          toValue: 0.76,
+          toValue: 0.65,
           duration: 380,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
       ]),
-      // Desvanecimiento suave durante la implosión
+      // Desvanecimiento progresivo continuo que disuelve la tarjeta por completo
       Animated.sequence([
-        Animated.timing(rowFadeAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
+        Animated.timing(rowFadeAnim, { toValue: 1, duration: 110, useNativeDriver: true }),
         Animated.timing(rowFadeAnim, {
           toValue: 0,
-          duration: 350,
+          duration: 360,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
       ]),
     ]).start(() => {
-      clearTimeout(hapticTimer)
+      deleteTimersRef.current.forEach(clearTimeout)
+      deleteTimersRef.current = []
       translateX.setValue(0)
       shakeAnim.setValue(0)
+      rotateAnim.setValue(0)
       deleteAnim.setValue(0)
-      scaleAnim.setValue(1)
-      rowFadeAnim.setValue(1)
+      // La fila permanece desvanecida en opacidad 0 mientras se elimina del estado
       onDelete?.(task.id)
     })
   }
@@ -670,7 +697,15 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         style={[
           styles.glowWrapper,
           {
-            transform: [{ translateX: Animated.add(translateX, shakeAnim) }],
+            transform: [
+              { translateX: Animated.add(translateX, shakeAnim) },
+              {
+                rotate: rotateAnim.interpolate({
+                  inputRange: [-1, 0, 1],
+                  outputRange: ['-1.6deg', '0deg', '1.6deg'],
+                }),
+              },
+            ],
           },
         ]}
       >

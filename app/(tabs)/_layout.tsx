@@ -12,7 +12,9 @@ export default function TabLayout() {
   const pathname = usePathname()
   const router = useRouter()
   const { isConnected, isLoading } = useClassAuth()
-  const [pendingCount, setPendingCount] = useState(0)
+  const [pendingCount, setPendingCount] = useState(() => {
+    return personalStorage.getCachedTasksWithSubjects().filter((t) => t.status === 'pending').length
+  })
   const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
 
   // Si no está autenticado y ya terminó de cargar, redirigir a /auth
@@ -48,7 +50,7 @@ export default function TabLayout() {
   useEffect(() => {
     let isMounted = true
     const updateData = () => {
-      personalStorage.getTasks().then((tasks) => {
+      personalStorage.getTasksWithSubjects().then((tasks) => {
         if (!isMounted) return
         const pending = tasks.filter((t) => t.status === 'pending').length
         setPendingCount(pending)

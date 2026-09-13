@@ -234,8 +234,8 @@ export async function syncAllNotifications(
     const hasPermission = await requestNotificationPermissions()
     if (!hasPermission) return
 
-    const currentTasks = tasks || (await personalStorage.getTasks())
-    const currentSchedules = schedules || (await personalStorage.getSchedules())
+    const currentTasks = tasks || (await personalStorage.getTasksWithSubjects())
+    const currentSchedules = schedules || (await personalStorage.getSchedulesWithSubjects())
 
     // 1. Programar avisos de tareas pendientes
     for (const t of currentTasks) {

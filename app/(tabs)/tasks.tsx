@@ -116,11 +116,11 @@ export default function TasksScreen() {
 
   useEffect(() => {
     const unsubscribe = subscribeToPersonalStorage(() => {
-      if (isSavingTaskRef.current) return
+      if (isSavingTaskRef.current || taskModalMode !== 'none') return
       loadData()
     })
     return () => unsubscribe()
-  }, [loadData])
+  }, [loadData, taskModalMode])
 
   // Parámetros de ruta
   const params = useLocalSearchParams<{

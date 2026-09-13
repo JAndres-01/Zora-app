@@ -99,11 +99,11 @@ export default function TodayScreen() {
 
   useEffect(() => {
     const unsubscribe = subscribeToPersonalStorage(() => {
-      if (isSavingTaskRef.current) return
+      if (isSavingTaskRef.current || taskModalMode !== 'none') return
       loadData()
     })
     return unsubscribe
-  }, [loadData])
+  }, [loadData, taskModalMode])
 
   const handleToggleTaskStatus = useCallback(async (taskId: string, currentStatus: string) => {
     const newStatus: 'pending' | 'completed' = currentStatus === 'completed' ? 'pending' : 'completed'

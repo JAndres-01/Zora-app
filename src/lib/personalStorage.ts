@@ -559,9 +559,11 @@ export const personalStorage = {
     return []
   },
 
-  async setClassTasksCache(classTasks: ClassTask[]): Promise<void> {
+  async setClassTasksCache(classTasks: ClassTask[], options?: { notify?: boolean }): Promise<void> {
     _classTasksCache = Array.isArray(classTasks) ? [...classTasks] : []
-    notifyListeners()
+    if (options?.notify !== false) {
+      notifyListeners()
+    }
     try {
       await AsyncStorage.setItem(KEYS.CLASS_TASKS, JSON.stringify(_classTasksCache))
     } catch (err) {

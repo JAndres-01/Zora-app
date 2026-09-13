@@ -58,6 +58,8 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   // Animación de Brillo Blanco y Elevación al Resaltar
   const highlightAnim = useRef(new Animated.Value(0)).current
   const liftAnim = useRef(new Animated.Value(0)).current
+  const deleteAnim = useRef(new Animated.Value(0)).current
+  const isDeleting = useRef(false)
 
   // Animación de Desplazamiento Horizontal (Gestos estilo Spotify)
   const translateX = useRef(new Animated.Value(0)).current
@@ -73,6 +75,9 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       clearTimeout(toggleTimerRef.current)
       toggleTimerRef.current = null
     }
+    isDeleting.current = false
+    deleteAnim.stopAnimation()
+    deleteAnim.setValue(0)
     translateX.stopAnimation()
     rightSwipeDistance.stopAnimation()
     scaleAnim.stopAnimation()
@@ -170,6 +175,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       onStartShouldSetPanResponder: () => false,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (isDeleting.current) return false
         return (
           Math.abs(gestureState.dx) > 12 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.8
@@ -332,7 +338,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   ).current
 
   const handlePressIn = () => {
-    if (isOpen.current || isSwiping.current) return
+    if (isOpen.current || isSwiping.current || isDeleting.current) return
     Animated.spring(scaleAnim, {
       toValue: 0.985,
       stiffness: 600,
@@ -342,6 +348,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   }
 
   const handlePressOut = () => {
+    if (isDeleting.current) return
     Animated.spring(scaleAnim, {
       toValue: 1,
       stiffness: 500,
@@ -351,6 +358,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   }
 
   const handleCardPress = () => {
+    if (isDeleting.current) return
     if (isOpen.current) {
       triggerHaptic('light')
       isOpen.current = false
@@ -367,6 +375,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   }
 
   const handleEditPress = () => {
+    if (isDeleting.current) return
     triggerHaptic('light')
     isOpen.current = false
     Animated.timing(translateX, {
@@ -380,18 +389,33 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   }
 
   const handleDeletePress = () => {
-    triggerHaptic('medium')
+    if (isDeleting.current) return
+    isDeleting.current = true
+    triggerHaptic('heavy')
     isOpen.current = false
+
+    // Animación personalizada de eliminación: destello carmesí + aceleración hacia la izquierda + compresión de escala
     Animated.parallel([
+      Animated.timing(deleteAnim, {
+        toValue: 1,
+        duration: 90,
+        useNativeDriver: true,
+      }),
       Animated.timing(translateX, {
-        toValue: 0,
-        duration: 80,
+        toValue: -340,
+        duration: 175,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0.9,
+        duration: 175,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.timing(rowFadeAnim, {
         toValue: 0,
-        duration: 80,
+        duration: 165,
         useNativeDriver: true,
       }),
     ]).start(() => {
@@ -616,6 +640,10 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           pointerEvents="none"
           style={[styles.highlightOverlay, { opacity: highlightAnim }]}
         />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.deleteOverlay, { opacity: deleteAnim }]}
+        />
         <View style={[styles.rowContainer, !isLast && styles.rowBorder]}>
           {/* Contenido de la Tarea */}
           <Pressable
@@ -781,6 +809,13 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
     borderColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1.5,
+    borderRadius: 14,
+  },
+  deleteOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(239, 68, 68, 0.24)',
+    borderColor: 'rgba(239, 68, 68, 0.75)',
     borderWidth: 1.5,
     borderRadius: 14,
   },

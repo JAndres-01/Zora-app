@@ -35,6 +35,7 @@ interface ClassAuthContextType {
   syncClassTasks: () => Promise<void>
   syncClassSchedule: () => Promise<void>
   publishClassTask: (taskData: {
+    id?: string
     title: string
     description?: string | null
     type: TaskType
@@ -384,6 +385,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const publishClassTask = async (taskData: {
+    id?: string
     title: string
     description?: string | null
     type: TaskType
@@ -392,13 +394,13 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     subject_code?: string | null
     attachments?: TaskAttachment[]
   }) => {
-    if (!user || (role !== 'admin' && role !== 'publisher')) {
+    const effectiveRole = role || (user?.user_metadata?.role as UserRole) || null
+    if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'publisher')) {
       return { error: new Error('No tienes permisos de administrador para publicar tareas en la clase.') }
     }
 
     const publisherName = profile?.full_name || user.user_metadata?.full_name || 'Admin'
-    const rawId = generateId('class').replace('class_', '')
-    const newId = `class_${rawId}`
+    const newId = taskData.id || `class_${generateId('class').replace('class_', '')}`
     const nowIso = new Date().toISOString()
 
     const localClassTask: ClassTask = {
@@ -417,13 +419,27 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       is_pending_sync: false,
     }
 
+    // Inserción optimista inmediata en caché
+    const initialCache = await personalStorage.getClassTasksCache()
+    const optimisticCache = [localClassTask, ...initialCache.filter((t) => t.id !== newId)]
+    await personalStorage.setClassTasksCache(optimisticCache, { notify: true })
+    setClassTasks(optimisticCache)
+
     try {
       const uploadedAttachments = taskData.attachments && taskData.attachments.length > 0
         ? await uploadClassTaskAttachments(taskData.attachments, user.id)
         : []
 
       const remoteTask = {
-        ...localClassTask,
+        id: newId,
+        publisher_id: user.id,
+        publisher_name: publisherName,
+        subject_name: taskData.subject_name.trim(),
+        subject_code: taskData.subject_code?.trim() || null,
+        title: taskData.title.trim(),
+        description: taskData.description?.trim() || null,
+        type: taskData.type,
+        due_date: taskData.due_date || null,
         attachments: uploadedAttachments,
         created_at: nowIso,
         updated_at: nowIso,
@@ -468,12 +484,12 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
           subject_code: pendingTask.subject_code,
           attachments: pendingTask.attachments || [],
         },
-        created_at: new Date().toISOString(),
+        created_at: nowIso,
       })
 
       const currentCache = await personalStorage.getClassTasksCache()
-      const updatedCache = [pendingTask, ...currentCache.filter((t) => t.id !== pendingTask.id)]
-      await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+      const updatedCache = [pendingTask, ...currentCache.filter((t) => t.id !== pendingTask.id && t.id !== newId)]
+      await personalStorage.setClassTasksCache(updatedCache, { notify: true })
       setClassTasks(updatedCache)
 
       return { error: null, data: pendingTask }
@@ -492,7 +508,8 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       attachments?: TaskAttachment[]
     }
   ) => {
-    if (!user || (role !== 'admin' && role !== 'publisher')) {
+    const effectiveRole = role || (user?.user_metadata?.role as UserRole) || null
+    if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'publisher')) {
       return { error: new Error('No tienes permisos para editar tareas oficiales de la clase.') }
     }
 
@@ -505,8 +522,22 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         uploadedAttachments = await uploadClassTaskAttachments(updates.attachments, user.id)
       }
 
+      const {
+        title,
+        description,
+        type,
+        due_date,
+        subject_name,
+        subject_code,
+      } = updates
+
       const payload: Record<string, any> = {
-        ...updates,
+        ...(title !== undefined ? { title: title.trim() } : {}),
+        ...(description !== undefined ? { description: description?.trim() || null } : {}),
+        ...(type !== undefined ? { type } : {}),
+        ...(due_date !== undefined ? { due_date: due_date || null } : {}),
+        ...(subject_name !== undefined ? { subject_name: subject_name.trim() } : {}),
+        ...(subject_code !== undefined ? { subject_code: subject_code?.trim() || null } : {}),
         ...(uploadedAttachments !== undefined ? { attachments: uploadedAttachments } : {}),
         updated_at: new Date().toISOString(),
       }

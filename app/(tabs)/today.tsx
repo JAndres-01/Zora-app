@@ -6,6 +6,8 @@ import {
   Pressable,
   StyleSheet,
   Animated,
+  Platform,
+  UIManager,
 } from 'react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import type { Schedule, Task, Subject } from '@/types/personal'
@@ -31,7 +33,11 @@ import {
 } from '@/lib/personalNotifications'
 import { useCardEntrance } from '@/hooks/useCardEntrance'
 import { useClassAuth } from '@/context/ClassAuthContext'
-import { LAYOUT_EASE } from '@/constants/animations'
+import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets()
@@ -148,31 +154,71 @@ export default function TodayScreen() {
   }, [tasks, activeTask])
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
+  const tasksRef = useRef(tasks)
+  tasksRef.current = tasks
+
+  const entranceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadDataTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (entranceTimeoutRef.current) clearTimeout(entranceTimeoutRef.current)
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
+    }
+  }, [])
 
   const handleTaskSaved = useCallback(
     (savedTask?: Task | null) => {
-      if (savedTask?.id) {
-        setTasks((prevTasks) => {
-          const exists = prevTasks.some((t) => t.id === savedTask.id)
-          if (exists) {
-            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
-          }
-          return [savedTask, ...prevTasks]
-        })
+      if (!savedTask?.id) {
+        loadData()
+        return
+      }
 
-        if (highlightTimeoutRef.current) {
-          clearTimeout(highlightTimeoutRef.current)
-        }
-        setHighlightedTaskId(null)
-        setTimeout(() => {
+      if (entranceTimeoutRef.current) clearTimeout(entranceTimeoutRef.current)
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
+      setHighlightedTaskId(null)
+
+      const isNewTask = !tasksRef.current.some((t) => t.id === savedTask.id)
+
+      if (isNewTask) {
+        // Cuando el modal empieza a despejar la pantalla (~180ms), disparar la animación de entrada
+        entranceTimeoutRef.current = setTimeout(() => {
+          PANEL_SWITCH_LAYOUT(100, 150)
+          setTasks((prevTasks) => {
+            if (prevTasks.some((t) => t.id === savedTask.id)) return prevTasks
+            return [savedTask, ...prevTasks]
+          })
+
+          // Resaltar una vez que concluye la animación de entrada (150ms)
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedTaskId(savedTask.id)
+            highlightTimeoutRef.current = setTimeout(() => {
+              setHighlightedTaskId(null)
+            }, 1400)
+          }, 160)
+        }, 180)
+
+        // Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
+        loadDataTimeoutRef.current = setTimeout(() => {
+          loadData()
+        }, 600)
+      } else {
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+        )
+
+        highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
         }, 180)
+
+        loadData()
       }
-      loadData()
     },
     [loadData]
   )

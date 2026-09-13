@@ -333,11 +333,33 @@ export default function TasksScreen() {
     setTaskModalMode('edit')
   }, [])
 
+  const entranceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadDataTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (entranceTimeoutRef.current) clearTimeout(entranceTimeoutRef.current)
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
+    }
+  }, [])
 
   const handleTaskSaved = useCallback(
     (savedTask?: Task | null) => {
-      if (savedTask?.id) {
+      if (!savedTask?.id) {
+        loadData()
+        return
+      }
+
+      if (entranceTimeoutRef.current) clearTimeout(entranceTimeoutRef.current)
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
+      setHighlightedTaskId(null)
+
+      const isNewTask = !tasksRef.current.some((t) => t.id === savedTask.id)
+
+      if (isNewTask) {
         // 1. Si estaba en 'completed' y la tarea es 'pending', cambiar a 'pending' para mostrarla
         if (savedTask.status === 'pending' && statusFilter === 'completed') {
           setStatusFilter('pending')
@@ -355,34 +377,48 @@ export default function TasksScreen() {
           setSearchQuery('')
         }
 
-        setTasks((prevTasks) => {
-          const exists = prevTasks.some((t) => t.id === savedTask.id)
-          if (exists) {
-            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
-          }
-          return [savedTask, ...prevTasks]
-        })
+        // Desplazar hacia arriba para que la inserción esté en foco
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
 
-        // Scroll al inicio de la lista para mostrar la tarea
-        requestAnimationFrame(() => {
-          try {
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
-          } catch {}
-        })
+        // 4. Cuando el modal empieza a despejar la pantalla (~180ms), disparar la animación de entrada
+        // usando exactamente la misma animación de cambio de paneles (PANEL_SWITCH_LAYOUT)
+        entranceTimeoutRef.current = setTimeout(() => {
+          PANEL_SWITCH_LAYOUT(100, 150)
+          setTasks((prevTasks) => {
+            if (prevTasks.some((t) => t.id === savedTask.id)) return prevTasks
+            return [savedTask, ...prevTasks]
+          })
 
-        // Disparar animación de resalte sincronizada cuando el modal termina de bajar (180ms)
-        if (highlightTimeoutRef.current) {
-          clearTimeout(highlightTimeoutRef.current)
-        }
-        setHighlightedTaskId(null)
-        setTimeout(() => {
+          // 5. Una vez que la animación de entrada termina (150ms después de insertarse),
+          // activar la animación de resalte (lift, escala y brillo blanco)
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedTaskId(savedTask.id)
+            highlightTimeoutRef.current = setTimeout(() => {
+              setHighlightedTaskId(null)
+            }, 1400)
+          }, 160)
+        }, 180)
+
+        // 6. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
+        loadDataTimeoutRef.current = setTimeout(() => {
+          loadData()
+        }, 600)
+      } else {
+        // Edición de tarea existente: actualizar de inmediato en memoria
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+        )
+
+        // Resaltar la tarea editada cuando el modal termine de bajar (180ms)
+        highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
         }, 180)
+
+        loadData()
       }
-      loadData()
     },
     [loadData, statusFilter, selectedSubjectId, searchQuery]
   )

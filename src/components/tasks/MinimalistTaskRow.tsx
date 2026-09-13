@@ -197,35 +197,35 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
         }
 
         if (dx >= SWIPE_THRESHOLD) {
-          // Activar palomita / desmarcar con animación Spotify fluida
+          // Activar palomita / desmarcar inmediatamente sin latencia
           triggerHaptic('success')
           isGreenTriggered.current = false
           isOpen.current = false
 
-          // Micro rebote de éxito (se achica ligeramente y vuelve)
-          Animated.sequence([
-            Animated.timing(scaleAnim, {
-              toValue: 0.98,
-              duration: 80,
-              useNativeDriver: true,
-            }),
-            Animated.spring(scaleAnim, {
-              toValue: 1,
-              stiffness: 500,
-              damping: 20,
+          onToggleStatus(task.id, task.status)
+
+          // Micro rebote de éxito + reseteo fluido de posición en paralelo
+          Animated.parallel([
+            Animated.sequence([
+              Animated.timing(scaleAnim, {
+                toValue: 0.98,
+                duration: 80,
+                useNativeDriver: true,
+              }),
+              Animated.spring(scaleAnim, {
+                toValue: 1,
+                stiffness: 500,
+                damping: 20,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.timing(translateX, {
+              toValue: 0,
+              duration: 110,
+              easing: APPLE_EASING,
               useNativeDriver: true,
             }),
           ]).start()
-
-          // translateX es el único que controla cuándo se llama onToggleStatus
-          Animated.timing(translateX, {
-            toValue: 0,
-            duration: 110,
-            easing: APPLE_EASING,
-            useNativeDriver: true,
-          }).start(() => {
-            onToggleStatus(task.id, task.status)
-          })
         } else if (dx <= -48 && canModify) {
           // Desplegar y anclar botones de Editar y Borrar
           triggerHaptic('selection')
@@ -318,14 +318,7 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
   const handleDeletePress = () => {
     triggerHaptic('medium')
     isOpen.current = false
-    Animated.timing(translateX, {
-      toValue: 0,
-      duration: 140,
-      easing: APPLE_EASING,
-      useNativeDriver: true,
-    }).start(() => {
-      onDelete?.(task.id)
-    })
+    onDelete?.(task.id)
   }
 
   const dueInfo = formatTaskDueDate(task.due_date, isVisuallyDone)

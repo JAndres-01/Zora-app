@@ -79,15 +79,15 @@ describe('personalAudio', () => {
     await expect(playSound('warning_thud')).resolves.not.toThrow()
   })
 
-  it('soporta disparos rápidos consecutivos mediante el pool de reproductores rotativos', async () => {
-    for (let i = 0; i < 6; i++) {
+  it('soporta disparos rápidos consecutivos reutilizando el pool de reproductores sin destruirlos', async () => {
+    // La primera llamada inicializa el pool de 4 slots
+    await playSound('task_undo')
+    expect(createAudioPlayer).toHaveBeenCalledTimes(4)
+
+    // Las siguientes llamadas reutilizan las instancias existentes sin recrear nuevos objetos
+    for (let i = 0; i < 5; i++) {
       await playSound('task_undo')
     }
-    // Cada llamada inicial crea una instancia en el pool de 6 slots
-    expect(createAudioPlayer).toHaveBeenCalledTimes(6)
-
-    // La 7ma llamada recicla el slot 0 liberando el anterior y garantizando reproducción limpia
-    await playSound('task_undo')
-    expect(createAudioPlayer).toHaveBeenCalledTimes(7)
+    expect(createAudioPlayer).toHaveBeenCalledTimes(4)
   })
 })

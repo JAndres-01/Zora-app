@@ -18,12 +18,32 @@ const SOUND_ASSETS: Record<SoundEffect, any> = {
   shutter_save: require('../../assets/sounds/shutter_save.wav'),
 }
 
-const POOL_SIZE = 6
+const POOL_SIZE = 4
 let _globalSoundEnabled = true
 const _playerPool: Partial<Record<SoundEffect, AudioPlayer[]>> = {}
 const _poolPointers: Partial<Record<SoundEffect, number>> = {}
 const _webAssetUrls: Partial<Record<SoundEffect, string>> = {}
 let _audioModeConfigured = false
+
+function createPlayerInstance(effect: SoundEffect): AudioPlayer {
+  return createAudioPlayer(SOUND_ASSETS[effect], {
+    keepAudioSessionActive: true,
+    downloadFirst: true,
+  })
+}
+
+function getOrCreatePool(effect: SoundEffect): AudioPlayer[] {
+  let pool = _playerPool[effect]
+  if (!pool || pool.length === 0) {
+    pool = []
+    for (let i = 0; i < POOL_SIZE; i++) {
+      pool.push(createPlayerInstance(effect))
+    }
+    _playerPool[effect] = pool
+    _poolPointers[effect] = 0
+  }
+  return pool
+}
 
 /**
  * Resetea el flag de configuración de audio y la caché de reproductores para pruebas.
@@ -92,13 +112,7 @@ export async function preloadAllAudio(): Promise<void> {
   await configureAudioMode()
   for (const key of Object.keys(SOUND_ASSETS) as SoundEffect[]) {
     try {
-      if (!_playerPool[key]) {
-        _playerPool[key] = []
-      }
-      const pool = _playerPool[key]!
-      while (pool.length < POOL_SIZE) {
-        pool.push(createAudioPlayer(SOUND_ASSETS[key]))
-      }
+      getOrCreatePool(key)
     } catch (err) {
       logger.warn(`[personalAudio] Error precargando sonido ${key}:`, err)
     }
@@ -120,9 +134,9 @@ export function isGlobalSoundEnabled(): boolean {
 }
 
 /**
- * Reproduce de forma asíncrona ("fire-and-forget") uno de los efectos de sonido de Zora.
- * Utiliza un pool rotativo de 6 reproductores independientes por sonido con rebobinado
- * síncrono previo para garantizar que CADA pulsación rápida dispare audio sin omisiones.
+ * Reproduce de forma instantánea uno de los efectos de sonido de Zora.
+ * Reutiliza instancias precargadas en memoria sin recrearlas para garantizar
+ * latencia 0ms y fluidez total incluso en ráfagas rápidas de interacción.
  */
 export async function playSound(effect: SoundEffect): Promise<void> {
   if (!_globalSoundEnabled) return
@@ -140,43 +154,62 @@ export async function playSound(effect: SoundEffect): Promise<void> {
       return
     }
 
-    // Configurar modo de audio la primera vez en background si no se ha hecho
     if (!_audioModeConfigured) {
       configureAudioMode().catch(() => {})
     }
 
-    // En iOS / Android usamos rotación round-robin de reproductores expo-audio
-    let pool = _playerPool[effect]
-    if (!pool) {
-      pool = []
-      _playerPool[effect] = pool
+    const pool = getOrCreatePool(effect)
+    if (pool.length === 0) return
+
+    // Buscar un reproductor libre que no esté reproduciendo
+    let chosenPlayer: AudioPlayer | null = null
+    let chosenIdx = -1
+
+    for (let i = 0; i < pool.length; i++) {
+      const p = pool[i]
+      if (p && !p.playing) {
+        chosenPlayer = p
+        chosenIdx = i
+        break
+      }
     }
 
-    const currentIdx = _poolPointers[effect] ?? 0
-    _poolPointers[effect] = (currentIdx + 1) % POOL_SIZE
-
-    const oldPlayer = pool[currentIdx]
-    if (oldPlayer) {
-      try {
-        if (typeof oldPlayer.remove === 'function') {
-          oldPlayer.remove()
-        } else if (typeof (oldPlayer as any).release === 'function') {
-          ;(oldPlayer as any).release()
-        }
-      } catch {}
+    // Si todos están ocupados (ráfaga ultra-rápida), rotación round-robin
+    if (!chosenPlayer) {
+      const currentIdx = _poolPointers[effect] ?? 0
+      _poolPointers[effect] = (currentIdx + 1) % pool.length
+      chosenPlayer = pool[currentIdx]
+      chosenIdx = currentIdx
     }
 
-    const asset = SOUND_ASSETS[effect]
-    const player = createAudioPlayer(asset)
-    pool[currentIdx] = player
+    if (!chosenPlayer) return
 
     try {
-      player.play()
+      if (chosenPlayer.currentTime > 0) {
+        chosenPlayer
+          .seekTo(0)
+          .then(() => {
+            try {
+              chosenPlayer?.play()
+            } catch {}
+          })
+          .catch(() => {
+            try {
+              chosenPlayer?.play()
+            } catch {}
+          })
+      } else {
+        chosenPlayer.play()
+      }
     } catch (playErr) {
-      logger.warn(`[personalAudio] Error disparando reproductor ${effect}:`, playErr)
+      logger.warn(`[personalAudio] Error reproduciendo ${effect}, regenerando slot:`, playErr)
+      try {
+        const freshPlayer = createPlayerInstance(effect)
+        pool[chosenIdx] = freshPlayer
+        freshPlayer.play()
+      } catch {}
     }
   } catch (err) {
-    // Protección silenciosa: nunca lanzar excepciones que interrumpan la interacción del usuario
     logger.warn(`[personalAudio] Error reproduciendo sonido ${effect}:`, err)
   }
 }

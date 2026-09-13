@@ -445,21 +445,28 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
           ]}
         />
 
-        {/* Icono de Palomita Izquierdo con escalado suave */}
+        {/* Botón Circular Izquierdo con efecto de apilamiento / emergencia progresiva conforme se estira */}
         <Animated.View
           style={[
             styles.swipeLeftIconWrapper,
             {
               opacity: rightSwipeDistance.interpolate({
-                inputRange: [0, 15, 40],
-                outputRange: [0, 0.6, 1],
+                inputRange: [0, 15, 45],
+                outputRange: [0, 0.7, 1],
                 extrapolate: 'clamp',
               }),
               transform: [
                 {
+                  translateX: rightSwipeDistance.interpolate({
+                    inputRange: [0, 40, SWIPE_THRESHOLD, 120],
+                    outputRange: [-16, -6, 0, 14],
+                    extrapolate: 'clamp',
+                  }),
+                },
+                {
                   scale: rightSwipeDistance.interpolate({
-                    inputRange: [0, 40, SWIPE_THRESHOLD, 110],
-                    outputRange: [0.7, 0.9, 1.15, 1.25],
+                    inputRange: [0, 30, SWIPE_THRESHOLD, 120],
+                    outputRange: [0.5, 0.8, 1.08, 1.22],
                     extrapolate: 'clamp',
                   }),
                 },
@@ -467,43 +474,131 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
             },
           ]}
         >
-          {isDone ? (
-            <RotateCcw size={19} color="#FFFFFF" strokeWidth={2.8} />
-          ) : (
-            <Check size={20} color="#FFFFFF" strokeWidth={3.2} />
-          )}
+          <View style={styles.swipeLeftActionCircle}>
+            {isDone ? (
+              <RotateCcw size={19} color="#FFFFFF" strokeWidth={2.8} />
+            ) : (
+              <Check size={20} color="#FFFFFF" strokeWidth={3.2} />
+            )}
+          </View>
         </Animated.View>
 
-        {/* Bloques Rojo y Azul Pegados a la Derecha (Opacidad 0 en reposo) */}
+        {/* Bloques Rojo y Azul Pegados a la Derecha con efecto de apilamiento y despliegue progresivo */}
         <Animated.View
           style={[
             styles.swipeRightActionsContainer,
             {
               opacity: translateX.interpolate({
                 inputRange: [-TOTAL_ACTIONS_WIDTH, -15, 0],
-                outputRange: [1, 0.7, 0],
+                outputRange: [1, 0.8, 0],
                 extrapolate: 'clamp',
               }),
             },
           ]}
         >
-          {/* Botón Borrar Rojo */}
-          <Pressable
-            onPress={handleDeletePress}
-            style={styles.swipeDeleteBtn}
-            hitSlop={6}
+          {/* Botón Borrar Rojo (Se apila y emerge progresivamente cuanto más se estira hacia la izquierda) */}
+          <Animated.View
+            style={[
+              styles.swipeActionBtnWrapper,
+              {
+                transform: [
+                  {
+                    translateX: translateX.interpolate({
+                      inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -56, 0],
+                      outputRange: [-6, 0, 24, 48],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                  {
+                    scale: translateX.interpolate({
+                      inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -56, 0],
+                      outputRange: [1.05, 1, 0.75, 0.4],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+                opacity: translateX.interpolate({
+                  inputRange: [-TOTAL_ACTIONS_WIDTH, -60, -20, 0],
+                  outputRange: [1, 0.85, 0.2, 0],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ]}
           >
-            <Trash2 size={19} color="#FFFFFF" strokeWidth={2.4} />
-          </Pressable>
+            <Pressable
+              onPress={handleDeletePress}
+              style={styles.swipeDeleteBtn}
+              hitSlop={6}
+            >
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      scale: translateX.interpolate({
+                        inputRange: [-TOTAL_ACTIONS_WIDTH, -60, 0],
+                        outputRange: [1, 0.8, 0.4],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <Trash2 size={19} color="#FFFFFF" strokeWidth={2.4} />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
 
-          {/* Botón Editar Azul */}
-          <Pressable
-            onPress={handleEditPress}
-            style={styles.swipeEditBtn}
-            hitSlop={6}
+          {/* Botón Editar Azul (Primer botón visible, se apila y acompaña el estiramiento) */}
+          <Animated.View
+            style={[
+              styles.swipeActionBtnWrapper,
+              {
+                transform: [
+                  {
+                    translateX: translateX.interpolate({
+                      inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -40, 0],
+                      outputRange: [4, 0, 12, 24],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                  {
+                    scale: translateX.interpolate({
+                      inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -40, 0],
+                      outputRange: [1.02, 1, 0.88, 0.6],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+                opacity: translateX.interpolate({
+                  inputRange: [-TOTAL_ACTIONS_WIDTH, -35, 0],
+                  outputRange: [1, 0.9, 0],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ]}
           >
-            <Edit2 size={19} color="#FFFFFF" strokeWidth={2.4} />
-          </Pressable>
+            <Pressable
+              onPress={handleEditPress}
+              style={styles.swipeEditBtn}
+              hitSlop={6}
+            >
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      scale: translateX.interpolate({
+                        inputRange: [-TOTAL_ACTIONS_WIDTH, -40, 0],
+                        outputRange: [1, 0.85, 0.5],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <Edit2 size={19} color="#FFFFFF" strokeWidth={2.4} />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
         </Animated.View>
       </View>
 
@@ -639,6 +734,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  swipeLeftActionCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   swipeRightActionsContainer: {
     position: 'absolute',
     right: 0,
@@ -650,15 +753,19 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 14,
     overflow: 'hidden',
   },
-  swipeEditBtn: {
+  swipeActionBtnWrapper: {
     width: ACTION_BUTTON_WIDTH,
+    height: '100%',
+  },
+  swipeEditBtn: {
+    width: '100%',
     height: '100%',
     backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
   },
   swipeDeleteBtn: {
-    width: ACTION_BUTTON_WIDTH,
+    width: '100%',
     height: '100%',
     backgroundColor: '#EF4444',
     justifyContent: 'center',

@@ -418,7 +418,7 @@ export function MinimalistTaskModal({
           subject_name: selectedSubj?.name || 'General',
           subject_code: selectedSubj?.code || null,
           type: taskType,
-          due_date: dueDate || new Date().toISOString(),
+          due_date: dueDate || null,
           attachments: attachments,
         })
         if (publishError) {
@@ -461,7 +461,7 @@ export function MinimalistTaskModal({
             subject_name: selectedSubj?.name || task.subject?.name || 'General',
             subject_code: selectedSubj?.code || null,
             type: taskType,
-            due_date: dueDate || task.due_date || new Date().toISOString(),
+            due_date: dueDate || null,
             attachments: attachments,
           })
         } else {

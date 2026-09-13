@@ -77,7 +77,7 @@ export interface ClassTask {
   title: string
   description?: string | null
   type: TaskType
-  due_date: string
+  due_date?: string | null
   attachments?: TaskAttachment[] | null
   created_at?: string
   updated_at?: string
@@ -91,7 +91,7 @@ export interface ClassTaskLocalState {
   local_overrides?: {
     title?: string
     description?: string | null
-    due_date?: string
+    due_date?: string | null
     subject_name?: string
     type?: TaskType
   }

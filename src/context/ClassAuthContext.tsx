@@ -36,7 +36,7 @@ interface ClassAuthContextType {
     title: string
     description?: string | null
     type: TaskType
-    due_date: string
+    due_date?: string | null
     subject_name: string
     subject_code?: string | null
     attachments?: TaskAttachment[]
@@ -47,7 +47,7 @@ interface ClassAuthContextType {
       title?: string
       description?: string | null
       type?: TaskType
-      due_date?: string
+      due_date?: string | null
       subject_name?: string
       subject_code?: string | null
       attachments?: TaskAttachment[]
@@ -343,7 +343,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     title: string
     description?: string | null
     type: TaskType
-    due_date: string
+    due_date?: string | null
     subject_name: string
     subject_code?: string | null
     attachments?: TaskAttachment[]
@@ -366,7 +366,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         title: taskData.title.trim(),
         description: taskData.description?.trim() || null,
         type: taskData.type,
-        due_date: taskData.due_date,
+        due_date: taskData.due_date || null,
         attachments: uploadedAttachments,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -403,7 +403,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       title?: string
       description?: string | null
       type?: TaskType
-      due_date?: string
+      due_date?: string | null
       subject_name?: string
       subject_code?: string | null
       attachments?: TaskAttachment[]

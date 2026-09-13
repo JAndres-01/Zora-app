@@ -186,9 +186,8 @@ export default function TodayScreen() {
 
       isSavingTaskRef.current = true
 
-      // Iniciar animación de transición al despejar el modal (~100ms)
+      // Iniciar inserción y resalte al despejar el modal (~80ms)
       entranceTimeoutRef.current = setTimeout(() => {
-        PANEL_SWITCH_LAYOUT()
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -197,14 +196,14 @@ export default function TodayScreen() {
           return [savedTask, ...prevTasks]
         })
 
-        // Resaltar una vez que concluye la animación de transición/desplazamiento (150ms)
+        // Resaltar la fila (lift, escala y brillo blanco)
         highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
-        }, 160)
-      }, 100)
+        }, 80)
+      }, 80)
 
       // Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
       loadDataTimeoutRef.current = setTimeout(() => {

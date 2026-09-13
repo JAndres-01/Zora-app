@@ -151,7 +151,6 @@ export default function TasksScreen() {
   // Handlers de Tareas
   const handleStatusChange = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
-    PANEL_SWITCH_LAYOUT()
     setStatusFilter(newStatus)
   }
 
@@ -380,10 +379,8 @@ export default function TasksScreen() {
       // Desplazar hacia arriba para enfocar la fila
       flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
 
-      // 2. Iniciar animación de transición al despejar el modal (~100ms)
-      // usando exactamente la misma animación de cambio de paneles (PANEL_SWITCH_LAYOUT)
+      // 2. Insertar/actualizar la tarea inmediatamente y activar resalte (~80ms)
       entranceTimeoutRef.current = setTimeout(() => {
-        PANEL_SWITCH_LAYOUT()
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -392,15 +389,14 @@ export default function TasksScreen() {
           return [savedTask, ...prevTasks]
         })
 
-        // 3. Una vez que la transición/desplazamiento termina (150ms después de insertarse/actualizarse),
-        // activar la animación de resalte (lift, escala y brillo blanco)
+        // 3. Activar la animación de resalte (lift, escala y brillo blanco)
         highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
-        }, 160)
-      }, 100)
+        }, 80)
+      }, 80)
 
       // 4. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
       loadDataTimeoutRef.current = setTimeout(() => {

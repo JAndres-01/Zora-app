@@ -400,51 +400,52 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
     // 1. Retornar la tarjeta inmediatamente al punto de origen (0) para centrarla
     Animated.timing(translateX, {
       toValue: 0,
-      duration: 75,
+      duration: 85,
       easing: APPLE_EASING,
       useNativeDriver: true,
     }).start()
 
-    // 2. Destello carmesí intenso de sobrecarga
+    // 2. Destello sutil carmesí mate (sin brillo neón invasivo)
     Animated.timing(deleteAnim, {
       toValue: 1,
-      duration: 70,
+      duration: 85,
       useNativeDriver: true,
     }).start()
 
     // Micro-vibración háptica secundaria a mitad de la implosión
     const hapticTimer = setTimeout(() => {
-      triggerHaptic('heavy')
-    }, 110)
+      triggerHaptic('medium')
+    }, 160)
 
-    // 3. Efecto de Destrucción: Temblor violento + Shockwave pop + Implosión y desvanecimiento
+    // 3. Efecto de Destrucción: Temblor rítmico + Implosión en escala + Desvanecimiento progresivo
     Animated.parallel([
-      // Vibración / Temblor destructivo
+      // Vibración / Temblor estructurado y visible
       Animated.sequence([
-        Animated.timing(shakeAnim, { toValue: 7, duration: 35, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -7, duration: 35, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 5, duration: 35, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -5, duration: 35, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 3, duration: 35, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -2, duration: 35, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 0, duration: 35, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 8, duration: 45, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -8, duration: 45, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 6, duration: 45, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -6, duration: 45, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 4, duration: 45, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -3, duration: 45, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 2, duration: 45, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
       ]),
-      // Expansión breve de sobrecarga seguida de colapso / implosión en escala
+      // Expansión sutil inicial y colapso / implosión en escala pausado
       Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 1.03, duration: 75, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 1.02, duration: 90, useNativeDriver: true }),
         Animated.timing(scaleAnim, {
-          toValue: 0.7,
-          duration: 250,
+          toValue: 0.76,
+          duration: 380,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
       ]),
-      // Desvanecimiento orgánico durante la implosión
+      // Desvanecimiento suave durante la implosión
       Animated.sequence([
-        Animated.timing(rowFadeAnim, { toValue: 1, duration: 75, useNativeDriver: true }),
+        Animated.timing(rowFadeAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
         Animated.timing(rowFadeAnim, {
           toValue: 0,
-          duration: 250,
+          duration: 350,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
@@ -454,6 +455,8 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       translateX.setValue(0)
       shakeAnim.setValue(0)
       deleteAnim.setValue(0)
+      scaleAnim.setValue(1)
+      rowFadeAnim.setValue(1)
       onDelete?.(task.id)
     })
   }
@@ -849,9 +852,9 @@ const styles = StyleSheet.create({
   },
   deleteOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(239, 68, 68, 0.32)',
-    borderColor: 'rgba(239, 68, 68, 0.85)',
-    borderWidth: 2,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderWidth: 1,
     borderRadius: 14,
   },
   rowContainer: {

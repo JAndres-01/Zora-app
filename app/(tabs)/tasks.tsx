@@ -349,7 +349,7 @@ export default function TasksScreen() {
   }, [])
 
   const handleTaskSaved = useCallback(
-    (savedTask?: Task | null, isNew?: boolean) => {
+    (savedTask?: Task | null) => {
       if (!savedTask?.id) {
         loadData()
         return
@@ -362,77 +362,55 @@ export default function TasksScreen() {
 
       isSavingTaskRef.current = true
 
-      const isNewTask =
-        isNew !== undefined
-          ? isNew
-          : taskModalMode === 'create' || !tasksRef.current.some((t) => t.id === savedTask.id)
+      // 1. Ajustar filtros si la tarea quedaría oculta
+      if (savedTask.status === 'pending' && statusFilter === 'completed') {
+        setStatusFilter('pending')
+      } else if (savedTask.status === 'completed' && statusFilter === 'pending') {
+        setStatusFilter('completed')
+      }
+      if (
+        selectedSubjectId !== 'all' &&
+        savedTask.subject_id &&
+        savedTask.subject_id !== selectedSubjectId
+      ) {
+        setSelectedSubjectId('all')
+      }
+      if (searchQuery.trim()) {
+        setSearchQuery('')
+      }
 
-      if (isNewTask) {
-        // 1. Si estaba en 'completed' y la tarea es 'pending', cambiar a 'pending' para mostrarla
-        if (savedTask.status === 'pending' && statusFilter === 'completed') {
-          setStatusFilter('pending')
-        }
-        // 2. Si tenía filtro de materia que no coincide, volver a 'all'
-        if (
-          selectedSubjectId !== 'all' &&
-          savedTask.subject_id &&
-          savedTask.subject_id !== selectedSubjectId
-        ) {
-          setSelectedSubjectId('all')
-        }
-        // 3. Limpiar búsqueda activa si existía para no ocultar la nueva tarea
-        if (searchQuery.trim()) {
-          setSearchQuery('')
-        }
+      // Desplazar hacia arriba para enfocar la fila
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
 
-        // Desplazar hacia arriba para que la inserción esté en foco
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
+      // 2. Iniciar animación de transición al despejar el modal (~100ms)
+      // usando exactamente la misma animación de cambio de paneles (PANEL_SWITCH_LAYOUT)
+      entranceTimeoutRef.current = setTimeout(() => {
+        PANEL_SWITCH_LAYOUT(100, 150)
+        setTasks((prevTasks) => {
+          const exists = prevTasks.some((t) => t.id === savedTask.id)
+          if (exists) {
+            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+          }
+          return [savedTask, ...prevTasks]
+        })
 
-        // 4. Iniciar animación de entrada mientras el modal despeja (~100ms),
-        // usando exactamente la misma animación de cambio de paneles (PANEL_SWITCH_LAYOUT)
-        entranceTimeoutRef.current = setTimeout(() => {
-          PANEL_SWITCH_LAYOUT(100, 150)
-          setTasks((prevTasks) => {
-            if (prevTasks.some((t) => t.id === savedTask.id)) return prevTasks
-            return [savedTask, ...prevTasks]
-          })
-
-          // 5. Una vez que la animación de entrada termina (150ms después de insertarse),
-          // activar la animación de resalte (lift, escala y brillo blanco)
-          highlightTimeoutRef.current = setTimeout(() => {
-            setHighlightedTaskId(savedTask.id)
-            highlightTimeoutRef.current = setTimeout(() => {
-              setHighlightedTaskId(null)
-            }, 1400)
-          }, 160)
-        }, 100)
-
-        // 6. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
-        loadDataTimeoutRef.current = setTimeout(() => {
-          isSavingTaskRef.current = false
-          loadData()
-        }, 600)
-      } else {
-        // Edición de tarea existente: actualizar de inmediato en memoria
-        setTasks((prevTasks) =>
-          prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
-        )
-
-        // Resaltar la tarea editada cuando el modal termine de bajar (180ms)
+        // 3. Una vez que la transición/desplazamiento termina (150ms después de insertarse/actualizarse),
+        // activar la animación de resalte (lift, escala y brillo blanco)
         highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
-        }, 180)
+        }, 160)
+      }, 100)
 
-        loadDataTimeoutRef.current = setTimeout(() => {
-          isSavingTaskRef.current = false
-          loadData()
-        }, 400)
-      }
+      // 4. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
+      loadDataTimeoutRef.current = setTimeout(() => {
+        isSavingTaskRef.current = false
+        loadData()
+      }, 600)
     },
-    [loadData, statusFilter, selectedSubjectId, searchQuery, taskModalMode]
+    [loadData, statusFilter, selectedSubjectId, searchQuery]
   )
 
   const renderTaskItem = useCallback(

@@ -173,7 +173,7 @@ export default function TodayScreen() {
   }, [])
 
   const handleTaskSaved = useCallback(
-    (savedTask?: Task | null, isNew?: boolean) => {
+    (savedTask?: Task | null) => {
       if (!savedTask?.id) {
         loadData()
         return
@@ -186,49 +186,31 @@ export default function TodayScreen() {
 
       isSavingTaskRef.current = true
 
-      const isNewTask =
-        isNew !== undefined ? isNew : !tasksRef.current.some((t) => t.id === savedTask.id)
+      // Iniciar animación de transición al despejar el modal (~100ms)
+      entranceTimeoutRef.current = setTimeout(() => {
+        PANEL_SWITCH_LAYOUT(100, 150)
+        setTasks((prevTasks) => {
+          const exists = prevTasks.some((t) => t.id === savedTask.id)
+          if (exists) {
+            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+          }
+          return [savedTask, ...prevTasks]
+        })
 
-      if (isNewTask) {
-        // Iniciar animación de entrada al despejar el modal (~100ms)
-        entranceTimeoutRef.current = setTimeout(() => {
-          PANEL_SWITCH_LAYOUT(100, 150)
-          setTasks((prevTasks) => {
-            if (prevTasks.some((t) => t.id === savedTask.id)) return prevTasks
-            return [savedTask, ...prevTasks]
-          })
-
-          // Resaltar una vez que concluye la animación de entrada (150ms)
-          highlightTimeoutRef.current = setTimeout(() => {
-            setHighlightedTaskId(savedTask.id)
-            highlightTimeoutRef.current = setTimeout(() => {
-              setHighlightedTaskId(null)
-            }, 1400)
-          }, 160)
-        }, 100)
-
-        // Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
-        loadDataTimeoutRef.current = setTimeout(() => {
-          isSavingTaskRef.current = false
-          loadData()
-        }, 600)
-      } else {
-        setTasks((prevTasks) =>
-          prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
-        )
-
+        // Resaltar una vez que concluye la animación de transición/desplazamiento (150ms)
         highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedTaskId(savedTask.id)
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
-        }, 180)
+        }, 160)
+      }, 100)
 
-        loadDataTimeoutRef.current = setTimeout(() => {
-          isSavingTaskRef.current = false
-          loadData()
-        }, 400)
-      }
+      // Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
+      loadDataTimeoutRef.current = setTimeout(() => {
+        isSavingTaskRef.current = false
+        loadData()
+      }, 600)
     },
     [loadData]
   )

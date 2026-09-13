@@ -541,8 +541,9 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
       pointerEvents={isDeletingState ? 'none' : 'auto'}
       onLayout={handleLayout}
       style={[
-        styles.collapseWrapper,
-        { maxHeight: maxHeightAnim },
+        isDeletingState ? styles.collapseWrapper : styles.normalWrapper,
+        isDeletingState && { maxHeight: maxHeightAnim },
+        isHighlighted && styles.highlightedZIndex,
       ]}
     >
       <Animated.View
@@ -862,8 +863,15 @@ export const MinimalistTaskRow = memo(function MinimalistTaskRow({
 })
 
 const styles = StyleSheet.create({
+  normalWrapper: {
+    overflow: 'visible',
+  },
   collapseWrapper: {
     overflow: 'hidden',
+  },
+  highlightedZIndex: {
+    zIndex: 10,
+    elevation: 10,
   },
   rowWrapper: {
     position: 'relative',

@@ -409,6 +409,8 @@ export default function TasksScreen() {
               }),
             },
           ],
+          zIndex: highlightedTaskId === item.id ? 10 : 1,
+          elevation: highlightedTaskId === item.id ? 10 : 1,
         }}
       >
         <MinimalistTaskRow

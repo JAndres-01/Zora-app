@@ -397,7 +397,9 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const publisherName = profile?.full_name || user.user_metadata?.full_name || 'Admin'
-    const newId = generateId('class')
+    const rawId = generateId('class').replace('class_', '')
+    const newId = `class_${rawId}`
+    const nowIso = new Date().toISOString()
 
     const localClassTask: ClassTask = {
       id: newId,
@@ -410,19 +412,21 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       type: taskData.type,
       due_date: taskData.due_date || null,
       attachments: taskData.attachments || [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: nowIso,
+      updated_at: nowIso,
       is_pending_sync: false,
     }
 
     try {
-      const uploadedAttachments = taskData.attachments
+      const uploadedAttachments = taskData.attachments && taskData.attachments.length > 0
         ? await uploadClassTaskAttachments(taskData.attachments, user.id)
         : []
 
       const remoteTask = {
         ...localClassTask,
         attachments: uploadedAttachments,
+        created_at: nowIso,
+        updated_at: nowIso,
       }
 
       const { data, error } = await supabase
@@ -437,8 +441,8 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
 
       const insertedTask = (data || remoteTask) as ClassTask
       const currentCache = await personalStorage.getClassTasksCache()
-      const updatedCache = [insertedTask, ...currentCache.filter((t) => t.id !== insertedTask.id)]
-      await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+      const updatedCache = [insertedTask, ...currentCache.filter((t) => t.id !== insertedTask.id && t.id !== newId)]
+      await personalStorage.setClassTasksCache(updatedCache, { notify: true })
       setClassTasks(updatedCache)
 
       syncClassTasks().catch(() => {})

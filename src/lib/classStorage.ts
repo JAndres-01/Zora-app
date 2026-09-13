@@ -37,59 +37,55 @@ export async function uploadClassTaskAttachments(
     return []
   }
 
-  const uploaded: TaskAttachment[] = []
-
-  for (const att of attachments) {
-    if (att.file_url && (att.file_url.startsWith('http://') || att.file_url.startsWith('https://'))) {
-      uploaded.push(att)
-      continue
-    }
-
-    try {
-      let uint8Array: Uint8Array
-      if (Platform.OS === 'web') {
-        const res = await fetch(att.file_url)
-        const arrayBuffer = await res.arrayBuffer()
-        uint8Array = new Uint8Array(arrayBuffer)
-      } else {
-        const base64Data = await FileSystem.readAsStringAsync(att.file_url, {
-          encoding: FileSystem.EncodingType.Base64,
-        })
-        uint8Array = base64ToUint8Array(base64Data)
-      }
-      const mimeType = getMimeType(att.file_name, att.file_type)
-      const safeName = (att.file_name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')
-      const storagePath = `${userId}/class_${Date.now()}_${safeName}`
-
-      const { data, error } = await supabase.storage
-        .from('class-attachments')
-        .upload(storagePath, uint8Array, {
-          contentType: mimeType,
-          upsert: true,
-        })
-
-      if (error) {
-        logger.error('[classStorage] Error subiendo archivo a Supabase Storage:', error)
-        uploaded.push(att)
-        continue
+  return Promise.all(
+    attachments.map(async (att) => {
+      if (att.file_url && (att.file_url.startsWith('http://') || att.file_url.startsWith('https://'))) {
+        return att
       }
 
-      const { data: publicData } = supabase.storage
-        .from('class-attachments')
-        .getPublicUrl(data.path)
+      try {
+        let uint8Array: Uint8Array
+        if (Platform.OS === 'web') {
+          const res = await fetch(att.file_url)
+          const arrayBuffer = await res.arrayBuffer()
+          uint8Array = new Uint8Array(arrayBuffer)
+        } else {
+          const base64Data = await FileSystem.readAsStringAsync(att.file_url, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+          uint8Array = base64ToUint8Array(base64Data)
+        }
+        const mimeType = getMimeType(att.file_name, att.file_type)
+        const safeName = (att.file_name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')
+        const storagePath = `${userId}/class_${Date.now()}_${safeName}`
 
-      uploaded.push({
-        ...att,
-        file_url: publicData.publicUrl,
-        size_bytes: att.size_bytes || uint8Array.length,
-      })
-    } catch (err) {
-      logger.error('[classStorage] Error procesando adjunto:', err)
-      uploaded.push(att)
-    }
-  }
+        const { data, error } = await supabase.storage
+          .from('class-attachments')
+          .upload(storagePath, uint8Array, {
+            contentType: mimeType,
+            upsert: true,
+          })
 
-  return uploaded
+        if (error) {
+          logger.error('[classStorage] Error subiendo archivo a Supabase Storage:', error)
+          return att
+        }
+
+        const { data: publicData } = supabase.storage
+          .from('class-attachments')
+          .getPublicUrl(data.path)
+
+        return {
+          ...att,
+          file_url: publicData.publicUrl,
+          size_bytes: att.size_bytes || uint8Array.length,
+        }
+      } catch (err) {
+        logger.error('[classStorage] Error procesando adjunto:', err)
+        return att
+      }
+    })
+  )
 }
 
 /**
@@ -306,7 +302,7 @@ export async function processPendingClassActionsQueue(
           due_date: action.payload.due_date || null,
           attachments: uploadedAttachments,
           created_at: action.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: action.created_at || new Date().toISOString(),
         }
 
         const { data, error } = await supabase

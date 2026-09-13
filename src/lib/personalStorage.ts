@@ -106,7 +106,7 @@ export function mapClassTasksToTaskObjects(
     const isOfficialUpdated = Boolean(
       ct.updated_at &&
       ct.created_at &&
-      new Date(ct.updated_at).getTime() > new Date(ct.created_at).getTime() + 1000
+      new Date(ct.updated_at).getTime() - new Date(ct.created_at).getTime() > 30000
     )
 
     const matchingSubject = subjects.find(

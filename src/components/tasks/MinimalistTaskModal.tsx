@@ -412,7 +412,28 @@ export function MinimalistTaskModal({
       let savedTaskObj: Task | null = null
 
       if (publishToClass && isAdmin && mode === 'create') {
-        const { data: classTaskData, error: publishError } = await publishClassTask({
+        const rawId = generateId('class').replace('class_', '')
+        const publishedId = `class_${rawId}`
+        const nowIso = new Date().toISOString()
+
+        savedTaskObj = {
+          id: publishedId,
+          is_class_task: true,
+          class_task_id: rawId,
+          is_pending_sync: false,
+          ...payload,
+          status: 'pending',
+          created_at: nowIso,
+          updated_at: nowIso,
+        }
+
+        const isNew = true
+        playSaveSound()
+        triggerHaptic('success')
+        onTaskSaved?.(savedTaskObj, isNew)
+        handleSmoothClose({ silent: true })
+
+        publishClassTask({
           title: title.trim(),
           description: description.trim() || null,
           subject_name: selectedSubj?.name || 'General',
@@ -420,27 +441,10 @@ export function MinimalistTaskModal({
           type: taskType,
           due_date: dueDate || null,
           attachments: attachments,
+        }).catch((err) => {
+          logger.warn('[MinimalistTaskModal] Error al publicar en clase en segundo plano:', err)
         })
-        if (publishError) {
-          logger.warn('[MinimalistTaskModal] Error al publicar en clase:', publishError)
-          Alert.alert('Error', publishError.message || 'No se pudo crear la tarea de clase.')
-          setSaveLoading(false)
-          return
-        }
-
-        const rawId = classTaskData?.id
-          ? (classTaskData.id.startsWith('class_') ? classTaskData.id.replace('class_', '') : classTaskData.id)
-          : generateId('class').replace('class_', '')
-        const publishedId = `class_${rawId}`
-        savedTaskObj = {
-          id: publishedId,
-          is_class_task: true,
-          class_task_id: rawId,
-          is_pending_sync: classTaskData?.is_pending_sync,
-          ...payload,
-          status: 'pending',
-          created_at: classTaskData?.created_at || new Date().toISOString(),
-        }
+        return
       } else if (task && (mode === 'edit' || currentView === 'form')) {
         savedTaskObj = {
           ...task,
@@ -450,7 +454,7 @@ export function MinimalistTaskModal({
         }
         if (task.is_class_task && isAdmin) {
           const rawClassId = task.class_task_id || (task.id.startsWith('class_') ? task.id.replace('class_', '') : task.id)
-          await updateClassTask(rawClassId, {
+          updateClassTask(rawClassId, {
             title: title.trim(),
             description: description.trim() || null,
             subject_name: selectedSubj?.name || task.subject?.name || 'General',
@@ -458,6 +462,8 @@ export function MinimalistTaskModal({
             type: taskType,
             due_date: dueDate || null,
             attachments: attachments,
+          }).catch((err) => {
+            logger.warn('[MinimalistTaskModal] Error al actualizar clase en segundo plano:', err)
           })
         } else {
           await personalStorage.saveTask(savedTaskObj, { notify: false })
@@ -510,7 +516,7 @@ export function MinimalistTaskModal({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
     })
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -538,7 +544,7 @@ export function MinimalistTaskModal({
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
     })
 
     if (!result.canceled && result.assets && result.assets.length > 0) {

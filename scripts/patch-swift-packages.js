@@ -542,7 +542,7 @@ extension Task where Failure == any Error {
       return JavaScriptActor.assumeIsolated {
         return forwardingSwiftErrorsToJS(runtime: runtime) {
           let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
-          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
           let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
           let this = UnsafeMutablePointer(mutating: thisPtr).move()
           let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
@@ -566,7 +566,7 @@ extension Task where Failure == any Error {
       return JavaScriptActor.assumeIsolated {
         return forwardingSwiftErrorsToJS(runtime: runtime) {
           let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
-          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
           let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
           let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
           let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)

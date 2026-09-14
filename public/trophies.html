@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Synapse — Vitrina de Logros</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #09090B;
+      color: #FFFFFF;
+    }
+
+    /* Custom Glassmorphism */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    /* 3D Gyro Tilt Effect */
+    .badge-3d-wrapper {
+      perspective: 1000px;
+    }
+
+    .badge-3d-card {
+      transition: transform 0.1s ease-out;
+      transform-style: preserve-3d;
+    }
+
+    .badge-glow-silver {
+      box-shadow: 0 0 25px rgba(228, 228, 231, 0.25);
+    }
+
+    .badge-glow-gold {
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.35);
+    }
+
+    .badge-glow-purple {
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.35);
+    }
+
+    .badge-glow-emerald {
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.35);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-[#09090B] text-white min-h-screen p-3 md:p-6 flex flex-col items-center justify-start antialiased selection:bg-white selection:text-black">
+
+  <!-- Main Phone / Web App Frame Container -->
+  <div class="w-full max-w-md bg-[#09090B] border border-white/10 rounded-[38px] p-5 shadow-2xl relative overflow-hidden flex flex-col min-h-[780px]">
+    
+    <!-- iOS Dynamic Island / Notch Simulation -->
+    <div class="w-32 h-4 bg-black rounded-full mx-auto mb-4 border border-white/5 flex items-center justify-center">
+      <div class="w-2.5 h-2.5 rounded-full bg-zinc-900 border border-white/10"></div>
+    </div>
+
+    <!-- Header Section -->
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+          Vitrina de Logros
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">PRO</span>
+        </h1>
+        <p class="text-xs text-zinc-400 mt-0.5 font-medium">Recompensas y constancia académica</p>
+      </div>
+      <div class="w-10 h-10 rounded-2xl glass-card flex items-center justify-center border border-white/10 shadow-lg">
+        <span class="text-lg">🏆</span>
+      </div>
+    </div>
+
+    <!-- User Stats Banner -->
+    <div class="glass-card rounded-2xl p-4 mb-5 flex items-center justify-between border border-white/10">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 text-black font-extrabold flex items-center justify-center text-sm shadow-lg shadow-amber-500/20">
+          Nv. 4
+        </div>
+        <div>
+          <div class="text-xs text-zinc-400 font-medium">Desbloqueados</div>
+          <div class="text-base font-bold text-white"><span text-amber-400 class="text-amber-400">8</span> de 12 Medallas</div>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-zinc-400 font-medium">Racha Actual</div>
+        <div class="text-sm font-extrabold text-emerald-400 flex items-center justify-end gap-1">
+          <span>⚡ 7 Días</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Selector Tabs -->
+    <div class="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-none">
+      <button onclick="filterCategory('all')" id="tab-all" class="tab-btn active px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-black transition-all">Todos</button>
+      <button onclick="filterCategory('racha')" id="tab-racha" class="tab-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold glass-card text-zinc-400 hover:text-white transition-all">Racha</button>
+      <button onclick="filterCategory('colaboracion')" id="tab-colaboracion" class="tab-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold glass-card text-zinc-400 hover:text-white transition-all">Colaboración</button>
+      <button onclick="filterCategory('estudio')" id="tab-estudio" class="tab-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold glass-card text-zinc-400 hover:text-white transition-all">Estudio</button>
+    </div>
+
+    <!-- Trophies Grid -->
+    <div id="trophies-grid" class="grid grid-cols-3 gap-3 flex-1 overflow-y-auto pr-1 pb-4">
+      <!-- Generated via JS -->
+    </div>
+
+    <!-- Bottom Navigation Bar Simulation -->
+    <div class="mt-auto pt-3 border-t border-white/5 flex items-center justify-around text-zinc-500 text-[10px] font-medium">
+      <div class="flex flex-col items-center gap-1">
+        <span>🏠</span>
+        <span>Hoy</span>
+      </div>
+      <div class="flex flex-col items-center gap-1">
+        <span>📅</span>
+        <span>Horario</span>
+      </div>
+      <div class="flex flex-col items-center gap-1">
+        <span>✅</span>
+        <span>Tareas</span>
+      </div>
+      <div class="flex flex-col items-center gap-1 text-white font-bold">
+        <span>🏆</span>
+        <span>Logros</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail & 3D Interactive Modal -->
+  <div id="detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50 transition-opacity opacity-0">
+    <div class="glass-card bg-[#09090B]/95 border border-white/15 rounded-3xl p-6 max-w-sm w-full relative flex flex-col items-center text-center shadow-2xl">
+      
+      <!-- Close Button -->
+      <button onclick="closeModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full glass-card flex items-center justify-center text-zinc-400 hover:text-white text-sm">
+        ✕
+      </button>
+
+      <!-- Rare Tier Tag -->
+      <span id="modal-tier" class="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-4 border"></span>
+
+      <!-- 3D Gyroscope Interactive Container -->
+      <div class="badge-3d-wrapper my-4 cursor-grab active:cursor-grabbing" id="gyro-area">
+        <div id="modal-badge-card" class="badge-3d-card w-36 h-36 rounded-3xl flex items-center justify-center text-6xl shadow-2xl relative border border-white/20">
+          <span id="modal-icon">⚡</span>
+          <!-- Dynamic specular sheen -->
+          <div id="modal-sheen" class="absolute inset-0 rounded-3xl pointer-events-none opacity-40 bg-gradient-to-tr from-transparent via-white/40 to-transparent"></div>
+        </div>
+      </div>
+
+      <!-- Title & Description -->
+      <h3 id="modal-title" class="text-xl font-extrabold text-white mt-2"></h3>
+      <p id="modal-desc" class="text-xs text-zinc-400 mt-2 font-medium leading-relaxed px-2"></p>
+
+      <!-- Status or Progress -->
+      <div id="modal-status-box" class="w-full mt-5 p-3 rounded-2xl glass-card text-xs font-semibold flex items-center justify-between">
+        <span class="text-zinc-400">Estado</span>
+        <span id="modal-status" class="font-bold"></span>
+      </div>
+
+      <!-- Test Confetti Button -->
+      <button onclick="triggerConfettiEffect()" class="w-full mt-4 py-3 rounded-xl bg-white text-black font-extrabold text-xs shadow-lg hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+        <span>🎉</span> Celebrar Logro
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const BADGES = [
+      {
+        id: 'streak-7',
+        title: 'Racha Implacable',
+        desc: 'Completaste todas tus entregas a tiempo durante 7 días seguidos.',
+        category: 'racha',
+        icon: '⚡',
+        unlocked: true,
+        tier: 'Épico',
+        tierColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        bgGradient: 'from-amber-500/20 via-yellow-500/10 to-transparent',
+        borderColor: 'border-amber-500/40',
+        date: 'Desbloqueado el 28 de Ago'
+      },
+      {
+        id: 'photo-pro',
+        title: 'Fotógrafo de Pizarra',
+        desc: 'Subiste 25 fotos de pizarra limpias y legibles para tu salón.',
+        category: 'colaboracion',
+        icon: '📸',
+        unlocked: true,
+        tier: 'Raro',
+        tierColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        bgGradient: 'from-blue-500/20 via-cyan-500/10 to-transparent',
+        borderColor: 'border-blue-500/40',
+        date: 'Desbloqueado el 1 de Sep'
+      },
+      {
+        id: 'early-bird',
+        title: 'Madrugador del Aula',
+        desc: 'Revisaste tu horario antes de las 7:00 AM 5 días seguidos.',
+        category: 'racha',
+        icon: '🌅',
+        unlocked: true,
+        tier: 'Común',
+        tierColor: 'bg-zinc-500/10 text-zinc-300 border-zinc-500/20',
+        bgGradient: 'from-zinc-500/20 via-zinc-400/10 to-transparent',
+        borderColor: 'border-zinc-400/40',
+        date: 'Desbloqueado el 25 de Ago'
+      },
+      {
+        id: 'zero-pending',
+        title: 'Zero Pendientes',
+        desc: 'Llegaste al viernes por la tarde con 0 tareas pendientes.',
+        category: 'estudio',
+        icon: '🎯',
+        unlocked: true,
+        tier: 'Épico',
+        tierColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+        bgGradient: 'from-purple-500/20 via-fuchsia-500/10 to-transparent',
+        borderColor: 'border-purple-500/40',
+        date: 'Desbloqueado el 4 de Sep'
+      },
+      {
+        id: 'perfect-attendance',
+        title: 'Asistencia Perfecta',
+        desc: '100% de asistencia registrada a tus clases durante 30 días.',
+        category: 'racha',
+        icon: '🛡️',
+        unlocked: true,
+        tier: 'Legendario',
+        tierColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        bgGradient: 'from-emerald-500/20 via-teal-500/10 to-transparent',
+        borderColor: 'border-emerald-500/40',
+        date: 'Desbloqueado el 10 de Sep'
+      },
+      {
+        id: 'focus-master',
+        title: 'Mente Enfocada',
+        desc: 'Acumulaste 10 horas de estudio con el timer Pomodoro.',
+        category: 'estudio',
+        icon: '⏱️',
+        unlocked: true,
+        tier: 'Raro',
+        tierColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        bgGradient: 'from-blue-500/20 via-indigo-500/10 to-transparent',
+        borderColor: 'border-blue-500/40',
+        date: 'Desbloqueado el 8 de Sep'
+      },
+      {
+        id: 'delegate-star',
+        title: 'Delegado Estrella',
+        desc: 'Publicaste avisos de aula útiles para más de 20 compañeros.',
+        category: 'colaboracion',
+        icon: '🤝',
+        unlocked: true,
+        tier: 'Legendario',
+        tierColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        bgGradient: 'from-amber-500/20 via-orange-500/10 to-transparent',
+        borderColor: 'border-amber-500/40',
+        date: 'Desbloqueado el 11 de Sep'
+      },
+      {
+        id: 'library-hero',
+        title: 'Bibliotecario',
+        desc: 'Subiste 5 guías o temarios en PDF al salón.',
+        category: 'colaboracion',
+        icon: '📚',
+        unlocked: true,
+        tier: 'Común',
+        tierColor: 'bg-zinc-500/10 text-zinc-300 border-zinc-500/20',
+        bgGradient: 'from-zinc-500/20 via-zinc-400/10 to-transparent',
+        borderColor: 'border-zinc-400/40',
+        date: 'Desbloqueado el 2 de Sep'
+      },
+      {
+        id: 'streak-30',
+        title: 'Leyenda del Semestre',
+        desc: 'Mantén tu racha de entregas sin fallar durante 30 días.',
+        category: 'racha',
+        icon: '👑',
+        unlocked: false,
+        tier: 'Legendario',
+        tierColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        progress: '18 / 30 días'
+      },
+      {
+        id: 'grade-master',
+        title: 'Dominio Absoluto',
+        desc: 'Consigue la nota máxima final en una materia.',
+        category: 'estudio',
+        icon: '🏆',
+        unlocked: false,
+        tier: 'Legendario',
+        tierColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+        progress: 'En evaluación'
+      },
+      {
+        id: 'comeback',
+        title: 'Remontada Épica',
+        desc: 'Sube la nota de una materia de riesgo a sobresaliente.',
+        category: 'estudio',
+        icon: '📈',
+        unlocked: false,
+        tier: 'Épico',
+        tierColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        progress: 'En curso'
+      },
+      {
+        id: 'vault-master',
+        title: 'Archivero Supremo',
+        desc: 'Sube 100 fotos de pizarrón durante el ciclo.',
+        category: 'colaboracion',
+        icon: '🖼️',
+        unlocked: false,
+        tier: 'Épico',
+        tierColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        progress: '42 / 100 fotos'
+      }
+    ];
+
+    let activeCategory = 'all';
+
+    function renderGrid() {
+      const grid = document.getElementById('trophies-grid');
+      grid.innerHTML = '';
+
+      const filtered = BADGES.filter(b => activeCategory === 'all' || b.category === activeCategory);
+
+      filtered.forEach(b => {
+        const card = document.createElement('div');
+        card.className = `glass-card rounded-2xl p-3 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:scale-[1.03] active:scale-95 ${
+          b.unlocked ? `${b.borderColor} bg-gradient-to-b ${b.bgGradient}` : 'opacity-40 border-white/5 grayscale'
+        }`;
+        card.onclick = () => openModal(b);
+
+        card.innerHTML = `
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-2 relative ${
+            b.unlocked ? 'bg-white/10 shadow-lg' : 'bg-zinc-900 border border-white/5'
+          }">
+            <span>${b.icon}</span>
+            ${!b.unlocked ? '<span class="absolute -top-1 -right-1 text-xs">🔒</span>' : ''}
+          </div>
+          <span class="text-[11px] font-bold text-white leading-tight line-clamp-1">${b.title}</span>
+          <span class="text-[9px] text-zinc-400 mt-1 font-semibold">${b.unlocked ? 'Completado' : 'Bloqueado'}</span>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function filterCategory(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = 'tab-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold glass-card text-zinc-400 hover:text-white transition-all';
+      });
+      const activeBtn = document.getElementById(`tab-${cat}`);
+      if (activeBtn) {
+        activeBtn.className = 'tab-btn active px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-black transition-all';
+      }
+      renderGrid();
+    }
+
+    // Modal & 3D Tilt Logic
+    let currentBadge = null;
+
+    function openModal(badge) {
+      currentBadge = badge;
+      const modal = document.getElementById('detail-modal');
+      const badgeCard = document.getElementById('modal-badge-card');
+      
+      document.getElementById('modal-icon').innerText = badge.icon;
+      document.getElementById('modal-title').innerText = badge.title;
+      document.getElementById('modal-desc').innerText = badge.desc;
+      
+      const tierTag = document.getElementById('modal-tier');
+      tierTag.innerText = badge.tier;
+      tierTag.className = `px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-4 border ${badge.tierColor}`;
+
+      const status = document.getElementById('modal-status');
+      if (badge.unlocked) {
+        status.innerText = `✨ ${badge.date}`;
+        status.className = 'font-bold text-emerald-400';
+      } else {
+        status.innerText = `🔒 Proceso: ${badge.progress}`;
+        status.className = 'font-bold text-amber-400';
+      }
+
+      badgeCard.className = `badge-3d-card w-36 h-36 rounded-3xl flex items-center justify-center text-6xl shadow-2xl relative border bg-gradient-to-tr ${
+        badge.unlocked ? `${badge.bgGradient} ${badge.borderColor}` : 'from-zinc-900 to-zinc-950 border-white/10 opacity-50'
+      }`;
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.classList.add('flex');
+      }, 10);
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('detail-modal');
+      modal.classList.add('opacity-0');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }, 180);
+    }
+
+    // Interactive 3D Cursor Tilt Simulation
+    const gyroArea = document.getElementById('gyro-area');
+    const badgeCard = document.getElementById('modal-badge-card');
+    const sheen = document.getElementById('modal-sheen');
+
+    gyroArea.addEventListener('mousemove', (e) => {
+      const rect = gyroArea.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+
+      const rotateX = (-y / rect.height) * 35;
+      const rotateY = (x / rect.width) * 35;
+
+      badgeCard.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.08)`;
+      sheen.style.transform = `translate(${x * 0.4}px, ${y * 0.4}px)`;
+    });
+
+    gyroArea.addEventListener('mouseleave', () => {
+      badgeCard.style.transform = `rotateX(0deg) rotateY(0deg) scale(1)`;
+      sheen.style.transform = `translate(0px, 0px)`;
+    });
+
+    function triggerConfettiEffect() {
+      confetti({
+        particleCount: 70,
+        spread: 60,
+        origin: { y: 0.6 }
+      });
+    }
+
+    // Initialize Grid
+    renderGrid();
+  </script>
+</body>
+</html>

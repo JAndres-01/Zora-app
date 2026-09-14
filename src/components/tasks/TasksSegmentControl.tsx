@@ -12,14 +12,18 @@ import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
 import { SCREEN_WIDTH } from '@/constants/layout'
 import { triggerHaptic } from '@/lib/personalHaptics'
 
+import { getCardEntranceStyle } from '@/hooks/useCardEntrance'
+
 export interface TasksSegmentControlProps {
   statusFilter: 'pending' | 'completed' | 'all'
   onStatusChange: (status: 'pending' | 'completed' | 'all') => void
+  cardEntranceAnim?: Animated.Value
 }
 
 export function TasksSegmentControl({
   statusFilter,
   onStatusChange,
+  cardEntranceAnim,
 }: TasksSegmentControlProps) {
   const [containerWidth, setContainerWidth] = useState(SCREEN_WIDTH - 32)
   const segmentWidth = Math.max(0, (containerWidth - 6) / 3)
@@ -39,8 +43,11 @@ export function TasksSegmentControl({
     onStatusChange(newStatus)
   }
 
+  const card1Style = cardEntranceAnim ? getCardEntranceStyle(cardEntranceAnim) : undefined
+
   return (
-    <BlurView
+    <Animated.View style={card1Style}>
+      <BlurView
       intensity={Platform.OS === 'ios' ? 55 : 90}
       tint="dark"
       style={styles.segmentedContainer}
@@ -104,6 +111,7 @@ export function TasksSegmentControl({
           </Text>
         </Pressable>
       </BlurView>
+    </Animated.View>
   )
 }
 

@@ -33,6 +33,7 @@ import {
   cancelTaskReminder,
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
+import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { sortTasksByDueDate } from '@/lib/taskSort'
 import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
 import { useClassAuth } from '@/context/ClassAuthContext'
@@ -320,6 +321,9 @@ export default function TasksScreen() {
     }).start()
   }
 
+  // Animaciones de Entrada Escalonada
+  const cardEntranceAnims = useCardEntrance(3, 'tasks')
+
   const handleOpenDetail = useCallback((t: Task) => {
     setActiveTask(t)
     setTaskModalMode('detail')
@@ -409,20 +413,23 @@ export default function TasksScreen() {
 
   const renderTaskItem = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
-      <MinimalistTaskRow
-        task={item}
-        statusFilter={statusFilter}
-        isLast={index === filteredTasks.length - 1}
-        isHighlighted={highlightedTaskId === item.id}
-        isAdmin={isAdmin}
-        onToggleStatus={handleToggleStatus}
-        onOpenDetail={handleOpenDetail}
-        onEdit={handleEditTask}
-        onDelete={handleDeleteTask}
-        onSwipeActiveChange={setIsScrollEnabled}
-      />
+      <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
+        <MinimalistTaskRow
+          task={item}
+          statusFilter={statusFilter}
+          isLast={index === filteredTasks.length - 1}
+          isHighlighted={highlightedTaskId === item.id}
+          isAdmin={isAdmin}
+          onToggleStatus={handleToggleStatus}
+          onOpenDetail={handleOpenDetail}
+          onEdit={handleEditTask}
+          onDelete={handleDeleteTask}
+          onSwipeActiveChange={setIsScrollEnabled}
+        />
+      </Animated.View>
     ),
     [
+      cardEntranceAnims,
       statusFilter,
       filteredTasks.length,
       highlightedTaskId,
@@ -454,12 +461,14 @@ export default function TasksScreen() {
           onOpenSubjectMenu={() => setShowSubjectMenu(true)}
           onResetSubjectFilter={() => setSelectedSubjectId('all')}
           onOpenClassAuth={() => setShowClassAuthModal(true)}
+          cardEntranceAnim={cardEntranceAnims[0]}
         />
 
         {/* Segmented Control iOS */}
         <TasksSegmentControl
           statusFilter={statusFilter}
           onStatusChange={handleStatusChange}
+          cardEntranceAnim={cardEntranceAnims[1]}
         />
       </View>
     )
@@ -469,11 +478,17 @@ export default function TasksScreen() {
     selectedSubject,
     selectedSubjectId,
     statusFilter,
+    cardEntranceAnims,
   ])
 
   const renderEmptyComponent = useMemo(() => {
     return (
-      <View style={styles.emptyContainer}>
+      <Animated.View
+        style={[
+          styles.emptyContainer,
+          getCardEntranceStyle(cardEntranceAnims[2]),
+        ]}
+      >
         <CheckCircle2 size={36} color="#27272A" />
         <Text style={styles.emptyTitle}>
           {statusFilter === 'completed'
@@ -487,9 +502,9 @@ export default function TasksScreen() {
             ? 'Intenta buscar con otro término o selecciona otra materia.'
             : 'Toca el botón + flotante para añadir un nuevo pendiente o entrega.'}
         </Text>
-      </View>
+      </Animated.View>
     )
-  }, [statusFilter, debouncedQuery])
+  }, [cardEntranceAnims, statusFilter, debouncedQuery])
 
   return (
     <View style={styles.screenWrapper}>

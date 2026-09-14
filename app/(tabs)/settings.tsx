@@ -30,6 +30,7 @@ import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
 import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
+import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
 import {
   setGlobalSoundEnabled,
@@ -62,6 +63,9 @@ export default function ProfileScreen() {
   const [fallEnd, setFallEnd] = useState(`${currentYear}-12-31`)
   const [springStart, setSpringStart] = useState(`${currentYear}-02-01`)
   const [springEnd, setSpringEnd] = useState(`${currentYear}-06-30`)
+
+  // Animaciones de Entrada Escalonada
+  const cardEntranceAnims = useCardEntrance(5, 'settings')
 
   const gearScaleAnim = useRef(new Animated.Value(1)).current
 
@@ -358,34 +362,44 @@ export default function ProfileScreen() {
         </View>
 
         {/* Card 0: Tarjeta Hero de Perfil */}
-        <ProfileHeroCard
-          fullName={profile?.full_name}
-          credentialUrl={profile?.student_credential_url}
-          onOpenCredential={() => setShowCredentialModal(true)}
-          onUploadCredential={handlePickCredential}
-        />
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
+          <ProfileHeroCard
+            fullName={profile?.full_name}
+            credentialUrl={profile?.student_credential_url}
+            onOpenCredential={() => setShowCredentialModal(true)}
+            onUploadCredential={handlePickCredential}
+          />
+        </Animated.View>
 
         {/* Card 1: Métricas Vitales Académicas */}
-        <MinimalistVitalStats />
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
+          <MinimalistVitalStats />
+        </Animated.View>
 
         {/* Card 2: Mapa de Actividad Estilo GitHub */}
-        <MinimalistActivityHeatmap />
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
+          <MinimalistActivityHeatmap />
+        </Animated.View>
 
         {/* Card 3: Balance de Materias */}
-        <MinimalistSubjectBalance />
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[3])}>
+          <MinimalistSubjectBalance />
+        </Animated.View>
 
         {/* Card 4: Previsualización de Widget #3A Dual Balance */}
-        <View style={styles.widgetSectionCard}>
-          <View style={styles.widgetSectionHeader}>
-            <View>
-              <Text style={styles.widgetSectionTitle}>WIDGETS · PANTALLA DE INICIO</Text>
-              <Text style={styles.widgetSectionSubtitle}>#3A Dual Balance · Toca el widget para abrir Tareas</Text>
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[4])}>
+          <View style={styles.widgetSectionCard}>
+            <View style={styles.widgetSectionHeader}>
+              <View>
+                <Text style={styles.widgetSectionTitle}>WIDGETS · PANTALLA DE INICIO</Text>
+                <Text style={styles.widgetSectionSubtitle}>#3A Dual Balance · Toca el widget para abrir Tareas</Text>
+              </View>
+            </View>
+            <View style={styles.widgetPreviewContainer}>
+              <DualBalanceWidget size="small" />
             </View>
           </View>
-          <View style={styles.widgetPreviewContainer}>
-            <DualBalanceWidget size="small" />
-          </View>
-        </View>
+        </Animated.View>
       </ScrollView>
 
       {/* Modal Principal de Ajustes del Sistema */}

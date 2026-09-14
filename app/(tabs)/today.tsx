@@ -19,6 +19,7 @@ import { MinimalistConfetti } from '@/components/effects/MinimalistConfetti'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { Plus } from 'lucide-react-native'
+import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import {
   playConfettiSound,
@@ -239,6 +240,9 @@ export default function TodayScreen() {
     [isAdmin, deleteClassTask]
   )
 
+  // Animaciones de Entrada Escalonada
+  const cardEntranceAnims = useCardEntrance(3, 'today')
+
   return (
     <View style={styles.screenWrapper}>
       {/* Confetti Festivo al Completar Tareas */}
@@ -275,32 +279,38 @@ export default function TodayScreen() {
         </View>
 
         {/* Card 0: Hero Card Dinámica (Clase en Vivo / Próxima) */}
-        <MinimalistLiveHero schedulesToday={schedulesToday} />
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
+          <MinimalistLiveHero schedulesToday={schedulesToday} />
+        </Animated.View>
 
         {/* Card 1: Bloque de Tareas Próximas */}
-        <MinimalistTodayTasks
-          tasks={tasks}
-          highlightedTaskId={highlightedTaskId}
-          onToggleTask={handleToggleTaskStatus}
-          onOpenTaskDetail={(t) => {
-            triggerHaptic('light')
-            setActiveTask(t)
-            setTaskModalMode('detail')
-          }}
-          onNavigateToTasks={() => router.navigate('/(tabs)/tasks')}
-        />
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
+          <MinimalistTodayTasks
+            tasks={tasks}
+            highlightedTaskId={highlightedTaskId}
+            onToggleTask={handleToggleTaskStatus}
+            onOpenTaskDetail={(t) => {
+              triggerHaptic('light')
+              setActiveTask(t)
+              setTaskModalMode('detail')
+            }}
+            onNavigateToTasks={() => router.navigate('/(tabs)/tasks')}
+          />
+        </Animated.View>
 
         {/* Card 2: Timeline Continuo de Clases con Entregas de Tareas */}
-        <MinimalistDayTimeline
-          schedulesToday={schedulesToday}
-          tasks={tasks}
-          onToggleTask={handleToggleTaskStatus}
-          onOpenTaskDetail={(t) => {
-            triggerHaptic('light')
-            setActiveTask(t)
-            setTaskModalMode('detail')
-          }}
-        />
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
+          <MinimalistDayTimeline
+            schedulesToday={schedulesToday}
+            tasks={tasks}
+            onToggleTask={handleToggleTaskStatus}
+            onOpenTaskDetail={(t) => {
+              triggerHaptic('light')
+              setActiveTask(t)
+              setTaskModalMode('detail')
+            }}
+          />
+        </Animated.View>
       </ScrollView>
 
       {/* Modal Unificado de Tareas (Detalle, Crear y Editar) */}

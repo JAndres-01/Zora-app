@@ -37,6 +37,45 @@ jobs:
       - name: 📦 Instalar dependencias npm
         run: npm ci
 
+      - name: 🔧 Parchear compatibilidad Swift / SwiftPM (Xcode 16 / Swift 6.0)
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          function walk(dir) {
+            let results = [];
+            try {
+              for (const file of fs.readdirSync(dir)) {
+                const full = path.join(dir, file);
+                const stat = fs.statSync(full);
+                if (stat && stat.isDirectory()) {
+                  if (file !== '.git') results = results.concat(walk(full));
+                } else if (file === 'Package.swift') {
+                  results.push(full);
+                }
+              }
+            } catch (e) {}
+            return results;
+          }
+          const files = walk('node_modules');
+          for (const f of files) {
+            let content = fs.readFileSync(f, 'utf8');
+            let changed = false;
+            if (/swift-tools-version:\s*6\.2/i.test(content)) {
+              content = content.replace(/swift-tools-version:\s*6\.2(\.\d+)?/gi, 'swift-tools-version: 6.0');
+              changed = true;
+            }
+            if (/602\.0\.0/i.test(content)) {
+              content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1');
+              changed = true;
+            }
+            if (changed) {
+              fs.writeFileSync(f, content, 'utf8');
+              console.log('✅ Patched Swift package:', f);
+            }
+          }
+          "
+
       - name: ⚙️ Generar proyecto nativo iOS (Expo Prebuild)
         run: npx expo prebuild --platform ios --clean
 

@@ -1,16 +1,46 @@
-import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
+import Constants, { ExecutionEnvironment } from 'expo-constants'
 import type { Task, Schedule, AppPreferences } from '@/types/personal'
 import { personalStorage } from './personalStorage'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
 import { logger } from '@/lib/logger'
+
+type NotificationsType = typeof import('expo-notifications')
+let _isInitialized = false
+let _notificationsModule: NotificationsType | null = null
+
+function getNotifications(): NotificationsType | null {
+  if (Platform.OS === 'web') return null
+  if (_isInitialized) return _notificationsModule
+
+  _isInitialized = true
+  try {
+    const isExpoGo =
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any).appOwnership === 'expo'
+
+    if (Platform.OS === 'android' && isExpoGo) {
+      _notificationsModule = null
+      return null
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _notificationsModule = require('expo-notifications')
+    return _notificationsModule
+  } catch (err) {
+    logger.warn('[personalNotifications] expo-notifications no disponible en este entorno:', err)
+    _notificationsModule = null
+    return null
+  }
+}
 
 /**
  * Inicializa la infraestructura de notificaciones (handler nativo y canal de Android).
  * Debe invocarse de forma controlada durante el ciclo de arranque de la aplicación.
  */
 export function setupNotificationInfrastructure(): void {
-  if (Platform.OS === 'web') return
+  const Notifications = getNotifications()
+  if (!Notifications) return
 
   try {
     Notifications.setNotificationHandler({
@@ -24,10 +54,10 @@ export function setupNotificationInfrastructure(): void {
       }),
     })
 
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' && Notifications.setNotificationChannelAsync) {
       Notifications.setNotificationChannelAsync('default', {
         name: 'Zora',
-        importance: Notifications.AndroidImportance.MAX,
+        importance: Notifications.AndroidImportance?.MAX ?? 5,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FFFFFF',
         sound: 'default',
@@ -44,7 +74,8 @@ export function setupNotificationInfrastructure(): void {
  * Solicita permisos de notificación al sistema operativo (iOS / Android)
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
-  if (Platform.OS === 'web') return false
+  const Notifications = getNotifications()
+  if (!Notifications) return false
 
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync()
@@ -70,7 +101,8 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  * Cancela el recordatorio de una tarea específica (al tacharla o eliminarla)
  */
 export function cancelTaskReminder(taskId: string): Promise<void> {
-  if (Platform.OS === 'web') return Promise.resolve()
+  const Notifications = getNotifications()
+  if (!Notifications) return Promise.resolve()
   return (async () => {
     try {
       await Notifications.cancelScheduledNotificationAsync(`task_adv_${taskId}`)
@@ -84,7 +116,8 @@ export function cancelTaskReminder(taskId: string): Promise<void> {
  * Cancela absolutamente todos los recordatorios programados en el sistema operativo
  */
 export function cancelAllNotifications(): Promise<void> {
-  if (Platform.OS === 'web') return Promise.resolve()
+  const Notifications = getNotifications()
+  if (!Notifications) return Promise.resolve()
   return (async () => {
     try {
       await Notifications.cancelAllScheduledNotificationsAsync()
@@ -101,7 +134,8 @@ export async function scheduleTaskReminder(
   task: Task,
   prefs: AppPreferences
 ): Promise<void> {
-  if (Platform.OS === 'web') return
+  const Notifications = getNotifications()
+  if (!Notifications) return
   if (task.status !== 'pending' || !task.due_date || !prefs.advance_reminder_enabled) {
     await cancelTaskReminder(task.id)
     return
@@ -143,9 +177,9 @@ export async function scheduleTaskReminder(
         data: { taskId: task.id, type: 'task_advance' },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        type: (Notifications as any).SchedulableTriggerInputTypes?.DATE || 'date',
         date: reminderDate,
-      },
+      } as any,
     })
   } catch (err) {
     logger.warn('[personalNotifications] Error programando recordatorio de tarea:', err)
@@ -159,6 +193,9 @@ async function scheduleClassReminders(
   schedules: Schedule[],
   prefs: AppPreferences
 ): Promise<void> {
+  const Notifications = getNotifications()
+  if (!Notifications) return
+
   // Cancelar todas las alertas de clases previas para evitar duplicados
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync()
@@ -209,11 +246,11 @@ async function scheduleClassReminders(
           data: { scheduleId: item.id, type: 'class_reminder' },
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          type: (Notifications as any).SchedulableTriggerInputTypes?.WEEKLY || 'weekly',
           weekday: expoWeekday,
           hour: notifHour,
           minute: notifMin,
-        },
+        } as any,
       })
     } catch (err) {
       logger.warn('[personalNotifications] Error programando recordatorio de clase:', err)
@@ -229,6 +266,9 @@ export async function syncAllNotifications(
   schedules?: Schedule[],
   prefsOverride?: AppPreferences
 ): Promise<void> {
+  const Notifications = getNotifications()
+  if (!Notifications) return
+
   try {
     const prefs = prefsOverride || (await personalStorage.getPreferences())
     const hasPermission = await requestNotificationPermissions()

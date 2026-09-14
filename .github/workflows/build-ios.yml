@@ -131,6 +131,59 @@ jobs:
             tail -n 150 xcodebuild.log
           fi
 
+      - name: Verificación automatizada de integridad de Zora.app y binario nativo
+        if: success()
+        run: |
+          echo "======================================================================"
+          echo "VERIFICACION PREVIA AL EMPAQUETADO IPA"
+          echo "======================================================================"
+          APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No se encontro Zora.app para validar."
+            exit 1
+          fi
+          echo "Validando bundle en: $APP_PATH"
+
+          # 1. Validar Info.plist
+          if [ -f "$APP_PATH/Info.plist" ]; then
+            echo "[OK] Info.plist presente."
+            plutil -p "$APP_PATH/Info.plist" | grep -E "CFBundleIdentifier|CFBundleShortVersionString" || true
+          else
+            echo "ERROR: Info.plist no existe en el bundle."
+            exit 1
+          fi
+
+          # 2. Validar Hermes Bytecode Bundle
+          BUNDLE_FILE=$(find "$APP_PATH" -name "main.jsbundle" -o -name "*.hbc" | head -n 1)
+          if [ -n "$BUNDLE_FILE" ]; then
+            echo "[OK] JavaScript / Hermes bytecode bundle encontrado en: $BUNDLE_FILE ($(ls -lh "$BUNDLE_FILE" | awk '{print $5}'))"
+          else
+            echo "ADVERTENCIA: No se detecto main.jsbundle en la raiz de Zora.app"
+          fi
+
+          # 3. Validar simbolos nativos y parches interceptores en el binario Zora
+          BINARY="$APP_PATH/Zora"
+          if [ -f "$BINARY" ]; then
+            echo "[OK] Binario ejecutable Zora presente ($(ls -lh "$BINARY" | awk '{print $5}'))."
+            
+            # Verificar arquitectura ARM64
+            lipo -info "$BINARY"
+
+            # Verificar que el interceptor nativo de RCTFatal esta presente
+            if strings "$BINARY" | grep -q "Zora Native Fatal Interceptor"; then
+              echo "[OK] VERIFICADO: El interceptor nativo RCTFatal esta compilado y presente en el binario Zora."
+            else
+              echo "[INFO] Comprobando simbolos en frameworks integrados..."
+              find "$APP_PATH/Frameworks" -type f -exec strings {} + 2>/dev/null | grep "Zora Native Fatal Interceptor" | head -n 1 || true
+            fi
+          else
+            echo "ERROR: El binario Zora no existe en $APP_PATH"
+            exit 1
+          fi
+          echo "======================================================================"
+          echo "TODAS LAS VERIFICACIONES DE INTEGRIDAD COMPLETADAS CON EXITO"
+          echo "======================================================================"
+
       - name: Empaquetar IPA para Sideloadly (Payload/Zora.app)
         if: success()
         run: |

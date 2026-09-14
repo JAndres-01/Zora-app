@@ -582,6 +582,150 @@ function findAndPatchRCTAssert(dir) {
 findAndPatchRCTAssert(path.join(process.cwd(), 'node_modules', 'react-native'))
 findAndPatchRCTAssert(path.join(process.cwd(), 'ios', 'Pods'))
 
+// 5.10. Native Fatal Handler Registration in EXAppDelegatesLoader and RCTAppDelegate
+function patchEXAppDelegatesLoader(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (content.includes('Zora Native Fatal Interceptor')) return
+  const original = content
+
+  const headers = `#import <UIKit/UIKit.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef void (^RCTFatalHandler)(NSError *error);
+void RCTSetFatalHandler(RCTFatalHandler fatalHandler);
+#ifdef __cplusplus
+}
+#endif
+`
+
+  const interceptorBlock = `
+  RCTSetFatalHandler(^(NSError *error) {
+    NSString *desc = error.localizedDescription ?: @"Error en JavaScript";
+    NSLog(@"[Zora Native Fatal Interceptor EXAppDelegatesLoader] Intercepted RCTFatal: %@", desc);
+    dispatch_async(dispatch_get_main_queue(), ^{
+      UIWindow *window = nil;
+      for (id scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            if (w.isKeyWindow) { window = w; break; }
+          }
+        }
+        if (window) break;
+      }
+      if (!window) {
+        window = [UIApplication sharedApplication].keyWindow ?: [UIApplication sharedApplication].windows.firstObject;
+      }
+      UIViewController *rootVC = window.rootViewController;
+      while (rootVC.presentedViewController) {
+        rootVC = rootVC.presentedViewController;
+      }
+      if (rootVC) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Aviso de Zora"
+                                                                       message:desc
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Continuar" style:UIAlertActionStyleDefault handler:nil]];
+        [rootVC presentViewController:alert animated:YES completion:nil];
+      }
+    });
+  });
+`
+
+  if (!content.includes('RCTSetFatalHandler')) {
+    content = headers + '\n' + content
+    content = content.replace(
+      /(\+\s*\(void\)\s*load\s*\{)/,
+      '$1' + interceptorBlock
+    )
+    if (content !== original) {
+      fs.writeFileSync(filePath, content, 'utf8')
+      console.log(`[patch-swift-packages] Successfully injected RCTSetFatalHandler into EXAppDelegatesLoader: ${filePath}`)
+    }
+  }
+}
+
+function patchRCTAppDelegate(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (content.includes('Zora Native Fatal Interceptor')) return
+  const original = content
+
+  const headers = `#import <UIKit/UIKit.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef void (^RCTFatalHandler)(NSError *error);
+void RCTSetFatalHandler(RCTFatalHandler fatalHandler);
+#ifdef __cplusplus
+}
+#endif
+`
+
+  const interceptorBlock = `
+  RCTSetFatalHandler(^(NSError *error) {
+    NSString *desc = error.localizedDescription ?: @"Error en JavaScript";
+    NSLog(@"[Zora Native Fatal Interceptor AppDelegate] Intercepted RCTFatal: %@", desc);
+    dispatch_async(dispatch_get_main_queue(), ^{
+      UIWindow *window = nil;
+      for (id scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            if (w.isKeyWindow) { window = w; break; }
+          }
+        }
+        if (window) break;
+      }
+      if (!window) {
+        window = [UIApplication sharedApplication].keyWindow ?: [UIApplication sharedApplication].windows.firstObject;
+      }
+      UIViewController *rootVC = window.rootViewController;
+      while (rootVC.presentedViewController) {
+        rootVC = rootVC.presentedViewController;
+      }
+      if (rootVC) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Aviso de Zora"
+                                                                       message:desc
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Continuar" style:UIAlertActionStyleDefault handler:nil]];
+        [rootVC presentViewController:alert animated:YES completion:nil];
+      }
+    });
+  });
+`
+
+  content = headers + '\n' + content
+  content = content.replace(
+    /(- \(BOOL\)application:\(UIApplication \*\)application didFinishLaunchingWithOptions:[^\{]*\{)/,
+    '$1' + interceptorBlock
+  )
+  if (content !== original) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully injected RCTSetFatalHandler into: ${filePath}`)
+  }
+}
+
+function findAndPatchAppDelegates(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchAppDelegates(fullPath)
+      }
+    } else if (entry.name === 'EXAppDelegatesLoader.m') {
+      patchEXAppDelegatesLoader(fullPath)
+    } else if (entry.name === 'RCTAppDelegate.mm' || entry.name === 'AppDelegate.mm' || entry.name === 'AppDelegate.m') {
+      patchRCTAppDelegate(fullPath)
+    }
+  }
+}
+
+findAndPatchAppDelegates(path.join(process.cwd(), 'node_modules', 'expo'))
+findAndPatchAppDelegates(path.join(process.cwd(), 'node_modules', 'react-native'))
+findAndPatchAppDelegates(path.join(process.cwd(), 'ios'))
+
+
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
 if (fs.existsSync(buildXcframeworkScript)) {

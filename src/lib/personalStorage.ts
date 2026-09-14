@@ -200,10 +200,16 @@ export const personalStorage = {
 
     const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses, classStates)
 
-    const localTasksWithSub = tasks.map((t) => ({
-      ...t,
-      subject: subjects.find((s) => s.id === t.subject_id) || t.subject || null,
-    }))
+    const localTasksWithSub = tasks.map((t) => {
+      const matched = (t.subject_id && subjects.find((s) => s.id === t.subject_id)) ||
+        (t.subject?.name && subjects.find((s) => s.name.trim().toLowerCase() === t.subject!.name.trim().toLowerCase())) ||
+        t.subject ||
+        null
+      return {
+        ...t,
+        subject: matched,
+      }
+    })
 
     return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])
   },
@@ -439,10 +445,16 @@ export const personalStorage = {
       classStates
     )
 
-    const localTasksWithSub = tasks.map((t) => ({
-      ...t,
-      subject: subjects.find((s) => s.id === t.subject_id) || null,
-    }))
+    const localTasksWithSub = tasks.map((t) => {
+      const matched = (t.subject_id && subjects.find((s) => s.id === t.subject_id)) ||
+        (t.subject?.name && subjects.find((s) => s.name.trim().toLowerCase() === t.subject!.name.trim().toLowerCase())) ||
+        t.subject ||
+        null
+      return {
+        ...t,
+        subject: matched,
+      }
+    })
 
     // Fusionar de forma transparente tareas locales + tareas de clase
     return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])

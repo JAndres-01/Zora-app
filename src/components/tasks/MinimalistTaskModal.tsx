@@ -434,6 +434,7 @@ export function MinimalistTaskModal({
         handleSmoothClose({ silent: true })
 
         publishClassTask({
+          id: publishedId,
           title: title.trim(),
           description: description.trim() || null,
           subject_name: selectedSubj?.name || 'General',

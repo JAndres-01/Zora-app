@@ -92,8 +92,10 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error || !data) {
-        logger.warn('[ClassAuth] Perfil no encontrado en Supabase, asignando rol student:', error)
-        return { role: 'student', fullName: null }
+        const fallbackRole = (userRef.current?.user_metadata?.role as UserRole) || 'student'
+        const fallbackName = userRef.current?.user_metadata?.full_name || null
+        logger.warn('[ClassAuth] Perfil no encontrado o sin conexión, usando rol existente/metadata:', { error, fallbackRole })
+        return { role: fallbackRole, fullName: fallbackName }
       }
 
       if (data.full_name) {
@@ -103,8 +105,10 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       const assignedRole = (data.role as UserRole) || 'student'
       return { role: assignedRole, fullName: data.full_name || null }
     } catch (err) {
-      logger.error('[ClassAuth] Error obteniendo perfil de Supabase:', err)
-      return { role: 'student', fullName: null }
+      const fallbackRole = (userRef.current?.user_metadata?.role as UserRole) || 'student'
+      const fallbackName = userRef.current?.user_metadata?.full_name || null
+      logger.warn('[ClassAuth] Error obteniendo perfil de Supabase (posible offline):', { err, fallbackRole })
+      return { role: fallbackRole, fullName: fallbackName }
     }
   }
 
@@ -168,12 +172,12 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         fetchClassSchedules(),
       ])
 
-      if (Array.isArray(subjs)) {
+      if (subjs !== null && Array.isArray(subjs)) {
         await personalStorage.setClassSubjectsCache(subjs)
         setClassSubjects(subjs)
       }
 
-      if (Array.isArray(scheds)) {
+      if (scheds !== null && Array.isArray(scheds)) {
         await personalStorage.setClassSchedulesCache(scheds)
         setClassSchedules(scheds)
       }

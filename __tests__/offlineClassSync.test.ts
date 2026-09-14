@@ -1,5 +1,5 @@
 import { personalStorage, mapClassTasksToTaskObjects } from '@/lib/personalStorage'
-import { processPendingClassActionsQueue } from '@/lib/classStorage'
+import { processPendingClassActionsQueue, fetchClassSubjects } from '@/lib/classStorage'
 import { supabase } from '@/lib/supabase'
 import type { ClassTask, PendingClassAction } from '@/types/personal'
 
@@ -114,5 +114,46 @@ describe('Offline Class Tasks Queue & Sync Engine', () => {
     expect(result.processed).toBe(1)
     expect(result.errors).toBe(0)
     expect(await personalStorage.hasPendingClassActions()).toBe(false)
+  })
+
+  test('fetchClassSubjects retorna null en caso de error y no sobreescribe caché', async () => {
+    ;(supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        order: jest.fn().mockResolvedValue({
+          data: null,
+          error: new Error('Network request failed'),
+        }),
+      }),
+    })
+
+    const initialSubjects = [{ id: 'subj_1', name: 'Cálculo', color: '#10B981' }]
+    await personalStorage.setClassSubjectsCache(initialSubjects)
+
+    const subjects = await fetchClassSubjects()
+    expect(subjects).toBeNull()
+
+    const cached = await personalStorage.getClassSubjectsCache()
+    expect(cached).toHaveLength(1)
+    expect(cached[0].name).toBe('Cálculo')
+  })
+
+  test('getTasksWithSubjects resuelve materias cacheadas sin degradar a General', async () => {
+    await personalStorage.setClassSubjectsCache([
+      { id: 'subj_10', name: 'Física Clásica', color: '#EF4444' },
+    ])
+    await personalStorage.setTasks([
+      {
+        id: 'task_local_1',
+        title: 'Laboratorio de Péndulo',
+        status: 'pending',
+        subject_id: 'subj_10',
+      },
+    ])
+
+    const tasks = await personalStorage.getTasksWithSubjects()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0].subject).not.toBeNull()
+    expect(tasks[0].subject?.name).toBe('Física Clásica')
+    expect(tasks[0].subject?.color).toBe('#EF4444')
   })
 })

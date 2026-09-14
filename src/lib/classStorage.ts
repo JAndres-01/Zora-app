@@ -91,7 +91,7 @@ export async function uploadClassTaskAttachments(
 /**
  * Obtiene todas las materias oficiales de la clase desde Supabase
  */
-export async function fetchClassSubjects(): Promise<Subject[]> {
+export async function fetchClassSubjects(): Promise<Subject[] | null> {
   try {
     const { data, error } = await supabase
       .from('class_subjects')
@@ -99,14 +99,14 @@ export async function fetchClassSubjects(): Promise<Subject[]> {
       .order('name', { ascending: true })
 
     if (error) {
-      logger.error('[classStorage] Error obteniendo materias de clase:', error)
-      return []
+      logger.warn('[classStorage] Error obteniendo materias de clase:', error)
+      return null
     }
 
     return (data || []) as Subject[]
   } catch (err) {
-    logger.error('[classStorage] Error inesperado en fetchClassSubjects:', err)
-    return []
+    logger.warn('[classStorage] Error inesperado en fetchClassSubjects:', err)
+    return null
   }
 }
 
@@ -168,7 +168,7 @@ export async function deleteClassSubject(subjectId: string): Promise<{ error: an
 /**
  * Obtiene todos los bloques del horario de la clase con sus materias unificadas
  */
-export async function fetchClassSchedules(): Promise<Schedule[]> {
+export async function fetchClassSchedules(): Promise<Schedule[] | null> {
   try {
     const [schedRes, subjs] = await Promise.all([
       supabase.from('class_schedules').select('*'),
@@ -176,12 +176,13 @@ export async function fetchClassSchedules(): Promise<Schedule[]> {
     ])
 
     if (schedRes.error) {
-      logger.error('[classStorage] Error obteniendo horarios de clase:', schedRes.error)
-      return []
+      logger.warn('[classStorage] Error obteniendo horarios de clase:', schedRes.error)
+      return null
     }
 
+    const availableSubjs = subjs ?? (await personalStorage.getClassSubjectsCache())
     const subjsMap = new Map<string, Subject>()
-    subjs.forEach((s) => subjsMap.set(s.id, s))
+    availableSubjs.forEach((s) => subjsMap.set(s.id, s))
 
     const schedules: Schedule[] = (schedRes.data || []).map((row: any) => ({
       id: row.id,
@@ -199,8 +200,8 @@ export async function fetchClassSchedules(): Promise<Schedule[]> {
 
     return schedules
   } catch (err) {
-    logger.error('[classStorage] Error inesperado en fetchClassSchedules:', err)
-    return []
+    logger.warn('[classStorage] Error inesperado en fetchClassSchedules:', err)
+    return null
   }
 }
 

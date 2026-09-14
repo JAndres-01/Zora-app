@@ -88,6 +88,24 @@ function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[]
   return result
 }
 
+function extractUniqueSubjects(existingSubjects: Subject[], tasks: Task[]): Subject[] {
+  const merged = [...existingSubjects]
+  const seenIds = new Set(existingSubjects.map((s) => s.id))
+  const seenNames = new Set(existingSubjects.map((s) => s.name.trim().toLowerCase()))
+
+  for (const t of tasks) {
+    if (t.subject && t.subject.name && t.subject.name.trim().toLowerCase() !== 'general') {
+      const nameKey = t.subject.name.trim().toLowerCase()
+      if (!seenNames.has(nameKey) && (!t.subject.id || !seenIds.has(t.subject.id))) {
+        merged.push(t.subject)
+        if (t.subject.id) seenIds.add(t.subject.id)
+        seenNames.add(nameKey)
+      }
+    }
+  }
+  return merged
+}
+
 export function mapClassTasksToTaskObjects(
   classTasks: ClassTask[],
   subjects: Subject[],
@@ -167,7 +185,8 @@ export const personalStorage = {
   // MÉTODOS DE ACCESO DIRECTO A CACHÉ EN MEMORIA
   // ==========================================
   getCachedSubjects(): Subject[] {
-    return mergeSubjects(_classSubjectsCache, _subjectsCache)
+    const base = mergeSubjects(_classSubjectsCache, _subjectsCache)
+    return extractUniqueSubjects(base, _tasksCache || [])
   },
 
   getCachedLocalSubjects(): Subject[] {
@@ -284,11 +303,13 @@ export const personalStorage = {
   },
 
   async getSubjects(): Promise<Subject[]> {
-    const [local, classSubs] = await Promise.all([
+    const [local, classSubs, tasks] = await Promise.all([
       this.getLocalSubjects(),
       this.getClassSubjectsCache(),
+      this.getTasks(),
     ])
-    return mergeSubjects(classSubs, local)
+    const base = mergeSubjects(classSubs, local)
+    return extractUniqueSubjects(base, tasks)
   },
 
   async setSubjects(subjects: Subject[]): Promise<void> {
@@ -478,11 +499,7 @@ export const personalStorage = {
       notifyListeners()
     }
     try {
-      const storageList = safeList.map((t) => {
-        const { subject, ...rest } = t
-        return rest
-      })
-      await AsyncStorage.setItem(KEYS.TASKS, JSON.stringify(storageList))
+      await AsyncStorage.setItem(KEYS.TASKS, JSON.stringify(safeList))
     } catch (err) {
       logger.error('[personalStorage] Error guardando tareas:', err)
     }
@@ -504,6 +521,19 @@ export const personalStorage = {
           : null,
       updated_at: new Date().toISOString(),
     }
+
+    if (normalizedTask.subject && normalizedTask.subject.name && normalizedTask.subject.name.trim().toLowerCase() !== 'general') {
+      const localSubs = await this.getLocalSubjects()
+      const exists = localSubs.some(
+        (s) =>
+          s.id === normalizedTask.subject?.id ||
+          s.name.trim().toLowerCase() === normalizedTask.subject?.name.trim().toLowerCase()
+      )
+      if (!exists) {
+        await this.saveSubject(normalizedTask.subject)
+      }
+    }
+
     let updated: Task[]
     if (index >= 0) {
       updated = [...list]

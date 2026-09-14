@@ -232,4 +232,30 @@ describe('personalStorage Local-First Engine', () => {
     tasks = personalStorage.getCachedTasksWithSubjects()
     expect(tasks.length).toBe(0)
   })
+
+  it('preserva y propaga la materia al guardar una tarea local en modo offline', async () => {
+    const customSubject: Subject = {
+      id: 'subj_offline_custom',
+      name: 'Ecuaciones Diferenciales',
+      color: '#6366F1',
+    }
+
+    const localTask: Task = {
+      id: 'task_offline_1',
+      title: 'Taller 2 de Ecuaciones',
+      status: 'pending',
+      subject_id: 'subj_offline_custom',
+      subject: customSubject,
+    }
+
+    await personalStorage.saveTask(localTask)
+
+    const subjects = await personalStorage.getSubjects()
+    expect(subjects.some((s) => s.name === 'Ecuaciones Diferenciales')).toBe(true)
+
+    const tasks = await personalStorage.getTasksWithSubjects()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0].subject?.name).toBe('Ecuaciones Diferenciales')
+    expect(tasks[0].subject?.color).toBe('#6366F1')
+  })
 })

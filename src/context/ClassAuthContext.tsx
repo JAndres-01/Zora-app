@@ -679,58 +679,99 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const saveClassSubject = async (subject: Subject) => {
-    if (!user || (role !== 'admin' && role !== 'publisher')) {
+    const effectiveRole = role || (user?.user_metadata?.role as UserRole) || null
+    if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'publisher')) {
       return { error: new Error('No tienes permisos para editar materias de la clase.') }
     }
 
-    const res = await remoteSaveClassSubject(subject)
-    if (res.error) {
-      return { error: new Error(res.error.message || 'Error guardando materia') }
-    }
+    // 1. Guardado optimista inmediato en caché de clase y almacenamiento local
+    const currentClassSubs = await personalStorage.getClassSubjectsCache()
+    const index = currentClassSubs.findIndex((s) => s.id === subject.id)
+    const updatedClassSubs = index >= 0
+      ? currentClassSubs.map((s) => (s.id === subject.id ? subject : s))
+      : [...currentClassSubs, subject]
 
-    await syncClassSchedule()
-    return { error: null, data: res.data || undefined }
+    await personalStorage.setClassSubjectsCache(updatedClassSubs)
+    await personalStorage.saveSubject(subject)
+    setClassSubjects(updatedClassSubs)
+
+    // 2. Sincronización en segundo plano con Supabase
+    remoteSaveClassSubject(subject).then((res) => {
+      if (res.error) {
+        logger.warn('[ClassAuth] Guardado remoto de materia diferido/offline:', res.error)
+      }
+    }).catch((err) => {
+      logger.warn('[ClassAuth] Error en guardado remoto de materia:', err)
+    })
+
+    return { error: null, data: subject }
   }
 
   const deleteClassSubject = async (subjectId: string) => {
-    if (!user || (role !== 'admin' && role !== 'publisher')) {
+    const effectiveRole = role || (user?.user_metadata?.role as UserRole) || null
+    if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'publisher')) {
       return { error: new Error('No tienes permisos para eliminar materias de la clase.') }
     }
 
-    const res = await remoteDeleteClassSubject(subjectId)
-    if (res.error) {
-      return { error: new Error(res.error.message || 'Error eliminando materia') }
-    }
+    // 1. Eliminación optimista inmediata en local
+    const currentClassSubs = await personalStorage.getClassSubjectsCache()
+    const updatedClassSubs = currentClassSubs.filter((s) => s.id !== subjectId)
+    await personalStorage.setClassSubjectsCache(updatedClassSubs)
+    await personalStorage.removeSubject(subjectId)
+    setClassSubjects(updatedClassSubs)
 
-    await syncClassSchedule()
+    // 2. Sincronización en segundo plano con Supabase
+    remoteDeleteClassSubject(subjectId).then((res) => {
+      if (res.error) {
+        logger.warn('[ClassAuth] Eliminación remota de materia diferida/offline:', res.error)
+      }
+    }).catch((err) => {
+      logger.warn('[ClassAuth] Error en eliminación remota de materia:', err)
+    })
+
     return { error: null }
   }
 
   const assignClassScheduleSlot = async (schedule: Schedule) => {
-    if (!user || (role !== 'admin' && role !== 'publisher')) {
+    const effectiveRole = role || (user?.user_metadata?.role as UserRole) || null
+    if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'publisher')) {
       return { error: new Error('No tienes permisos para asignar bloques de clase.') }
     }
 
-    const res = await remoteAssignClassScheduleSlot(schedule)
-    if (res.error) {
-      return { error: new Error(res.error.message || 'Error asignando bloque') }
-    }
+    const currentClassScheds = await personalStorage.getClassSchedulesCache()
+    const index = currentClassScheds.findIndex(
+      (s) => s.day_of_week === schedule.day_of_week && s.block_number === schedule.block_number
+    )
+    const updatedClassScheds = index >= 0
+      ? currentClassScheds.map((s, i) => (i === index ? schedule : s))
+      : [...currentClassScheds, schedule]
 
-    await syncClassSchedule()
-    return { error: null, data: res.data || undefined }
+    await personalStorage.setClassSchedulesCache(updatedClassScheds)
+    await personalStorage.saveScheduleSlot(schedule)
+    setClassSchedules(updatedClassScheds)
+
+    remoteAssignClassScheduleSlot(schedule).catch((err) => {
+      logger.warn('[ClassAuth] Error asignando bloque en remoto:', err)
+    })
+
+    return { error: null, data: schedule }
   }
 
   const clearClassScheduleSlot = async (slotId: string) => {
-    if (!user || (role !== 'admin' && role !== 'publisher')) {
+    const effectiveRole = role || (user?.user_metadata?.role as UserRole) || null
+    if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'publisher')) {
       return { error: new Error('No tienes permisos para liberar bloques de clase.') }
     }
 
-    const res = await remoteClearClassScheduleSlot(slotId)
-    if (res.error) {
-      return { error: new Error(res.error.message || 'Error limpiando bloque') }
-    }
+    const currentClassScheds = await personalStorage.getClassSchedulesCache()
+    const updatedClassScheds = currentClassScheds.filter((s) => s.id !== slotId)
+    await personalStorage.setClassSchedulesCache(updatedClassScheds)
+    setClassSchedules(updatedClassScheds)
 
-    await syncClassSchedule()
+    remoteClearClassScheduleSlot(slotId).catch((err) => {
+      logger.warn('[ClassAuth] Error liberando bloque en remoto:', err)
+    })
+
     return { error: null }
   }
 

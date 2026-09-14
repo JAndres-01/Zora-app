@@ -53,7 +53,14 @@ jobs:
           echo "Workspace detectado: $WORKSPACE"
           echo "workspace=$WORKSPACE" >> $GITHUB_OUTPUT
 
+      - name: 📦 Pre-resolver dependencias SPM de Expo
+        run: |
+          WORKSPACE="${{ steps.detect.outputs.workspace }}"
+          mkdir -p ios/build/SourcePackages
+          xcodebuild -workspace "$WORKSPACE" -scheme "Zora" -resolvePackageDependencies -clonedSourcePackagesDirPath ios/build/SourcePackages || true
+
       - name: 🔨 Compilar iOS App para Dispositivo Físico (Release iphoneos)
+        id: compile
         run: |
           WORKSPACE="${{ steps.detect.outputs.workspace }}"
           mkdir -p build-output
@@ -65,8 +72,10 @@ jobs:
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
             -derivedDataPath ios/build \
+            -clonedSourcePackagesDirPath ios/build/SourcePackages \
             -jobs 4 \
             -skipMacroValidation \
+            -scmProvider system \
             RCT_NO_LAUNCH_PACKAGER=1 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
@@ -75,9 +84,24 @@ jobs:
             CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            build 2>&1 | tee xcodebuild.log | (which xcbeautify > /dev/null && xcbeautify || cat)
+            build 2>&1 | tee xcodebuild.log
+
+      - name: 📋 Diagnóstico detallado de errores en caso de fallo
+        if: failure()
+        run: |
+          echo "======================================================================"
+          echo "🔍 BUSCANDO ERRORES EXPLÍCITOS EN EL LOG DE COMPILACIÓN DE XCODE:"
+          echo "======================================================================"
+          if [ -f "xcodebuild.log" ]; then
+            grep -i -C 3 "error:" xcodebuild.log || true
+            echo "----------------------------------------------------------------------"
+            echo "📄 ÚLTIMAS 150 LÍNEAS DEL LOG:"
+            echo "----------------------------------------------------------------------"
+            tail -n 150 xcodebuild.log
+          fi
 
       - name: 📦 Empaquetar IPA para Sideloadly (Payload/Zora.app)
+        if: success()
         run: |
           mkdir -p build-output/Payload
           APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
@@ -90,14 +114,6 @@ jobs:
           else
             echo "❌ No se encontró Zora.app en Release-iphoneos"
             exit 1
-          fi
-
-      - name: 📋 Mostrar errores detallados si falló
-        if: failure()
-        run: |
-          echo "=================== ÚLTIMOS ERRORES DE XCODEBUILD ==================="
-          if [ -f "xcodebuild.log" ]; then
-            grep -E "(error:|fatal error:|BUILD FAILED|\*\* BUILD FAILED \*\*)" xcodebuild.log -A 5 -B 2 || tail -n 150 xcodebuild.log
           fi
 
       - name: 📤 Subir Zora.ipa a Artefactos de GitHub

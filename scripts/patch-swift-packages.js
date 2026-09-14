@@ -94,7 +94,6 @@ let package = Package(
           "-enable-library-evolution",
           "-emit-module-interface",
           "-no-verify-emitted-module-interface",
-          "-strict-concurrency=minimal",
           "-Xfrontend",
           "-clang-header-expose-decls=has-expose-attr",
           "-Xcc", "-fmodule-map-file=\\(generatedModuleMap)",
@@ -429,7 +428,7 @@ if (fs.existsSync(buildXcframeworkScript)) {
   if (!scriptContent.includes('OTHER_SWIFTFLAGS=')) {
     scriptContent = scriptContent.replace(
       'CLANG_COVERAGE_MAPPING=NO \\',
-      'CLANG_COVERAGE_MAPPING=NO \\\n    OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -strict-concurrency=minimal" \\'
+      'CLANG_COVERAGE_MAPPING=NO \\\n    OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny" \\'
     )
   }
   // Clean up any empty lines between backslash continuations so bash commands are not prematurely terminated
@@ -561,41 +560,7 @@ extension Task where Failure == any Error {
         }
       }
 
-// E. JavaScriptActor.swift - make assumeIsolated compile under Swift 6.0
-      // Swift 6 blocks (1) casting/referencing the actor-isolated static `runIsolated` from a
-      // nonisolated context and (2) passing the nonescaping `operation` to generic helpers.
-      // Rewrite the fast path with `withoutActuallyEscaping` (compiler-known primitive) + a
-      // bitcast to a plain closure type, and drop `runIsolated` entirely.
-      if (file.name === 'JavaScriptActor.swift') {
-        code = code.replace(
-          // eslint-disable-next-line no-control-regex
-          '    typealias IsolatedRunner = @JavaScriptActor (@JavaScriptActor () -> T) -> T\n' +
-            '    typealias NonisolatedRunner = (@JavaScriptActor () -> T) -> T\n\n' +
-            '    // This will crash if the current context cannot be isolated.\n' +
-            '    checkIsolated()\n\n' +
-            '    // Cast the capture-free runner rather than `operation` itself. `operation` remains nonescaping,\n' +
-            '    // so its captures can stay in the caller\'s stack frame.\n' +
-            '    let runner = unsafeBitCast(runIsolated as IsolatedRunner, to: NonisolatedRunner.self)\n' +
-            '    return runner(operation)\n  }',
-          '    // This will crash if the current context cannot be isolated.\n' +
-            '    checkIsolated()\n\n' +
-            '    // Swift 6 blocks calling the actor-isolated `operation` from this nonisolated context and\n' +
-            '    // passing the nonescaping `operation` to a generic helper. `withoutActuallyEscaping` is treated\n' +
-            '    // specially by the compiler, so temporarily escape it, then bitcast to a plain function type.\n' +
-            '    // `checkIsolated()` above is what enforces the isolation invariant.\n' +
-            '    return withoutActuallyEscaping(operation) { op in\n' +
-            '      typealias Runner = () -> T\n' +
-            '      return unsafeBitCast(op, to: Runner.self)()\n' +
-            '    }\n  }'
-        )
-        code = code.replace(
-          // eslint-disable-next-line no-control-regex
-          '\n  @JavaScriptActor\n  @usableFromInline\n  internal static func runIsolated<T: ~Copyable>(_ operation: @JavaScriptActor () -> T) -> T {\n    return operation()\n  }',
-          ''
-        )
-      }
-
-      // F. JavaScriptError.swift - remove public from CppError extension
+// F. JavaScriptError.swift - remove public from CppError extension
       if (file.name === 'JavaScriptError.swift') {
         code = code.replace('public var message: String {', 'var message: String {')
       }
@@ -636,7 +601,7 @@ if (fs.existsSync(podfilePath)) {
       if target.name == 'ExpoModulesJSI'
         target.build_configurations.each do |config|
           config.build_settings['OTHER_SWIFTFLAGS'] ||= '$(inherited) '
-          config.build_settings['OTHER_SWIFTFLAGS'] += '-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -strict-concurrency=minimal'
+          config.build_settings['OTHER_SWIFTFLAGS'] += '-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny'
           config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
           config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
           config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'

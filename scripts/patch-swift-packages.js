@@ -419,51 +419,92 @@ cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'ios', 'Pods'))
 cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
 
 
-// 5.8. Patch JSIUtils.h to ensure direct IRuntime calls and count == 0 nullptr safety
-const jsiUtilsPaths = [
-  path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'JSIUtils.h'),
-  path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'JSIUtils.h'),
-  path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'common', 'cpp', 'JSI', 'JSIUtils.h'),
-]
-for (const p of jsiUtilsPaths) {
-  if (fs.existsSync(p)) {
-    let content = fs.readFileSync(p, 'utf8')
-    content = content.replace(
-      /return function\.call\(runtime,\s*args,\s*count\);/g,
-      'return runtime.call(function, jsi::Value::undefined(), count == 0 ? nullptr : args, count);'
-    )
-    content = content.replace(
-      /return function\.call\(runtime,\s*count == 0 \? nullptr : args,\s*count\);/g,
-      'return runtime.call(function, jsi::Value::undefined(), count == 0 ? nullptr : args, count);'
-    )
-    content = content.replace(
-      /return function\.callWithThis\(runtime,\s*jsThis,\s*args,\s*count\);/g,
-      'return runtime.call(function, jsi::Value(runtime, jsThis), count == 0 ? nullptr : args, count);'
-    )
-    content = content.replace(
-      /return function\.callWithThis\(runtime,\s*jsThis,\s*count == 0 \? nullptr : args,\s*count\);/g,
-      'return runtime.call(function, jsi::Value(runtime, jsThis), count == 0 ? nullptr : args, count);'
-    )
-    content = content.replace(
-      /return function\.callAsConstructor\(runtime,\s*args,\s*count\);/g,
-      'return runtime.callAsConstructor(function, count == 0 ? nullptr : args, count);'
-    )
-    content = content.replace(
-      /return function\.callAsConstructor\(runtime,\s*count == 0 \? nullptr : args,\s*count\);/g,
-      'return runtime.callAsConstructor(function, count == 0 ? nullptr : args, count);'
-    )
-    content = content.replace(
-      /const jsi::Value \*_Nonnull args,\s*size_t count/g,
-      'const jsi::Value *_Nullable args, size_t count'
-    )
-    content = content.replace(
-      /closurePtr->call\(thisValue,\s*args,\s*count,\s*result\)/g,
-      'closurePtr->call(thisValue, count == 0 ? nullptr : args, count, result)'
-    )
-    fs.writeFileSync(p, content, 'utf8')
-    console.log(`[patch-swift-packages] Successfully patched JSIUtils.h at: ${p}`)
+// 5.8. Patch JSIUtils.h to ensure direct IRuntime calls and count == 0 / invalid pointer safety
+function patchSingleJSIUtils(filePath) {
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (!content.includes('callAsConstructor')) return
+  const original = content
+
+  if (!content.includes('#include <cstdint>')) {
+    content = content.replace('#include <new>', '#include <new>\n#include <cstdint>')
+  }
+
+  const safeCall = `inline jsi::Value callFunction(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Value *_Nullable args, size_t count) {
+  return expo::CppError::tryCatch(runtime, [&] {
+    if ((uintptr_t)args <= 0x1000 || count == 0) {
+      return runtime.call(function, jsi::Value::undefined(), nullptr, 0);
+    }
+    return runtime.call(function, jsi::Value::undefined(), args, count);
+  });
+}`
+
+  const safeCallWithThis = `inline jsi::Value callFunctionWithThis(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Object &jsThis, const jsi::Value *_Nullable args, size_t count) {
+  return expo::CppError::tryCatch(runtime, [&] {
+    if ((uintptr_t)args <= 0x1000 || count == 0) {
+      return runtime.call(function, jsi::Value(runtime, jsThis), nullptr, 0);
+    }
+    return runtime.call(function, jsi::Value(runtime, jsThis), args, count);
+  });
+}`
+
+  const safeCallAsConstructor = `inline jsi::Value callAsConstructor(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Value *_Nullable args, size_t count) {
+  return expo::CppError::tryCatch(runtime, [&] {
+    if ((uintptr_t)args <= 0x1000 || count == 0) {
+      return runtime.callAsConstructor(function, nullptr, 0);
+    }
+    return runtime.callAsConstructor(function, args, count);
+  });
+}`
+
+  content = content.replace(
+    /inline jsi::Value callFunction\(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Value \*_?(?:Nullable|Nonnull)?\s*args, size_t count\) \{[\s\S]*?\n\}/g,
+    safeCall
+  )
+  content = content.replace(
+    /inline jsi::Value callFunctionWithThis\(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Object &jsThis, const jsi::Value \*_?(?:Nullable|Nonnull)?\s*args, size_t count\) \{[\s\S]*?\n\}/g,
+    safeCallWithThis
+  )
+  content = content.replace(
+    /inline jsi::Value callAsConstructor\(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Value \*_?(?:Nullable|Nonnull)?\s*args, size_t count\) \{[\s\S]*?\n\}/g,
+    safeCallAsConstructor
+  )
+
+  content = content.replace(
+    /const jsi::Value \*_Nonnull args,\s*size_t count/g,
+    'const jsi::Value *_Nullable args, size_t count'
+  )
+  content = content.replace(
+    /closurePtr->call\(thisValue,\s*args,\s*count,\s*result\)/g,
+    'closurePtr->call(thisValue, ((uintptr_t)args <= 0x1000 || count == 0) ? nullptr : args, ((uintptr_t)args <= 0x1000) ? 0 : count, result)'
+  )
+  content = content.replace(
+    /closurePtr->call\(thisValue,\s*count == 0 \? nullptr : args,\s*count,\s*result\)/g,
+    'closurePtr->call(thisValue, ((uintptr_t)args <= 0x1000 || count == 0) ? nullptr : args, ((uintptr_t)args <= 0x1000) ? 0 : count, result)'
+  )
+
+  if (content !== original) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched JSIUtils.h at: ${filePath}`)
   }
 }
+
+function findAndPatchJSIUtils(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchJSIUtils(fullPath)
+      }
+    } else if (entry.name === 'JSIUtils.h') {
+      patchSingleJSIUtils(fullPath)
+    }
+  }
+}
+
+findAndPatchJSIUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-jsi'))
+findAndPatchJSIUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+findAndPatchJSIUtils(path.join(process.cwd(), 'ios', 'Pods'))
 
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
@@ -635,105 +676,247 @@ extension Task where Failure == any Error {
 
       // H. JavaScriptValuesBuffer.swift - guard count > 0 for baseAddress and allocate to avoid 0x1 dangling pointer
       if (file.name === 'JavaScriptValuesBuffer.swift') {
-        if (!code.includes('guard count > 0 else { return nil }')) {
-          code = code.replace(
-            /internal\s+var\s+baseAddress:\s*UnsafePointer<facebook\.jsi\.Value>\?\s*\{\s*return\s+UnsafePointer\(bufferPointer\.baseAddress\)\s*\}/g,
-            `internal var baseAddress: UnsafePointer<facebook.jsi.Value>? {
-    guard count > 0 else { return nil }
+        code = code.replace(
+          /internal\s+var\s+baseAddress:\s*UnsafePointer<facebook\.jsi\.Value>\?\s*\{[\s\S]*?\n  \}/g,
+          `internal var baseAddress: UnsafePointer<facebook.jsi.Value>? {
+    guard count > 0, let start = start, UInt(bitPattern: start) > 0x1000 else { return nil }
     return UnsafePointer(bufferPointer.baseAddress)
   }`
-          )
-          code = code.replace(
-            /public\s+var\s+rawBaseAddress:\s*UnsafeRawPointer\?\s*\{\s*return\s+start\.map\s*\{\s*UnsafeRawPointer\(\$0\)\s*\}\s*\}/g,
-            `public var rawBaseAddress: UnsafeRawPointer? {
-    guard count > 0 else { return nil }
-    return start.map { UnsafeRawPointer($0) }
-  }`
-          )
-        }
-        if (!code.includes('guard capacity > 0 else')) {
-          code = code.replace(
-            /public static func allocate\(in runtime: JavaScriptRuntime, capacity: Int\) -> JavaScriptValuesBuffer \{\s*return JavaScriptValuesBuffer\(\s*runtime, buffer: UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\), ownsMemory: true\)\s*\}/g,
-            `public static func allocate(in runtime: JavaScriptRuntime, capacity: Int) -> JavaScriptValuesBuffer {
-    guard capacity > 0 else {
-      return JavaScriptValuesBuffer(runtime, start: nil, count: 0)
-    }
-    return JavaScriptValuesBuffer(
-      runtime, buffer: UnsafeMutableBufferPointer<facebook.jsi.Value>.allocate(capacity: capacity), ownsMemory: true)
-  }`
-          )
-          code = code.replace(
-            /let buffer = UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\)/g,
-            `guard capacity > 0 else {
-      return JavaScriptValuesBuffer(runtime, start: nil, count: 0)
-    }
-    let buffer = UnsafeMutableBufferPointer<facebook.jsi.Value>.allocate(capacity: capacity)`
-          )
-        }
-        code = code.replace(
-          /self\.start = UnsafeMutableRawPointer\(buffer\.baseAddress\)/g,
-          'self.start = buffer.count > 0 ? UnsafeMutableRawPointer(buffer.baseAddress) : nil'
         )
         code = code.replace(
-          /self\.ownsMemory = ownsMemory/g,
+          /public\s+var\s+rawBaseAddress:\s*UnsafeRawPointer\?\s*\{[\s\S]*?\n  \}/g,
+          `public var rawBaseAddress: UnsafeRawPointer? {
+    guard count > 0, let start = start, UInt(bitPattern: start) > 0x1000 else { return nil }
+    return start.map { UnsafeRawPointer($0) }
+  }`
+        )
+        code = code.replace(
+          /self\.start = [^\n]+/g,
+          'self.start = (buffer.count > 0 && UInt(bitPattern: buffer.baseAddress) > 0x1000) ? UnsafeMutableRawPointer(buffer.baseAddress) : nil'
+        )
+        code = code.replace(
+          /self\.ownsMemory = [^\n]+/g,
           'self.ownsMemory = buffer.count > 0 && ownsMemory'
         )
       }
 
-      // I. JavaScriptFunction.swift - pass nil baseAddress when argument count is 0 and provide 0-arg fast paths
+      // I. JavaScriptFunction.swift - robust implementation with 0-arg overloads and sentinel pointer guards
       if (file.name === 'JavaScriptFunction.swift') {
-        code = code.replace(
-          /let\s+jsiResult\s*=\s*expo\.callAsConstructor\(runtime\.pointee,\s*pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
-          `let count = arguments?.count ?? 0
-      let baseAddress = count > 0 ? arguments?.baseAddress : nil
-      let jsiResult = expo.callAsConstructor(runtime.pointee, pointee, baseAddress, count)`
-        )
-        code = code.replace(
-          /expo\.callFunctionWithThis\(runtime\.pointee,\s*pointee,\s*this\.pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
-          `expo.callFunctionWithThis(runtime.pointee, pointee, this.pointee, (arguments?.count ?? 0) > 0 ? arguments?.baseAddress : nil, arguments?.count ?? 0)`
-        )
-        code = code.replace(
-          /expo\.callFunction\(runtime\.pointee,\s*pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
-          `expo.callFunction(runtime.pointee, pointee, (arguments?.count ?? 0) > 0 ? arguments?.baseAddress : nil, arguments?.count ?? 0)`
-        )
-        if (!code.includes('if capacity == 0')) {
-          code = code.replace(
-            /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try callAsConstructor\(argumentsBuffer\)/g,
-            `var capacity = 0
+        code = `// Copyright 2025-present 650 Industries. All rights reserved.
+
+internal import ExpoModulesJSI_Cxx
+internal import jsi
+
+public struct JavaScriptFunction: JavaScriptType, ~Copyable {
+  internal nonisolated(unsafe) weak var runtime: JavaScriptRuntime?
+  internal let pointee: facebook.jsi.Function
+
+  internal init(_ runtime: JavaScriptRuntime, _ pointee: consuming facebook.jsi.Function) {
+    self.runtime = runtime
+    self.pointee = pointee
+  }
+
+  // MARK: - Calling
+
+  /// Calls the function with no arguments.
+  @discardableResult
+  public func call() throws -> JavaScriptValue {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    return try capturingCppErrors {
+      return JavaScriptValue(runtime, expo.callFunction(runtime.pointee, pointee, nil, 0))
+    }
+  }
+
+  /// Calls the function with the given \`this\` object and no arguments.
+  @discardableResult
+  public func call(this: borrowing JavaScriptObject) throws -> JavaScriptValue {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    return try capturingCppErrors {
+      return JavaScriptValue(runtime, expo.callFunctionWithThis(runtime.pointee, pointee, this.pointee, nil, 0))
+    }
+  }
+
+  /// Calls the function as a constructor with no arguments.
+  public func callAsConstructor() throws -> JavaScriptValue {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    return try capturingCppErrors {
+      let jsiResult = expo.callAsConstructor(runtime.pointee, pointee, nil, 0)
+      return JavaScriptValue(runtime, jsiResult)
+    }
+  }
+
+  /// Calls the function with the given \`this\` object and buffer of arguments.
+  @discardableResult
+  public func call(this: borrowing JavaScriptObject, arguments: consuming JavaScriptValuesBuffer? = nil) throws
+    -> JavaScriptValue
+  {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    return try capturingCppErrors {
+      let count = arguments?.count ?? 0
+      let rawBase = arguments?.rawBaseAddress
+      let baseAddress: UnsafePointer<facebook.jsi.Value>?
+      if count > 0, let raw = rawBase, UInt(bitPattern: raw) > 0x1000 {
+        baseAddress = UnsafePointer(raw.assumingMemoryBound(to: facebook.jsi.Value.self))
+      } else {
+        baseAddress = nil
+      }
+      let safeCount = baseAddress == nil ? 0 : count
+      return JavaScriptValue(
+        runtime,
+        expo.callFunctionWithThis(runtime.pointee, pointee, this.pointee, baseAddress, safeCount)
+      )
+    }
+  }
+
+  /// Calls the function with the given buffer of arguments.
+  @discardableResult
+  public func call(arguments: consuming JavaScriptValuesBuffer? = nil) throws -> JavaScriptValue {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    return try capturingCppErrors {
+      let count = arguments?.count ?? 0
+      let rawBase = arguments?.rawBaseAddress
+      let baseAddress: UnsafePointer<facebook.jsi.Value>?
+      if count > 0, let raw = rawBase, UInt(bitPattern: raw) > 0x1000 {
+        baseAddress = UnsafePointer(raw.assumingMemoryBound(to: facebook.jsi.Value.self))
+      } else {
+        baseAddress = nil
+      }
+      let safeCount = baseAddress == nil ? 0 : count
+      return JavaScriptValue(
+        runtime, expo.callFunction(runtime.pointee, pointee, baseAddress, safeCount))
+    }
+  }
+
+  /// Calls the function with the given \`this\` object and JS-representable arguments.
+  @discardableResult
+  public func call<each T: JavaScriptRepresentable>(this: borrowing JavaScriptObject, arguments: repeat each T) throws
+    -> JavaScriptValue
+  {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    var capacity = 0
     for _ in repeat each arguments {
       capacity += 1
     }
     if capacity == 0 {
-      return try callAsConstructor(nil)
+      return try self.call(this: this)
     }
     let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
-    return try callAsConstructor(argumentsBuffer)`
-          )
-          code = code.replace(
-            /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(arguments: argumentsBuffer\)/g,
-            `var capacity = 0
+    return try self.call(this: this, arguments: argumentsBuffer)
+  }
+
+  /// Calls the function with the given JS-representable arguments.
+  @discardableResult
+  public func call<each T: JavaScriptRepresentable>(arguments: repeat each T) throws -> JavaScriptValue {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    var capacity = 0
     for _ in repeat each arguments {
       capacity += 1
     }
     if capacity == 0 {
-      return try self.call(arguments: nil)
+      return try self.call()
     }
     let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
-    return try self.call(arguments: argumentsBuffer)`
-          )
-          code = code.replace(
-            /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(this: this, arguments: argumentsBuffer\)/g,
-            `var capacity = 0
+    return try self.call(arguments: argumentsBuffer)
+  }
+
+  /// Calls the function as a constructor with the given buffer of arguments. It's like calling a function with the \`new\` keyword.
+  public func callAsConstructor(_ arguments: consuming JavaScriptValuesBuffer? = nil) throws -> JavaScriptValue {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    return try capturingCppErrors {
+      let count = arguments?.count ?? 0
+      let rawBase = arguments?.rawBaseAddress
+      let baseAddress: UnsafePointer<facebook.jsi.Value>?
+      if count > 0, let raw = rawBase, UInt(bitPattern: raw) > 0x1000 {
+        baseAddress = UnsafePointer(raw.assumingMemoryBound(to: facebook.jsi.Value.self))
+      } else {
+        baseAddress = nil
+      }
+      let safeCount = baseAddress == nil ? 0 : count
+      let jsiResult = expo.callAsConstructor(runtime.pointee, pointee, baseAddress, safeCount)
+      return JavaScriptValue(runtime, jsiResult)
+    }
+  }
+
+  /// Calls the function as a constructor with the given arguments. It's like calling a function with the \`new\` keyword.
+  public func callAsConstructor<each T: JavaScriptRepresentable>(_ arguments: repeat each T) throws -> JavaScriptValue {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    var capacity = 0
     for _ in repeat each arguments {
       capacity += 1
     }
     if capacity == 0 {
-      return try self.call(this: this, arguments: nil)
+      return try callAsConstructor()
     }
     let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
-    return try self.call(this: this, arguments: argumentsBuffer)`
-          )
-        }
+    return try callAsConstructor(argumentsBuffer)
+  }
+
+  // MARK: - Conversions
+
+  public func asValue() -> JavaScriptValue {
+    guard let jsiRuntime = runtime?.pointee else {
+      FatalError.runtimeLost()
+    }
+    return JavaScriptValue(runtime, expo.valueFromFunction(jsiRuntime, pointee))
+  }
+
+  /// Returns the function as a \`facebook.jsi.Value\` instance.
+  internal func asJSIValue() -> facebook.jsi.Value {
+    guard let jsiRuntime = runtime?.pointee else {
+      FatalError.runtimeLost()
+    }
+    return expo.valueFromFunction(jsiRuntime, pointee)
+  }
+
+  public func asObject() -> JavaScriptObject {
+    guard let runtime else {
+      FatalError.runtimeLost()
+    }
+    let jsiRuntime = runtime.pointee
+    return JavaScriptObject(runtime, expo.valueFromFunction(jsiRuntime, pointee).getObject(jsiRuntime))
+  }
+}
+
+extension JavaScriptFunction: JavaScriptRepresentable {
+  public static func fromJavaScriptValue(_ value: JavaScriptValue) -> JavaScriptFunction {
+    return value.getFunction()
+  }
+
+  public func toJavaScriptValue(in runtime: JavaScriptRuntime) -> JavaScriptValue {
+    return asValue()
+  }
+}
+
+extension JavaScriptFunction: JSIRepresentable {
+  static func fromJSIValue(_ value: borrowing facebook.jsi.Value, in runtime: facebook.jsi.IRuntime)
+    -> JavaScriptFunction
+  {
+    FatalError.unimplemented()
+  }
+
+  func toJSIValue(in runtime: facebook.jsi.IRuntime) -> facebook.jsi.Value {
+    return asJSIValue()
+  }
+}
+`
       }
 
       if (code !== original) {

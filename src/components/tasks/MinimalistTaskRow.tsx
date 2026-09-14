@@ -759,6 +759,7 @@ export const MinimalistTaskRow = memo(
       prev.task.due_date === next.task.due_date &&
       prev.task.type === next.task.type &&
       prev.task.is_class_task === next.task.is_class_task &&
+      prev.task.is_pending_sync === next.task.is_pending_sync &&
       prev.task.has_class_update === next.task.has_class_update &&
       prev.task.subject?.id === next.task.subject?.id &&
       prev.task.subject?.name === next.task.subject?.name &&

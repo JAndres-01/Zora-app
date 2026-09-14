@@ -419,28 +419,6 @@ export function SystemSettingsModal({
                     ios_backgroundColor="#27272A"
                   />
                 </View>
-
-                <View style={styles.rowDivider} />
-
-                {/* Pantalla de Bienvenida (Onboarding) */}
-                <Pressable
-                  onPress={() => {
-                    onClose()
-                    router.push('/welcome')
-                  }}
-                  style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ver pantalla de bienvenida"
-                >
-                  <View style={styles.iconBox}>
-                    <Smartphone size={16} color="#A1A1AA" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Pantalla de bienvenida</Text>
-                    <Text style={styles.rowSubtitle}>Ver la introducción y guía de inicio</Text>
-                  </View>
-                  <ChevronRight size={16} color="#71717A" />
-                </Pressable>
               </View>
             </View>
 

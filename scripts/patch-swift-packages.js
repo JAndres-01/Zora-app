@@ -635,37 +635,41 @@ extension Task where Failure == any Error {
 
       // H. JavaScriptValuesBuffer.swift - guard count > 0 for baseAddress and allocate to avoid 0x1 dangling pointer
       if (file.name === 'JavaScriptValuesBuffer.swift') {
-        code = code.replace(
-          /internal\s+var\s+baseAddress:\s*UnsafePointer<facebook\.jsi\.Value>\?\s*\{\s*return\s+UnsafePointer\(bufferPointer\.baseAddress\)\s*\}/g,
-          `internal var baseAddress: UnsafePointer<facebook.jsi.Value>? {
+        if (!code.includes('guard count > 0 else { return nil }')) {
+          code = code.replace(
+            /internal\s+var\s+baseAddress:\s*UnsafePointer<facebook\.jsi\.Value>\?\s*\{\s*return\s+UnsafePointer\(bufferPointer\.baseAddress\)\s*\}/g,
+            `internal var baseAddress: UnsafePointer<facebook.jsi.Value>? {
     guard count > 0 else { return nil }
     return UnsafePointer(bufferPointer.baseAddress)
   }`
-        )
-        code = code.replace(
-          /public\s+var\s+rawBaseAddress:\s*UnsafeRawPointer\?\s*\{\s*return\s+start\.map\s*\{\s*UnsafeRawPointer\(\$0\)\s*\}\s*\}/g,
-          `public var rawBaseAddress: UnsafeRawPointer? {
+          )
+          code = code.replace(
+            /public\s+var\s+rawBaseAddress:\s*UnsafeRawPointer\?\s*\{\s*return\s+start\.map\s*\{\s*UnsafeRawPointer\(\$0\)\s*\}\s*\}/g,
+            `public var rawBaseAddress: UnsafeRawPointer? {
     guard count > 0 else { return nil }
     return start.map { UnsafeRawPointer($0) }
   }`
-        )
-        code = code.replace(
-          /public static func allocate\(in runtime: JavaScriptRuntime, capacity: Int\) -> JavaScriptValuesBuffer \{\s*return JavaScriptValuesBuffer\(\s*runtime, buffer: UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\), ownsMemory: true\)\s*\}/g,
-          `public static func allocate(in runtime: JavaScriptRuntime, capacity: Int) -> JavaScriptValuesBuffer {
+          )
+        }
+        if (!code.includes('guard capacity > 0 else')) {
+          code = code.replace(
+            /public static func allocate\(in runtime: JavaScriptRuntime, capacity: Int\) -> JavaScriptValuesBuffer \{\s*return JavaScriptValuesBuffer\(\s*runtime, buffer: UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\), ownsMemory: true\)\s*\}/g,
+            `public static func allocate(in runtime: JavaScriptRuntime, capacity: Int) -> JavaScriptValuesBuffer {
     guard capacity > 0 else {
       return JavaScriptValuesBuffer(runtime, start: nil, count: 0)
     }
     return JavaScriptValuesBuffer(
       runtime, buffer: UnsafeMutableBufferPointer<facebook.jsi.Value>.allocate(capacity: capacity), ownsMemory: true)
   }`
-        )
-        code = code.replace(
-          /let buffer = UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\)/g,
-          `guard capacity > 0 else {
+          )
+          code = code.replace(
+            /let buffer = UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\)/g,
+            `guard capacity > 0 else {
       return JavaScriptValuesBuffer(runtime, start: nil, count: 0)
     }
     let buffer = UnsafeMutableBufferPointer<facebook.jsi.Value>.allocate(capacity: capacity)`
-        )
+          )
+        }
         code = code.replace(
           /self\.start = UnsafeMutableRawPointer\(buffer\.baseAddress\)/g,
           'self.start = buffer.count > 0 ? UnsafeMutableRawPointer(buffer.baseAddress) : nil'
@@ -692,9 +696,10 @@ extension Task where Failure == any Error {
           /expo\.callFunction\(runtime\.pointee,\s*pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
           `expo.callFunction(runtime.pointee, pointee, (arguments?.count ?? 0) > 0 ? arguments?.baseAddress : nil, arguments?.count ?? 0)`
         )
-        code = code.replace(
-          /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try callAsConstructor\(argumentsBuffer\)/g,
-          `var capacity = 0
+        if (!code.includes('if capacity == 0')) {
+          code = code.replace(
+            /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try callAsConstructor\(argumentsBuffer\)/g,
+            `var capacity = 0
     for _ in repeat each arguments {
       capacity += 1
     }
@@ -703,10 +708,10 @@ extension Task where Failure == any Error {
     }
     let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
     return try callAsConstructor(argumentsBuffer)`
-        )
-        code = code.replace(
-          /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(arguments: argumentsBuffer\)/g,
-          `var capacity = 0
+          )
+          code = code.replace(
+            /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(arguments: argumentsBuffer\)/g,
+            `var capacity = 0
     for _ in repeat each arguments {
       capacity += 1
     }
@@ -715,10 +720,10 @@ extension Task where Failure == any Error {
     }
     let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
     return try self.call(arguments: argumentsBuffer)`
-        )
-        code = code.replace(
-          /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(this: this, arguments: argumentsBuffer\)/g,
-          `var capacity = 0
+          )
+          code = code.replace(
+            /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(this: this, arguments: argumentsBuffer\)/g,
+            `var capacity = 0
     for _ in repeat each arguments {
       capacity += 1
     }
@@ -727,7 +732,8 @@ extension Task where Failure == any Error {
     }
     let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
     return try self.call(this: this, arguments: argumentsBuffer)`
-        )
+          )
+        }
       }
 
       if (code !== original) {

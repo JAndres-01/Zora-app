@@ -419,6 +419,32 @@ cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'ios', 'Pods'))
 cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
 
 
+// 5.8. Patch JSIUtils.h to ensure count == 0 always passes nullptr to Hermes
+const jsiUtilsPaths = [
+  path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'JSIUtils.h'),
+  path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'JSIUtils.h'),
+  path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'common', 'cpp', 'JSI', 'JSIUtils.h'),
+]
+for (const p of jsiUtilsPaths) {
+  if (fs.existsSync(p)) {
+    let content = fs.readFileSync(p, 'utf8')
+    content = content.replace(
+      /return function\.call\(runtime,\s*args,\s*count\);/g,
+      'return function.call(runtime, count == 0 ? nullptr : args, count);'
+    )
+    content = content.replace(
+      /return function\.callWithThis\(runtime,\s*jsThis,\s*args,\s*count\);/g,
+      'return function.callWithThis(runtime, jsThis, count == 0 ? nullptr : args, count);'
+    )
+    content = content.replace(
+      /return function\.callAsConstructor\(runtime,\s*args,\s*count\);/g,
+      'return function.callAsConstructor(runtime, count == 0 ? nullptr : args, count);'
+    )
+    fs.writeFileSync(p, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched JSIUtils.h at: ${p}`)
+  }
+}
+
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
 if (fs.existsSync(buildXcframeworkScript)) {
@@ -587,7 +613,7 @@ extension Task where Failure == any Error {
         code = code.replace(/,\s*Escapable/g, '')
       }
 
-      // H. JavaScriptValuesBuffer.swift - guard count > 0 for baseAddress to avoid 0x1 dangling pointer
+      // H. JavaScriptValuesBuffer.swift - guard count > 0 for baseAddress and allocate to avoid 0x1 dangling pointer
       if (file.name === 'JavaScriptValuesBuffer.swift') {
         code = code.replace(
           /internal\s+var\s+baseAddress:\s*UnsafePointer<facebook\.jsi\.Value>\?\s*\{\s*return\s+UnsafePointer\(bufferPointer\.baseAddress\)\s*\}/g,
@@ -603,9 +629,34 @@ extension Task where Failure == any Error {
     return start.map { UnsafeRawPointer($0) }
   }`
         )
+        code = code.replace(
+          /public static func allocate\(in runtime: JavaScriptRuntime, capacity: Int\) -> JavaScriptValuesBuffer \{\s*return JavaScriptValuesBuffer\(\s*runtime, buffer: UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\), ownsMemory: true\)\s*\}/g,
+          `public static func allocate(in runtime: JavaScriptRuntime, capacity: Int) -> JavaScriptValuesBuffer {
+    guard capacity > 0 else {
+      return JavaScriptValuesBuffer(runtime, start: nil, count: 0)
+    }
+    return JavaScriptValuesBuffer(
+      runtime, buffer: UnsafeMutableBufferPointer<facebook.jsi.Value>.allocate(capacity: capacity), ownsMemory: true)
+  }`
+        )
+        code = code.replace(
+          /let buffer = UnsafeMutableBufferPointer<facebook\.jsi\.Value>\.allocate\(capacity: capacity\)/g,
+          `guard capacity > 0 else {
+      return JavaScriptValuesBuffer(runtime, start: nil, count: 0)
+    }
+    let buffer = UnsafeMutableBufferPointer<facebook.jsi.Value>.allocate(capacity: capacity)`
+        )
+        code = code.replace(
+          /self\.start = UnsafeMutableRawPointer\(buffer\.baseAddress\)/g,
+          'self.start = buffer.count > 0 ? UnsafeMutableRawPointer(buffer.baseAddress) : nil'
+        )
+        code = code.replace(
+          /self\.ownsMemory = ownsMemory/g,
+          'self.ownsMemory = buffer.count > 0 && ownsMemory'
+        )
       }
 
-      // I. JavaScriptFunction.swift - pass nil baseAddress when argument count is 0
+      // I. JavaScriptFunction.swift - pass nil baseAddress when argument count is 0 and provide 0-arg fast paths
       if (file.name === 'JavaScriptFunction.swift') {
         code = code.replace(
           /let\s+jsiResult\s*=\s*expo\.callAsConstructor\(runtime\.pointee,\s*pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
@@ -630,7 +681,10 @@ extension Task where Failure == any Error {
     }
   }
 }
-patchSwiftSources(jsiSourcesDir)
+patchSwiftSources(path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI'))
+patchSwiftSources(path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI'))
+patchSwiftSources(path.join(process.cwd(), 'ios', 'Pods', 'ExpoModulesJSI'))
+patchSwiftSources(path.join(process.cwd(), 'ios', 'Pods', 'ExpoModulesCore'))
 
 // 8. Patch Podfile to ensure expo-symbols is excluded and inject Swift build settings
 const podfilePath = path.join(process.cwd(), 'ios', 'Podfile')

@@ -53,11 +53,10 @@ jobs:
           echo "Workspace detectado: $WORKSPACE"
           echo "workspace=$WORKSPACE" >> $GITHUB_OUTPUT
 
-      - name: 📦 Pre-resolver dependencias SPM de Expo
+      - name: 🔨 Pre-compilar ExpoModulesJSI xcframework
         run: |
-          WORKSPACE="${{ steps.detect.outputs.workspace }}"
-          mkdir -p ios/build/SourcePackages
-          xcodebuild -workspace "$WORKSPACE" -scheme "Zora" -resolvePackageDependencies -clonedSourcePackagesDirPath ios/build/SourcePackages || true
+          chmod +x ./node_modules/expo-modules-jsi/apple/scripts/*.sh 2>/dev/null || true
+          PLATFORM_NAME=iphoneos PODS_ROOT="$GITHUB_WORKSPACE/ios/Pods" ./node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh || true
 
       - name: 🔨 Compilar iOS App para Dispositivo Físico (Release iphoneos)
         id: compile
@@ -72,7 +71,6 @@ jobs:
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
             -derivedDataPath ios/build \
-            -clonedSourcePackagesDirPath ios/build/SourcePackages \
             -jobs 4 \
             -skipMacroValidation \
             -scmProvider system \

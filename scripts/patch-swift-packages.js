@@ -562,19 +562,37 @@ extension Task where Failure == any Error {
         }
       }
 
-// E. JavaScriptActor.swift - runIsolated must be nonisolated so assumeIsolated can reference it
-      // Attribute (usableFromInline) must come before the nonisolated modifier to keep valid grammar.
+// E. JavaScriptActor.swift - make assumeIsolated compile under Swift 6.0
+      // Swift 6 blocks (1) casting/referencing the actor-isolated static `runIsolated` from a
+      // nonisolated context and (2) passing the nonescaping `operation` to generic helpers.
+      // Rewrite the fast path with `withoutActuallyEscaping` (compiler-known primitive) + a
+      // bitcast to a plain closure type, and drop `runIsolated` entirely.
       if (file.name === 'JavaScriptActor.swift') {
         code = code.replace(
-          /@JavaScriptActor\s*\r?\n\s*@usableFromInline\s*\r?\n\s*internal static func runIsolated/,
-          '@usableFromInline\n  nonisolated internal static func runIsolated'
+          // eslint-disable-next-line no-control-regex
+          '    typealias IsolatedRunner = @JavaScriptActor (@JavaScriptActor () -> T) -> T\n' +
+            '    typealias NonisolatedRunner = (@JavaScriptActor () -> T) -> T\n\n' +
+            '    // This will crash if the current context cannot be isolated.\n' +
+            '    checkIsolated()\n\n' +
+            '    // Cast the capture-free runner rather than `operation` itself. `operation` remains nonescaping,\n' +
+            '    // so its captures can stay in the caller\'s stack frame.\n' +
+            '    let runner = unsafeBitCast(runIsolated as IsolatedRunner, to: NonisolatedRunner.self)\n' +
+            '    return runner(operation)\n  }',
+          '    // This will crash if the current context cannot be isolated.\n' +
+            '    checkIsolated()\n\n' +
+            '    // Swift 6 blocks calling the actor-isolated `operation` from this nonisolated context and\n' +
+            '    // passing the nonescaping `operation` to a generic helper. `withoutActuallyEscaping` is treated\n' +
+            '    // specially by the compiler, so temporarily escape it, then bitcast to a plain function type.\n' +
+            '    // `checkIsolated()` above is what enforces the isolation invariant.\n' +
+            '    return withoutActuallyEscaping(operation) { op in\n' +
+            '      typealias Runner = () -> T\n' +
+            '      return unsafeBitCast(op, to: Runner.self)()\n' +
+            '    }\n  }'
         )
-        // After dropping actor isolation, `as IsolatedRunner` (isolation-changing) no longer compiles.
-        // Cast to NonisolatedRunner instead: same type, and it binds the generic T from the context
-        // so `unsafeBitCast(runIsolated, ...)` would otherwise leave T uninferable.
         code = code.replace(
-          /runIsolated as IsolatedRunner/,
-          'runIsolated as NonisolatedRunner'
+          // eslint-disable-next-line no-control-regex
+          '\n  @JavaScriptActor\n  @usableFromInline\n  internal static func runIsolated<T: ~Copyable>(_ operation: @JavaScriptActor () -> T) -> T {\n    return operation()\n  }',
+          ''
         )
       }
 

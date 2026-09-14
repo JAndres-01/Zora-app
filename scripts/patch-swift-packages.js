@@ -419,7 +419,7 @@ cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'ios', 'Pods'))
 cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
 
 
-// 5.8. Patch JSIUtils.h to ensure count == 0 always passes nullptr to Hermes
+// 5.8. Patch JSIUtils.h to ensure direct IRuntime calls and count == 0 nullptr safety
 const jsiUtilsPaths = [
   path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'JSIUtils.h'),
   path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'JSIUtils.h'),
@@ -430,15 +430,35 @@ for (const p of jsiUtilsPaths) {
     let content = fs.readFileSync(p, 'utf8')
     content = content.replace(
       /return function\.call\(runtime,\s*args,\s*count\);/g,
-      'return function.call(runtime, count == 0 ? nullptr : args, count);'
+      'return runtime.call(function, jsi::Value::undefined(), count == 0 ? nullptr : args, count);'
+    )
+    content = content.replace(
+      /return function\.call\(runtime,\s*count == 0 \? nullptr : args,\s*count\);/g,
+      'return runtime.call(function, jsi::Value::undefined(), count == 0 ? nullptr : args, count);'
     )
     content = content.replace(
       /return function\.callWithThis\(runtime,\s*jsThis,\s*args,\s*count\);/g,
-      'return function.callWithThis(runtime, jsThis, count == 0 ? nullptr : args, count);'
+      'return runtime.call(function, jsi::Value(runtime, jsThis), count == 0 ? nullptr : args, count);'
+    )
+    content = content.replace(
+      /return function\.callWithThis\(runtime,\s*jsThis,\s*count == 0 \? nullptr : args,\s*count\);/g,
+      'return runtime.call(function, jsi::Value(runtime, jsThis), count == 0 ? nullptr : args, count);'
     )
     content = content.replace(
       /return function\.callAsConstructor\(runtime,\s*args,\s*count\);/g,
-      'return function.callAsConstructor(runtime, count == 0 ? nullptr : args, count);'
+      'return runtime.callAsConstructor(function, count == 0 ? nullptr : args, count);'
+    )
+    content = content.replace(
+      /return function\.callAsConstructor\(runtime,\s*count == 0 \? nullptr : args,\s*count\);/g,
+      'return runtime.callAsConstructor(function, count == 0 ? nullptr : args, count);'
+    )
+    content = content.replace(
+      /const jsi::Value \*_Nonnull args,\s*size_t count/g,
+      'const jsi::Value *_Nullable args, size_t count'
+    )
+    content = content.replace(
+      /closurePtr->call\(thisValue,\s*args,\s*count,\s*result\)/g,
+      'closurePtr->call(thisValue, count == 0 ? nullptr : args, count, result)'
     )
     fs.writeFileSync(p, content, 'utf8')
     console.log(`[patch-swift-packages] Successfully patched JSIUtils.h at: ${p}`)
@@ -671,6 +691,42 @@ extension Task where Failure == any Error {
         code = code.replace(
           /expo\.callFunction\(runtime\.pointee,\s*pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
           `expo.callFunction(runtime.pointee, pointee, (arguments?.count ?? 0) > 0 ? arguments?.baseAddress : nil, arguments?.count ?? 0)`
+        )
+        code = code.replace(
+          /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try callAsConstructor\(argumentsBuffer\)/g,
+          `var capacity = 0
+    for _ in repeat each arguments {
+      capacity += 1
+    }
+    if capacity == 0 {
+      return try callAsConstructor(nil)
+    }
+    let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
+    return try callAsConstructor(argumentsBuffer)`
+        )
+        code = code.replace(
+          /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(arguments: argumentsBuffer\)/g,
+          `var capacity = 0
+    for _ in repeat each arguments {
+      capacity += 1
+    }
+    if capacity == 0 {
+      return try self.call(arguments: nil)
+    }
+    let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
+    return try self.call(arguments: argumentsBuffer)`
+        )
+        code = code.replace(
+          /let argumentsBuffer = JavaScriptValuesBuffer\.allocate\(in: runtime, with: repeat each arguments\)\s*return try self\.call\(this: this, arguments: argumentsBuffer\)/g,
+          `var capacity = 0
+    for _ in repeat each arguments {
+      capacity += 1
+    }
+    if capacity == 0 {
+      return try self.call(this: this, arguments: nil)
+    }
+    let argumentsBuffer = JavaScriptValuesBuffer.allocate(in: runtime, with: repeat each arguments)
+    return try self.call(this: this, arguments: argumentsBuffer)`
         )
       }
 

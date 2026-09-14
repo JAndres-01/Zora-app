@@ -562,18 +562,19 @@ extension Task where Failure == any Error {
         }
       }
 
-      // E. JavaScriptActor.swift - runIsolated must be nonisolated so assumeIsolated can reference it
+// E. JavaScriptActor.swift - runIsolated must be nonisolated so assumeIsolated can reference it
       // Attribute (usableFromInline) must come before the nonisolated modifier to keep valid grammar.
       if (file.name === 'JavaScriptActor.swift') {
         code = code.replace(
           /@JavaScriptActor\s*\r?\n\s*@usableFromInline\s*\r?\n\s*internal static func runIsolated/,
           '@usableFromInline\n  nonisolated internal static func runIsolated'
         )
-        // After dropping actor isolation, the cross-isolation `as IsolatedRunner` cast no longer compiles.
-        // runIsolated's type already matches NonisolatedRunner, so cast its value directly.
+        // After dropping actor isolation, `as IsolatedRunner` (isolation-changing) no longer compiles.
+        // Cast to NonisolatedRunner instead: same type, and it binds the generic T from the context
+        // so `unsafeBitCast(runIsolated, ...)` would otherwise leave T uninferable.
         code = code.replace(
-          /let runner = unsafeBitCast\(runIsolated as IsolatedRunner, to: NonisolatedRunner\.self\)/,
-          'let runner = unsafeBitCast(runIsolated, to: NonisolatedRunner.self)'
+          /runIsolated as IsolatedRunner/,
+          'runIsolated as NonisolatedRunner'
         )
       }
 

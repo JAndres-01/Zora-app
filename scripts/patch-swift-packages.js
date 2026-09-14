@@ -577,7 +577,7 @@ extension Task where Failure == any Error {
         )
       }
 
-// F. JavaScriptError.swift - remove public from CppError extension
+      // F. JavaScriptError.swift - remove public from CppError extension
       if (file.name === 'JavaScriptError.swift') {
         code = code.replace('public var message: String {', 'var message: String {')
       }
@@ -585,6 +585,42 @@ extension Task where Failure == any Error {
       // G. JavaScriptRef.swift & JavaScriptValue.swift - remove Escapable protocol (requires experimental feature)
       if (file.name === 'JavaScriptRef.swift' || file.name === 'JavaScriptValue.swift') {
         code = code.replace(/,\s*Escapable/g, '')
+      }
+
+      // H. JavaScriptValuesBuffer.swift - guard count > 0 for baseAddress to avoid 0x1 dangling pointer
+      if (file.name === 'JavaScriptValuesBuffer.swift') {
+        code = code.replace(
+          /internal\s+var\s+baseAddress:\s*UnsafePointer<facebook\.jsi\.Value>\?\s*\{\s*return\s+UnsafePointer\(bufferPointer\.baseAddress\)\s*\}/g,
+          `internal var baseAddress: UnsafePointer<facebook.jsi.Value>? {
+    guard count > 0 else { return nil }
+    return UnsafePointer(bufferPointer.baseAddress)
+  }`
+        )
+        code = code.replace(
+          /public\s+var\s+rawBaseAddress:\s*UnsafeRawPointer\?\s*\{\s*return\s+start\.map\s*\{\s*UnsafeRawPointer\(\$0\)\s*\}\s*\}/g,
+          `public var rawBaseAddress: UnsafeRawPointer? {
+    guard count > 0 else { return nil }
+    return start.map { UnsafeRawPointer($0) }
+  }`
+        )
+      }
+
+      // I. JavaScriptFunction.swift - pass nil baseAddress when argument count is 0
+      if (file.name === 'JavaScriptFunction.swift') {
+        code = code.replace(
+          /let\s+jsiResult\s*=\s*expo\.callAsConstructor\(runtime\.pointee,\s*pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
+          `let count = arguments?.count ?? 0
+      let baseAddress = count > 0 ? arguments?.baseAddress : nil
+      let jsiResult = expo.callAsConstructor(runtime.pointee, pointee, baseAddress, count)`
+        )
+        code = code.replace(
+          /expo\.callFunctionWithThis\(runtime\.pointee,\s*pointee,\s*this\.pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
+          `expo.callFunctionWithThis(runtime.pointee, pointee, this.pointee, (arguments?.count ?? 0) > 0 ? arguments?.baseAddress : nil, arguments?.count ?? 0)`
+        )
+        code = code.replace(
+          /expo\.callFunction\(runtime\.pointee,\s*pointee,\s*arguments\?\.baseAddress,\s*arguments\?\.count\s*\?\?\s*0\)/g,
+          `expo.callFunction(runtime.pointee, pointee, (arguments?.count ?? 0) > 0 ? arguments?.baseAddress : nil, arguments?.count ?? 0)`
+        )
       }
 
       if (code !== original) {

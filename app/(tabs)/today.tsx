@@ -126,6 +126,7 @@ export default function TodayScreen() {
       }
     }
 
+    LAYOUT_EASE(180)
     const updatedTasks = tasks.map((t) =>
       t.id === taskId
         ? {
@@ -187,6 +188,7 @@ export default function TodayScreen() {
 
       // Iniciar inserción y resalte al despejar el modal (~80ms)
       entranceTimeoutRef.current = setTimeout(() => {
+        LAYOUT_EASE(220)
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -219,6 +221,7 @@ export default function TodayScreen() {
     async (taskId: string) => {
       cancelTaskReminder(taskId)
       playTrashSound()
+      LAYOUT_EASE(180)
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
       setActiveTask((prev) => (prev?.id === taskId ? null : prev))
       setTaskModalMode('none')

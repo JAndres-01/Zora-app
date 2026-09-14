@@ -150,6 +150,7 @@ export default function TasksScreen() {
   // Handlers de Tareas
   const handleStatusChange = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
+    PANEL_SWITCH_LAYOUT()
     setStatusFilter(newStatus)
   }
 
@@ -245,6 +246,7 @@ export default function TasksScreen() {
     async (taskId: string) => {
       cancelTaskReminder(taskId)
       playTrashSound()
+      LAYOUT_EASE(180)
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
       setActiveTask((prev) => (prev?.id === taskId ? null : prev))
       setTaskModalMode('none')
@@ -377,6 +379,7 @@ export default function TasksScreen() {
 
       // 2. Insertar/actualizar la tarea inmediatamente y activar resalte (~80ms)
       entranceTimeoutRef.current = setTimeout(() => {
+        LAYOUT_EASE(220)
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {

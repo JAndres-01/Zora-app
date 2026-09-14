@@ -5,6 +5,7 @@ on:
     branches:
       - 'release/**'
       - main
+      - production-build
   workflow_dispatch:
 
 jobs:
@@ -36,6 +37,12 @@ jobs:
 
       - name: 📦 Instalar dependencias npm
         run: npm ci
+
+      - name: 🧹 Limpiar artefactos previos de iOS
+        run: |
+          rm -rf ios/Pods ios/Podfile.lock ios/build build-output
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*Zora* 2>/dev/null || true
+          rm -rf ~/Library/Caches/CocoaPods 2>/dev/null || true
 
       - name: 🔧 Parchear compatibilidad Swift / SwiftPM (Xcode 16 / Swift 6.0)
         run: node scripts/patch-swift-packages.js
@@ -83,6 +90,7 @@ jobs:
             -jobs 4 \
             -skipMacroValidation \
             -scmProvider system \
+            OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny" \
             RCT_NO_LAUNCH_PACKAGER=1 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \

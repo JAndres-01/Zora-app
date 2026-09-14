@@ -585,7 +585,7 @@ extension Task where Failure == any Error {
 }
 patchSwiftSources(jsiSourcesDir)
 
-// 8. Patch Podfile to ensure expo-symbols is excluded if Podfile exists
+// 8. Patch Podfile to ensure expo-symbols is excluded and inject Swift build settings
 const podfilePath = path.join(process.cwd(), 'ios', 'Podfile')
 if (fs.existsSync(podfilePath)) {
   let podfile = fs.readFileSync(podfilePath, 'utf8')
@@ -598,9 +598,34 @@ if (fs.existsSync(podfilePath)) {
       }
     })
     podfile = podfile.replace(/use_expo_modules!\s*$/m, "use_expo_modules!(exclude: ['expo-symbols'])")
-    fs.writeFileSync(podfilePath, podfile, 'utf8')
-    console.log('[patch-swift-packages] Successfully ensured expo-symbols is excluded from Podfile')
   }
+
+  // Inject target build settings in post_install if not already present
+  if (!podfile.includes("target.name == 'ExpoModulesJSI'")) {
+    const postInstallHook = `
+    installer.pods_project.targets.each do |target|
+      if target.name == 'ExpoModulesJSI'
+        target.build_configurations.each do |config|
+          config.build_settings['OTHER_SWIFTFLAGS'] ||= '$(inherited) '
+          config.build_settings['OTHER_SWIFTFLAGS'] += '-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny'
+          config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+          config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
+          config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'
+        end
+      end
+      if target.name == 'RNSVG'
+        target.build_configurations.each do |config|
+          config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
+          config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'
+        end
+      end
+    end
+`
+    podfile = podfile.replace(/post_install\s+do\s+\|installer\|/, 'post_install do |installer|\n' + postInstallHook)
+  }
+
+  fs.writeFileSync(podfilePath, podfile, 'utf8')
+  console.log('[patch-swift-packages] Successfully configured Podfile settings and exclusions')
 }
 
 console.log('[patch-swift-packages] All Swift and C++ compatibility patches applied successfully.')

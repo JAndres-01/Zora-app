@@ -199,12 +199,17 @@ struct DualBalanceWidget: Widget {
     let kind: String = "DualBalanceWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: DualBalanceProvider()) { entry in
+        let config = StaticConfiguration(kind: kind, provider: DualBalanceProvider()) { entry in
             DualBalanceWidgetView(entry: entry)
         }
         .configurationDisplayName("Balance de Tareas")
         .description("Visualiza tus tareas pendientes y entregadas con porcentaje de cumplimiento.")
         .supportedFamilies([.systemSmall])
-        .contentMarginsDisabled()
+
+        if #available(iOS 17.0, *) {
+            return config.contentMarginsDisabled()
+        } else {
+            return config
+        }
     }
 }

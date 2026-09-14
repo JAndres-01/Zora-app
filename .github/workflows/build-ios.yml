@@ -1,4 +1,4 @@
-name: Build iOS (Simulator / App)
+name: Build iOS (Sideloadly IPA)
 
 on:
   push:
@@ -6,18 +6,9 @@ on:
       - 'release/**'
       - main
   workflow_dispatch:
-    inputs:
-      target:
-        description: 'Destino de compilación'
-        required: true
-        default: 'simulator'
-        type: choice
-        options:
-          - 'simulator'
-          - 'device-unsigned'
 
 jobs:
-  build-ios:
+  build-ios-sideloadly:
     runs-on: macos-14
     timeout-minutes: 60
 
@@ -34,7 +25,7 @@ jobs:
           else
             sudo xcode-select -switch /Applications/Xcode.app
           fi
-          echo "Xcode activo:"
+          echo "Xcode seleccionado:"
           xcodebuild -version
 
       - name: 🟢 Configurar Node.js (v20)
@@ -52,7 +43,7 @@ jobs:
       - name: 📦 Instalar CocoaPods
         run: npx pod-install ios
 
-      - name: 🔍 Detectar Workspace y Scheme de Xcode
+      - name: 🔍 Detectar Workspace de Xcode
         id: detect
         run: |
           WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
@@ -62,8 +53,7 @@ jobs:
           echo "Workspace detectado: $WORKSPACE"
           echo "workspace=$WORKSPACE" >> $GITHUB_OUTPUT
 
-      - name: 🔨 Compilar para iOS Simulator (Release .app)
-        if: ${{ github.event_name == 'push' || github.event.inputs.target != 'device-unsigned' }}
+      - name: 🔨 Compilar iOS App para Dispositivo Físico (Release iphoneos)
         run: |
           WORKSPACE="${{ steps.detect.outputs.workspace }}"
           mkdir -p build-output
@@ -72,38 +62,7 @@ jobs:
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "Zora" \
             -configuration Release \
-            -destination "generic/platform=iOS Simulator" \
-            -derivedDataPath ios/build \
-            -jobs 4 \
-            -skipMacroValidation \
-            RCT_NO_LAUNCH_PACKAGER=1 \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            build 2>&1 | tee xcodebuild.log | (which xcbeautify > /dev/null && xcbeautify || cat)
-
-          APP_PATH=$(find ios/build/Build/Products/Release-iphonesimulator -name "*.app" -maxdepth 1 | head -n 1)
-          if [ -n "$APP_PATH" ]; then
-            cd "$(dirname "$APP_PATH")"
-            zip -r "$GITHUB_WORKSPACE/build-output/Zora-iOS-Simulator.app.zip" "$(basename "$APP_PATH")"
-            echo "✅ Zora-iOS-Simulator.app.zip generado con éxito."
-          else
-            echo "❌ No se encontró el archivo .app compilado."
-            exit 1
-          fi
-
-      - name: 🔨 Compilar para dispositivo (Unsigned Payload)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'device-unsigned' }}
-        run: |
-          WORKSPACE="${{ steps.detect.outputs.workspace }}"
-          mkdir -p build-output/Payload
-
-          set -o pipefail
-          xcodebuild -workspace "$WORKSPACE" \
-            -scheme "Zora" \
-            -configuration Release \
+            -sdk iphoneos \
             -destination "generic/platform=iOS" \
             -derivedDataPath ios/build \
             -jobs 4 \
@@ -112,36 +71,39 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            build 2>&1 | tee xcodebuild-device.log | (which xcbeautify > /dev/null && xcbeautify || cat)
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build 2>&1 | tee xcodebuild.log | (which xcbeautify > /dev/null && xcbeautify || cat)
 
+      - name: 📦 Empaquetar IPA para Sideloadly (Payload/Zora.app)
+        run: |
+          mkdir -p build-output/Payload
           APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
           if [ -n "$APP_PATH" ]; then
+            echo "Encontrado App bundle en: $APP_PATH"
             cp -r "$APP_PATH" build-output/Payload/
             cd build-output
-            zip -r Zora-iOS-Unsigned.ipa Payload
-            echo "✅ Zora-iOS-Unsigned.ipa generado con éxito."
+            zip -r -y Zora.ipa Payload
+            echo "✅ Zora.ipa empaquetado exitosamente para Sideloadly."
           else
-            echo "❌ No se encontró el archivo .app para dispositivo."
+            echo "❌ No se encontró Zora.app en Release-iphoneos"
             exit 1
           fi
 
-      - name: 📋 Mostrar errores detallados en caso de fallo
+      - name: 📋 Mostrar errores detallados si falló
         if: failure()
         run: |
           echo "=================== ÚLTIMOS ERRORES DE XCODEBUILD ==================="
           if [ -f "xcodebuild.log" ]; then
-            grep -E "(error:|fatal error:|BUILD FAILED|\*\* BUILD FAILED \*\*)" xcodebuild.log -A 5 -B 2 || tail -n 120 xcodebuild.log
-          elif [ -f "xcodebuild-device.log" ]; then
-            grep -E "(error:|fatal error:|BUILD FAILED|\*\* BUILD FAILED \*\*)" xcodebuild-device.log -A 5 -B 2 || tail -n 120 xcodebuild-device.log
+            grep -E "(error:|fatal error:|BUILD FAILED|\*\* BUILD FAILED \*\*)" xcodebuild.log -A 5 -B 2 || tail -n 150 xcodebuild.log
           fi
 
-      - name: 📤 Subir artefactos de iOS (.app.zip / .ipa)
+      - name: 📤 Subir Zora.ipa a Artefactos de GitHub
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: zora-ios-build
-          path: build-output/*
-          if-no-files-found: warn
+          name: Zora-iOS-Sideloadly-IPA
+          path: build-output/Zora.ipa
           retention-days: 14

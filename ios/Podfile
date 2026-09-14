@@ -1,0 +1,61 @@
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+platform :ios, min_ios_version_supported
+
+# Determine deployment target
+deployment_target = '14.0'
+
+target 'Zora' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :app_path => File.expand_path('..', __dir__)
+  )
+
+  target 'ZoraTests' do
+    inherit! :complete
+  end
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false
+    )
+
+    installer.pods_project.targets.each do |target|
+      # Habilitar flags experimentales de Swift para Xcode 16.2
+      if target.name == 'ExpoModulesJSI'
+        target.build_configurations.each do |config|
+          config.build_settings['OTHER_SWIFTFLAGS'] = '-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny'
+          config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+          config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
+          config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'
+        end
+      end
+
+      # Suprimir warnings de RNSVG
+      if target.name == 'RNSVG'
+        target.build_configurations.each do |config|
+          config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
+          config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'
+        end
+      end
+
+      # Flush the build settings cache
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = deployment_target
+      end
+    end
+
+    installer.pods_project.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+    end
+  end
+end
+
+def min_ios_version_supported
+  '14.0'
+end

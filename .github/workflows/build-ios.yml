@@ -84,6 +84,26 @@ jobs:
               console.log('✅ Paquete Swift corregido con éxito:', f);
             }
           }
+
+          // 4. Inyectar fallbacks de macros SWIFT_ en cabeceras C++ si faltaran
+          const cxxHeaders = [
+            'node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h',
+            'node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/CppError.h',
+            'node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RetainedSwiftPointer.h'
+          ];
+          for (const h of cxxHeaders) {
+            if (fs.existsSync(h)) {
+              let content = fs.readFileSync(h, 'utf8');
+              if (!content.includes('#define SWIFT_RETURNS_RETAINED')) {
+                content = content.replace(
+                  '#include <swift/bridging>',
+                  '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))\n#endif\n#ifndef SWIFT_SHARED_REFERENCE\n#define SWIFT_SHARED_REFERENCE(retain, release) __attribute__((swift_attr("shared_reference:" #retain ":" #release)))\n#endif\n#ifndef SWIFT_IMMORTAL_REFERENCE\n#define SWIFT_IMMORTAL_REFERENCE __attribute__((swift_attr("import_reference")))\n#endif'
+                );
+                fs.writeFileSync(h, content, 'utf8');
+                console.log('✅ Inyectados fallbacks SWIFT_ en:', h);
+              }
+            }
+          }
           "
 
       - name: ⚙️ Generar proyecto nativo iOS (Expo Prebuild)

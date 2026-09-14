@@ -50,20 +50,19 @@ jobs:
       - name: 🔑 Preparar firma de release
         working-directory: android
         run: |
-          # Si no hay keystore personalizado, generar un keystore para empaquetado release en CI
           if [ ! -f "app/debug.keystore" ]; then
             keytool -genkey -v -keystore app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
       - name: 🔨 Compilar APK (Debug / Release)
-        if: ${{ github.event.inputs.build_type != 'bundle' }}
+        if: ${{ github.event_name == 'push' || github.event.inputs.build_type != 'bundle' }}
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon || ./gradlew assembleDebug --no-daemon
 
       - name: 🔨 Compilar Android App Bundle (AAB para Google Play)
-        if: ${{ github.event.inputs.build_type == 'bundle' || github.event.inputs.build_type == 'both' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.build_type == 'bundle' || github.event.inputs.build_type == 'both') }}
         working-directory: android
         run: |
           chmod +x gradlew
@@ -80,7 +79,7 @@ jobs:
           retention-days: 14
 
       - name: 📤 Subir AAB (Google Play) como artefacto
-        if: ${{ github.event.inputs.build_type == 'bundle' || github.event.inputs.build_type == 'both' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.build_type == 'bundle' || github.event.inputs.build_type == 'both') }}
         uses: actions/upload-artifact@v4
         with:
           name: zora-android-bundle

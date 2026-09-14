@@ -17,7 +17,7 @@ if (fs.existsSync(dateComponentsSerializerPath)) {
 // 1. ExpoModulesJSI Package.swift
 const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
 if (fs.existsSync(jsiPackagePath)) {
-  const content = `// swift-tools-version: 5.9
+  const content = `// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import Foundation
@@ -90,6 +90,8 @@ let package = Package(
       ],
       swiftSettings: [
         .interoperabilityMode(.Cxx),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        .enableUpcomingFeature("InferIsolatedConformances"),
         .unsafeFlags([
           "-enable-library-evolution",
           "-emit-module-interface",
@@ -133,7 +135,7 @@ let package = Package(
       path: "Benchmarks"
     )
   ] + testFrameworks.binaryTargets,
-  swiftLanguageVersions: [.v5],
+  swiftLanguageModes: [.v6],
   cxxLanguageStandard: .cxx20
 )
 
@@ -174,13 +176,13 @@ func resolveTestFrameworks() -> (binaryTargets: [Target], dependencies: [Target.
 const macrosPackagePath = path.join(process.cwd(), 'node_modules', '@expo', 'expo-modules-macros-plugin', 'apple', 'Package.swift')
 if (fs.existsSync(macrosPackagePath)) {
   let macrosContent = fs.readFileSync(macrosPackagePath, 'utf8')
-  macrosContent = macrosContent.replace(/swift-tools-version:\s*6\.\d+/g, 'swift-tools-version: 5.9')
+  macrosContent = macrosContent.replace(/swift-tools-version:\s*6\.\d+/g, 'swift-tools-version: 6.0')
   macrosContent = macrosContent.replace(/602\.0\.0(-latest)?/g, '600.0.1')
   fs.writeFileSync(macrosPackagePath, macrosContent, 'utf8')
   console.log('[patch-swift-packages] Successfully patched expo-modules-macros-plugin Package.swift')
 }
 
-// 2.5. Walk and sanitize all Package.swift manifests for Swift 5.9 compatibility
+// 2.5. Walk and sanitize all Package.swift manifests for Swift 6.0 compatibility
 function walkPackageSwift(dir) {
   if (!fs.existsSync(dir)) return
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -192,9 +194,8 @@ function walkPackageSwift(dir) {
     } else if (entry.name === 'Package.swift') {
       let content = fs.readFileSync(full, 'utf8')
       let orig = content
-      content = content.replace(/swift-tools-version:\s*6\.\d+(\.\d+)?/gi, 'swift-tools-version: 5.9')
+      content = content.replace(/swift-tools-version:\s*6\.\d+(\.\d+)?/gi, 'swift-tools-version: 6.0')
       content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1')
-      content = content.replace(/swiftLanguageModes:\s*\[\.v6\]/gi, 'swiftLanguageVersions: [.v5]')
       let prev
       do {
         prev = content

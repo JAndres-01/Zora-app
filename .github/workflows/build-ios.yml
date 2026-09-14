@@ -17,12 +17,12 @@ jobs:
       - name: 📥 Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: 🍎 Seleccionar Xcode 15.4
+      - name: 🍎 Seleccionar Xcode 16.2
         run: |
-          if [ -d "/Applications/Xcode_15.4.app" ]; then
-            sudo xcode-select -switch /Applications/Xcode_15.4.app
-          elif [ -d "/Applications/Xcode_15.app" ]; then
-            sudo xcode-select -switch /Applications/Xcode_15.app
+          if [ -d "/Applications/Xcode_16.2.app" ]; then
+            sudo xcode-select -switch /Applications/Xcode_16.2.app
+          elif [ -d "/Applications/Xcode_16.1.app" ]; then
+            sudo xcode-select -switch /Applications/Xcode_16.1.app
           else
             sudo xcode-select -switch /Applications/Xcode.app
           fi

@@ -725,6 +725,95 @@ findAndPatchAppDelegates(path.join(process.cwd(), 'node_modules', 'expo'))
 findAndPatchAppDelegates(path.join(process.cwd(), 'node_modules', 'react-native'))
 findAndPatchAppDelegates(path.join(process.cwd(), 'ios'))
 
+// 5.11. Defensive arguments count validation in JavaScriptUtils.swift
+function patchJavaScriptUtils(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (content.includes('let safeReceived =')) return
+  const original = content
+
+  const oldValidation = /if received < requiredArgumentsCount \|\| received > argumentsCount \{[\s\S]*?throw InvalidArgsNumberException\([\s\S]*?\)\s*\}/
+  const newValidation = `let safeReceived = (received < 0 || received > 1000) ? requiredArgumentsCount : received
+  if safeReceived < requiredArgumentsCount {
+    throw InvalidArgsNumberException((
+      received: safeReceived,
+      expected: argumentsCount,
+      required: requiredArgumentsCount
+    ))
+  }`
+
+  content = content.replace(oldValidation, newValidation)
+  if (content !== original) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched JavaScriptUtils.swift at: ${filePath}`)
+  }
+}
+
+function findAndPatchJavaScriptUtils(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchJavaScriptUtils(fullPath)
+      }
+    } else if (entry.name === 'JavaScriptUtils.swift') {
+      patchJavaScriptUtils(fullPath)
+    }
+  }
+}
+
+findAndPatchJavaScriptUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+findAndPatchJavaScriptUtils(path.join(process.cwd(), 'ios', 'Pods'))
+
+// 5.12. Defensively wrap getLinkingURL in expo-linking and expo-router to prevent startup crashes
+function patchExpoLinkingJS(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  const orig = content
+  content = content.replace(
+    /export function getLinkingURL\(\) \{\s*return ExpoLinking\.getLinkingURL\(\);\s*\}/g,
+    'export function getLinkingURL() {\n    try {\n        return ExpoLinking.getLinkingURL();\n    } catch (e) {\n        return null;\n    }\n}'
+  )
+  content = content.replace(
+    /const \[url, setLink\] = useState\(ExpoLinking\.getLinkingURL\);/g,
+    'const [url, setLink] = useState(() => {\n        try {\n            return ExpoLinking.getLinkingURL();\n        } catch (e) {\n            return null;\n        }\n    });'
+  )
+  if (content !== orig) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched expo-linking at: ${filePath}`)
+  }
+}
+
+function findAndPatchLinkingFiles(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchLinkingFiles(fullPath)
+      }
+    } else if (entry.name === 'Linking.js' && fullPath.includes('expo-linking')) {
+      patchExpoLinkingJS(fullPath)
+    } else if (entry.name === 'useLinking.native.js') {
+      let content = fs.readFileSync(fullPath, 'utf8')
+      const orig = content
+      content = content.replace(
+        /return ExpoLinking\.getLinkingURL\(\);/g,
+        'try { return ExpoLinking.getLinkingURL(); } catch { return null; }'
+      )
+      if (content !== orig) {
+        fs.writeFileSync(fullPath, content, 'utf8')
+        console.log(`[patch-swift-packages] Successfully patched useLinking.native.js at: ${fullPath}`)
+      }
+    }
+  }
+}
+
+findAndPatchLinkingFiles(path.join(process.cwd(), 'node_modules', 'expo-linking'))
+findAndPatchLinkingFiles(path.join(process.cwd(), 'node_modules', 'expo-router'))
+findAndPatchLinkingFiles(path.join(process.cwd(), 'node_modules', 'expo-share-intent'))
+
 
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')

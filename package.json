@@ -4,6 +4,7 @@
   "main": "index.js",
   "private": true,
   "scripts": {
+    "postinstall": "node scripts/patch-swift-packages.js",
     "start": "expo start -c",
     "test": "jest",
     "ios": "expo run:ios",
@@ -26,7 +27,7 @@
     "expo-haptics": "~57.0.2",
     "expo-image-picker": "~57.0.16",
     "expo-linking": "~57.0.9",
-    "expo-modules-jsi": "^57.1.0",
+    "expo-modules-jsi": "~57.0.8",
     "expo-notifications": "~57.0.17",
     "expo-router": "~57.0.19",
     "expo-share-intent": "^5.1.1",

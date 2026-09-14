@@ -235,11 +235,11 @@ if (fs.existsSync(schedulerHeader)) {
   // Add static factory methods if not already added
   if (!headerContent.includes('RuntimeScheduler *create(')) {
     const factoryMethods = `
-  static inline RuntimeScheduler *create(void *scheduler, ScheduleFn fn) noexcept SWIFT_RETURNS_RETAINED {
+  static inline RuntimeScheduler *_Nonnull create(void *scheduler, ScheduleFn fn) noexcept SWIFT_RETURNS_RETAINED {
     return new RuntimeScheduler(scheduler, fn);
   }
 
-  static inline RuntimeScheduler *create() noexcept SWIFT_RETURNS_RETAINED {
+  static inline RuntimeScheduler *_Nonnull create() noexcept SWIFT_RETURNS_RETAINED {
     return new RuntimeScheduler();
   }
 `
@@ -260,7 +260,7 @@ if (fs.existsSync(closureHeader)) {
 
   if (!headerContent.includes('HostFunctionClosure *create(')) {
     const factoryMethod = `
-  static inline HostFunctionClosure *create(Context context, Closure closure, Deallocator deallocator) noexcept {
+  static inline HostFunctionClosure *_Nonnull create(Context context, Closure closure, Deallocator deallocator) noexcept {
     return new HostFunctionClosure(context, closure, deallocator);
   }
 `
@@ -562,19 +562,26 @@ extension Task where Failure == any Error {
         }
       }
 
-      // E. JavaScriptActor.swift - preserve @JavaScriptActor on runIsolated
+      // E. JavaScriptActor.swift - fix assumeIsolated without actor isolation clash
       if (file.name === 'JavaScriptActor.swift') {
-        if (!code.includes('@JavaScriptActor\n  @usableFromInline\n  internal static func runIsolated')) {
-          code = code.replace(
-            /@usableFromInline\s+internal static func runIsolated/g,
-            '@JavaScriptActor\n  @usableFromInline\n  internal static func runIsolated'
-          )
-        }
+        code = code.replace(
+          /let runner = unsafeBitCast\(runIsolated as IsolatedRunner, to: NonisolatedRunner\.self\)\s*\r?\n\s*return runner\(operation\)/,
+          'typealias NonisolatedFn = () -> T\n    let fn = unsafeBitCast(operation, to: NonisolatedFn.self)\n    return fn()'
+        )
+        code = code.replace(
+          /@JavaScriptActor\s*\r?\n\s*@usableFromInline\s*\r?\n\s*internal static func runIsolated/,
+          'nonisolated\n  @usableFromInline\n  internal static func runIsolated'
+        )
       }
 
       // F. JavaScriptError.swift - remove public from CppError extension
       if (file.name === 'JavaScriptError.swift') {
         code = code.replace('public var message: String {', 'var message: String {')
+      }
+
+      // G. JavaScriptRef.swift & JavaScriptValue.swift - remove Escapable protocol (requires experimental feature)
+      if (file.name === 'JavaScriptRef.swift' || file.name === 'JavaScriptValue.swift') {
+        code = code.replace(/,\s*Escapable/g, '')
       }
 
       if (code !== original) {

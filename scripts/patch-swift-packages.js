@@ -182,9 +182,39 @@ const macrosPackagePath = path.join(process.cwd(), 'node_modules', '@expo', 'exp
 if (fs.existsSync(macrosPackagePath)) {
   let macrosContent = fs.readFileSync(macrosPackagePath, 'utf8')
   macrosContent = macrosContent.replace(/swift-tools-version:\s*6\.[1-9]/g, 'swift-tools-version: 6.0')
+  macrosContent = macrosContent.replace(/602\.0\.0(-latest)?/g, '600.0.1')
   fs.writeFileSync(macrosPackagePath, macrosContent, 'utf8')
   console.log('[patch-swift-packages] Successfully patched expo-modules-macros-plugin Package.swift')
 }
+
+// 2.5. Walk and sanitize all Package.swift manifests for Swift 6.0 compatibility
+function walkPackageSwift(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.DerivedData' && entry.name !== '.build') {
+        walkPackageSwift(full)
+      }
+    } else if (entry.name === 'Package.swift') {
+      let content = fs.readFileSync(full, 'utf8')
+      let orig = content
+      content = content.replace(/swift-tools-version:\s*6\.[1-9](\.\d+)?/gi, 'swift-tools-version: 6.0')
+      content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1')
+      let prev
+      do {
+        prev = content
+        content = content.replace(/,(\s*[\)\]])/g, '$1')
+      } while (content !== prev)
+      if (content !== orig) {
+        fs.writeFileSync(full, content, 'utf8')
+        console.log(`[patch-swift-packages] Sanitized Package.swift: ${full}`)
+      }
+    }
+  }
+}
+walkPackageSwift(path.join(process.cwd(), 'node_modules'))
+walkPackageSwift(path.join(process.cwd(), 'ios'))
 
 // 3. RuntimeScheduler.h
 const schedulerHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'RuntimeScheduler.h')

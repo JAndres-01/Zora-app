@@ -38,120 +38,19 @@ jobs:
         run: npm ci
 
       - name: 🔧 Parchear compatibilidad Swift / SwiftPM (Xcode 16 / Swift 6.0)
-        run: |
-          node -e "
-          const fs = require('fs');
-          const path = require('path');
-          function walk(dir) {
-            let results = [];
-            try {
-              if (!fs.existsSync(dir)) return results;
-              for (const file of fs.readdirSync(dir)) {
-                const full = path.join(dir, file);
-                const stat = fs.statSync(full);
-                if (stat && stat.isDirectory()) {
-                  if (file !== '.git' && file !== '.DerivedData' && file !== '.build') {
-                    results = results.concat(walk(full));
-                  }
-                } else if (file === 'Package.swift') {
-                  results.push(full);
-                }
-              }
-            } catch (e) {}
-            return results;
-          }
-          const files = [...walk('node_modules'), ...walk('ios')];
-          console.log('Archivos Package.swift encontrados:', files);
-          for (const f of files) {
-            let content = fs.readFileSync(f, 'utf8');
-            let original = content;
-
-            // 1. Normalizar swift-tools-version a 6.0
-            content = content.replace(/swift-tools-version:\s*6\.\d+(\.\d+)?/gi, 'swift-tools-version: 6.0');
-
-            // 2. Ajustar swift-syntax a 600.0.1
-            content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1');
-
-            // 3. Eliminar trailing commas antes de ) y ] (incompatibles con Swift 6.0)
-            let prev;
-            do {
-              prev = content;
-              content = content.replace(/,(\s*[\)\]])/g, '\$1');
-            } while (content !== prev);
-
-            if (content !== original) {
-              fs.writeFileSync(f, content, 'utf8');
-              console.log('✅ Paquete Swift corregido con éxito:', f);
-            }
-          }
-
-          // 4. Inyectar fallbacks de macros SWIFT_ en cabeceras C++ si faltaran
-          const cxxHeaders = [
-            'node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h',
-            'node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/CppError.h',
-            'node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RetainedSwiftPointer.h'
-          ];
-          for (const h of cxxHeaders) {
-            if (fs.existsSync(h)) {
-              let content = fs.readFileSync(h, 'utf8');
-              if (!content.includes('#define SWIFT_RETURNS_RETAINED')) {
-                content = content.replace(
-                  '#include <swift/bridging>',
-                  '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))\n#endif\n#ifndef SWIFT_SHARED_REFERENCE\n#define SWIFT_SHARED_REFERENCE(retain, release) __attribute__((swift_attr("shared_reference:" #retain ":" #release)))\n#endif\n#ifndef SWIFT_IMMORTAL_REFERENCE\n#define SWIFT_IMMORTAL_REFERENCE __attribute__((swift_attr("import_reference")))\n#endif'
-                );
-                fs.writeFileSync(h, content, 'utf8');
-                console.log('✅ Inyectados fallbacks SWIFT_ en:', h);
-              }
-            }
-          }
-          "
+        run: node scripts/patch-swift-packages.js
 
       - name: ⚙️ Generar proyecto nativo iOS (Expo Prebuild)
         run: npx expo prebuild --platform ios --clean
 
       - name: 🔧 Re-aplicar parche Swift tras prebuild
-        run: |
-          node -e "
-          const fs = require('fs');
-          const path = require('path');
-          function walk(dir) {
-            let results = [];
-            try {
-              if (!fs.existsSync(dir)) return results;
-              for (const file of fs.readdirSync(dir)) {
-                const full = path.join(dir, file);
-                const stat = fs.statSync(full);
-                if (stat && stat.isDirectory()) {
-                  if (file !== '.git' && file !== '.DerivedData' && file !== '.build') {
-                    results = results.concat(walk(full));
-                  }
-                } else if (file === 'Package.swift') {
-                  results.push(full);
-                }
-              }
-            } catch (e) {}
-            return results;
-          }
-          const files = [...walk('node_modules'), ...walk('ios')];
-          for (const f of files) {
-            let content = fs.readFileSync(f, 'utf8');
-            let original = content;
-            content = content.replace(/swift-tools-version:\s*6\.\d+(\.\d+)?/gi, 'swift-tools-version: 6.0');
-            content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1');
-            let prev;
-            do {
-              prev = content;
-              content = content.replace(/,(\s*[\)\]])/g, '\$1');
-            } while (content !== prev);
-            if (content !== original) {
-              fs.writeFileSync(f, content, 'utf8');
-              console.log('✅ Re-parcheado:', f);
-            }
-          }
-          "
+        run: node scripts/patch-swift-packages.js
 
       - name: 📦 Instalar CocoaPods
         run: npx pod-install ios
+
+      - name: 🔧 Re-aplicar parche Swift tras pod install
+        run: node scripts/patch-swift-packages.js
 
       - name: 🔍 Detectar Workspace de Xcode
         id: detect

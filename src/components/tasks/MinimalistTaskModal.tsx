@@ -244,7 +244,8 @@ export function MinimalistTaskModal({
 
     if (mode !== 'none') {
       playModalOpenSound()
-      setCurrentView(mode === 'detail' ? 'detail' : 'form')
+      const isCompleted = task?.status === 'completed'
+      setCurrentView(mode === 'detail' || (mode === 'edit' && isCompleted) ? 'detail' : 'form')
 
       if (mode === 'create') {
         setTitle(initialTitle || '')

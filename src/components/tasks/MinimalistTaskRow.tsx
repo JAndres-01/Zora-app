@@ -182,19 +182,23 @@ export const MinimalistTaskRow = memo(
       }
     }, [isHighlighted])
 
-    // Gesto PanResponder con discriminación estricta de eje horizontal vs scroll vertical
+    const actionsWidth = isVisuallyDone ? ACTION_BUTTON_WIDTH : TOTAL_ACTIONS_WIDTH
+
+    // PanResponder para gestos táctiles
     const panResponder = useRef(
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
         onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
           if (isDeleting.current) return false
-          return (
-            Math.abs(gestureState.dx) > 12 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.8
-          )
+          const { dx, dy } = gestureState
+          return Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5
         },
-        onMoveShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          if (isDeleting.current) return false
+          const { dx, dy } = gestureState
+          return Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5
+        },
         onPanResponderGrant: () => {
           if (isDeleting.current) return
           isSwiping.current = true
@@ -213,7 +217,7 @@ export const MinimalistTaskRow = memo(
           if (isDeleting.current) return
           let dx = gestureState.dx
           if (isOpen.current) {
-            dx = dx - TOTAL_ACTIONS_WIDTH
+            dx = dx - actionsWidth
           }
 
           if (dx > 0) {
@@ -229,8 +233,9 @@ export const MinimalistTaskRow = memo(
               isGreenTriggered.current = false
             }
           } else if (canModify) {
-            // Deslizar hacia la izquierda (Revelar Editar Azul y Borrar Rojo sin texto)
-            const clampedDx = Math.max(-150, dx)
+            // Deslizar hacia la izquierda (Revelar Borrar, y Editar si no está completada)
+            const minDx = -actionsWidth - 38
+            const clampedDx = Math.max(minDx, dx)
             translateX.setValue(clampedDx)
             rightSwipeDistance.setValue(0)
           } else {
@@ -244,7 +249,7 @@ export const MinimalistTaskRow = memo(
           onSwipeActiveChange?.(true)
           let dx = gestureState.dx
           if (isOpen.current) {
-            dx = dx - TOTAL_ACTIONS_WIDTH
+            dx = dx - actionsWidth
           }
 
           const isCompleteAction = dx >= SWIPE_THRESHOLD || (dx >= 45 && gestureState.vx > 0.35)
@@ -288,12 +293,12 @@ export const MinimalistTaskRow = memo(
               rightSwipeDistance.setValue(0)
               onToggleStatus(task.id, task.status)
             }, 105)
-          } else if (dx <= -48 && canModify) {
-            // Desplegar y anclar botones de Editar y Borrar
+          } else if (dx <= -36 && canModify) {
+            // Desplegar y anclar botones de acción
             triggerHaptic('selection')
             isOpen.current = true
             Animated.timing(translateX, {
-              toValue: -TOTAL_ACTIONS_WIDTH,
+              toValue: -actionsWidth,
               duration: 160,
               easing: APPLE_EASING,
               useNativeDriver: true,
@@ -392,7 +397,7 @@ export const MinimalistTaskRow = memo(
     }
 
     const handleEditPress = () => {
-      if (isDeleting.current) return
+      if (isDeleting.current || isVisuallyDone) return
       triggerHaptic('light')
       isOpen.current = false
       Animated.timing(translateX, {
@@ -519,20 +524,21 @@ export const MinimalistTaskRow = memo(
               </View>
             </Animated.View>
 
-            {/* Bloques Rojo y Azul Pegados a la Derecha con efecto de apilamiento y despliegue progresivo */}
+            {/* Bloques de Acción Pegados a la Derecha */}
             <Animated.View
               style={[
                 styles.swipeRightActionsContainer,
                 {
+                  width: actionsWidth,
                   opacity: translateX.interpolate({
-                    inputRange: [-TOTAL_ACTIONS_WIDTH, -15, 0],
+                    inputRange: [-actionsWidth, -15, 0],
                     outputRange: [1, 0.8, 0],
                     extrapolate: 'clamp',
                   }),
                 },
               ]}
             >
-              {/* Botón Borrar Rojo (Se apila y emerge progresivamente cuanto más se estira hacia la izquierda) */}
+              {/* Botón Borrar Rojo */}
               <Animated.View
                 style={[
                   styles.swipeActionBtnWrapper,
@@ -540,21 +546,21 @@ export const MinimalistTaskRow = memo(
                     transform: [
                       {
                         translateX: translateX.interpolate({
-                          inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -56, 0],
-                          outputRange: [-6, 0, 24, 48],
+                          inputRange: [-actionsWidth - 38, -actionsWidth, -actionsWidth / 2, 0],
+                          outputRange: [-4, 0, 16, 32],
                           extrapolate: 'clamp',
                         }),
                       },
                       {
                         scale: translateX.interpolate({
-                          inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -56, 0],
+                          inputRange: [-actionsWidth - 38, -actionsWidth, -actionsWidth / 2, 0],
                           outputRange: [1.05, 1, 0.75, 0.4],
                           extrapolate: 'clamp',
                         }),
                       },
                     ],
                     opacity: translateX.interpolate({
-                      inputRange: [-TOTAL_ACTIONS_WIDTH, -60, -20, 0],
+                      inputRange: [-actionsWidth, -actionsWidth * 0.6, -actionsWidth * 0.2, 0],
                       outputRange: [1, 0.85, 0.2, 0],
                       extrapolate: 'clamp',
                     }),
@@ -571,7 +577,7 @@ export const MinimalistTaskRow = memo(
                       transform: [
                         {
                           scale: translateX.interpolate({
-                            inputRange: [-TOTAL_ACTIONS_WIDTH, -60, 0],
+                            inputRange: [-actionsWidth, -actionsWidth * 0.5, 0],
                             outputRange: [1, 0.8, 0.4],
                             extrapolate: 'clamp',
                           }),
@@ -584,57 +590,59 @@ export const MinimalistTaskRow = memo(
                 </Pressable>
               </Animated.View>
 
-              {/* Botón Editar Azul (Primer botón visible, se apila y acompaña el estiramiento) */}
-              <Animated.View
-                style={[
-                  styles.swipeActionBtnWrapper,
-                  {
-                    transform: [
-                      {
-                        translateX: translateX.interpolate({
-                          inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -40, 0],
-                          outputRange: [4, 0, 12, 24],
-                          extrapolate: 'clamp',
-                        }),
-                      },
-                      {
-                        scale: translateX.interpolate({
-                          inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -40, 0],
-                          outputRange: [1.02, 1, 0.88, 0.6],
-                          extrapolate: 'clamp',
-                        }),
-                      },
-                    ],
-                    opacity: translateX.interpolate({
-                      inputRange: [-TOTAL_ACTIONS_WIDTH, -35, 0],
-                      outputRange: [1, 0.9, 0],
-                      extrapolate: 'clamp',
-                    }),
-                  },
-                ]}
-              >
-                <Pressable
-                  onPress={handleEditPress}
-                  style={styles.swipeEditBtn}
-                  hitSlop={6}
-                >
-                  <Animated.View
-                    style={{
+              {/* Botón Editar Azul (solo si la tarea NO está completada) */}
+              {!isVisuallyDone && (
+                <Animated.View
+                  style={[
+                    styles.swipeActionBtnWrapper,
+                    {
                       transform: [
                         {
+                          translateX: translateX.interpolate({
+                            inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -40, 0],
+                            outputRange: [4, 0, 12, 24],
+                            extrapolate: 'clamp',
+                          }),
+                        },
+                        {
                           scale: translateX.interpolate({
-                            inputRange: [-TOTAL_ACTIONS_WIDTH, -40, 0],
-                            outputRange: [1, 0.85, 0.5],
+                            inputRange: [-150, -TOTAL_ACTIONS_WIDTH, -40, 0],
+                            outputRange: [1.02, 1, 0.88, 0.6],
                             extrapolate: 'clamp',
                           }),
                         },
                       ],
-                    }}
+                      opacity: translateX.interpolate({
+                        inputRange: [-TOTAL_ACTIONS_WIDTH, -35, 0],
+                        outputRange: [1, 0.9, 0],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ]}
+                >
+                  <Pressable
+                    onPress={handleEditPress}
+                    style={styles.swipeEditBtn}
+                    hitSlop={6}
                   >
-                    <Edit2 size={19} color="#FFFFFF" strokeWidth={2.4} />
-                  </Animated.View>
-                </Pressable>
-              </Animated.View>
+                    <Animated.View
+                      style={{
+                        transform: [
+                          {
+                            scale: translateX.interpolate({
+                              inputRange: [-TOTAL_ACTIONS_WIDTH, -40, 0],
+                              outputRange: [1, 0.85, 0.5],
+                              extrapolate: 'clamp',
+                            }),
+                          },
+                        ],
+                      }}
+                    >
+                      <Edit2 size={19} color="#FFFFFF" strokeWidth={2.4} />
+                    </Animated.View>
+                  </Pressable>
+                </Animated.View>
+              )}
             </Animated.View>
           </View>
 

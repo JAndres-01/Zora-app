@@ -326,6 +326,7 @@ export default function TasksScreen() {
   }, [])
 
   const handleEditTask = useCallback((t: Task) => {
+    if (t.status === 'completed') return
     setActiveTask(t)
     setTaskModalMode('edit')
   }, [])

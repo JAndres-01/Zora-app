@@ -233,7 +233,7 @@ if (fs.existsSync(schedulerHeader)) {
   headerContent = headerContent.replace(/SWIFT_RETURNS_RETAINED\s+RuntimeScheduler/g, 'RuntimeScheduler')
 
   // Add static factory methods if not already added
-  if (!headerContent.includes('RuntimeScheduler *create(')) {
+  if (!headerContent.includes('RuntimeScheduler *_Nonnull create(')) {
     const factoryMethods = `
   static inline RuntimeScheduler *_Nonnull create(void *scheduler, ScheduleFn fn) noexcept SWIFT_RETURNS_RETAINED {
     return new RuntimeScheduler(scheduler, fn);
@@ -258,7 +258,7 @@ if (fs.existsSync(closureHeader)) {
   // Remove any previous SWIFT_RETURNS_RETAINED on create
   headerContent = headerContent.replace(/\s*SWIFT_RETURNS_RETAINED\s*\{/g, ' {')
 
-  if (!headerContent.includes('HostFunctionClosure *create(')) {
+  if (!headerContent.includes('HostFunctionClosure *_Nonnull create(')) {
     const factoryMethod = `
   static inline HostFunctionClosure *_Nonnull create(Context context, Closure closure, Deallocator deallocator) noexcept {
     return new HostFunctionClosure(context, closure, deallocator);

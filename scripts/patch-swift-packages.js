@@ -562,6 +562,21 @@ extension Task where Failure == any Error {
         }
       }
 
+      // E. JavaScriptActor.swift - runIsolated must be nonisolated so assumeIsolated can reference it
+      // Attribute (usableFromInline) must come before the nonisolated modifier to keep valid grammar.
+      if (file.name === 'JavaScriptActor.swift') {
+        code = code.replace(
+          /@JavaScriptActor\s*\r?\n\s*@usableFromInline\s*\r?\n\s*internal static func runIsolated/,
+          '@usableFromInline\n  nonisolated internal static func runIsolated'
+        )
+        // After dropping actor isolation, the cross-isolation `as IsolatedRunner` cast no longer compiles.
+        // runIsolated's type already matches NonisolatedRunner, so cast its value directly.
+        code = code.replace(
+          /let runner = unsafeBitCast\(runIsolated as IsolatedRunner, to: NonisolatedRunner\.self\)/,
+          'let runner = unsafeBitCast(runIsolated, to: NonisolatedRunner.self)'
+        )
+      }
+
       // F. JavaScriptError.swift - remove public from CppError extension
       if (file.name === 'JavaScriptError.swift') {
         code = code.replace('public var message: String {', 'var message: String {')

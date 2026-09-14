@@ -90,8 +90,6 @@ let package = Package(
       ],
       swiftSettings: [
         .interoperabilityMode(.Cxx),
-        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
-        .enableUpcomingFeature("InferIsolatedConformances"),
         .unsafeFlags([
           "-enable-library-evolution",
           "-emit-module-interface",

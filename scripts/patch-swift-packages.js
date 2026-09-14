@@ -562,18 +562,6 @@ extension Task where Failure == any Error {
         }
       }
 
-      // E. JavaScriptActor.swift - fix assumeIsolated without actor isolation clash
-      if (file.name === 'JavaScriptActor.swift') {
-        code = code.replace(
-          /let runner = unsafeBitCast\(runIsolated as IsolatedRunner, to: NonisolatedRunner\.self\)\s*\r?\n\s*return runner\(operation\)/,
-          'typealias NonisolatedFn = () -> T\n    let fn = unsafeBitCast(operation, to: NonisolatedFn.self)\n    return fn()'
-        )
-        code = code.replace(
-          /@JavaScriptActor\s*\r?\n\s*@usableFromInline\s*\r?\n\s*internal static func runIsolated/,
-          'nonisolated\n  @usableFromInline\n  internal static func runIsolated'
-        )
-      }
-
       // F. JavaScriptError.swift - remove public from CppError extension
       if (file.name === 'JavaScriptError.swift') {
         code = code.replace('public var message: String {', 'var message: String {')

@@ -96,6 +96,7 @@ let package = Package(
           "-enable-library-evolution",
           "-emit-module-interface",
           "-no-verify-emitted-module-interface",
+          "-strict-concurrency=minimal",
           "-Xfrontend",
           "-clang-header-expose-decls=has-expose-attr",
           "-Xcc", "-fmodule-map-file=\\(generatedModuleMap)",
@@ -430,7 +431,7 @@ if (fs.existsSync(buildXcframeworkScript)) {
   if (!scriptContent.includes('OTHER_SWIFTFLAGS=')) {
     scriptContent = scriptContent.replace(
       'CLANG_COVERAGE_MAPPING=NO \\',
-      'CLANG_COVERAGE_MAPPING=NO \\\n    OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny" \\'
+      'CLANG_COVERAGE_MAPPING=NO \\\n    OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -strict-concurrency=minimal" \\'
     )
   }
   // Clean up any empty lines between backslash continuations so bash commands are not prematurely terminated
@@ -637,7 +638,7 @@ if (fs.existsSync(podfilePath)) {
       if target.name == 'ExpoModulesJSI'
         target.build_configurations.each do |config|
           config.build_settings['OTHER_SWIFTFLAGS'] ||= '$(inherited) '
-          config.build_settings['OTHER_SWIFTFLAGS'] += '-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny'
+          config.build_settings['OTHER_SWIFTFLAGS'] += '-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -strict-concurrency=minimal'
           config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
           config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
           config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'

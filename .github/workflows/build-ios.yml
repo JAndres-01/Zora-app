@@ -90,7 +90,7 @@ jobs:
             -jobs 4 \
             -skipMacroValidation \
             -scmProvider system \
-            OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny" \
+            OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -strict-concurrency=minimal" \
             RCT_NO_LAUNCH_PACKAGER=1 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \

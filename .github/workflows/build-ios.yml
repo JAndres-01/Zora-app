@@ -45,11 +45,14 @@ jobs:
           function walk(dir) {
             let results = [];
             try {
+              if (!fs.existsSync(dir)) return results;
               for (const file of fs.readdirSync(dir)) {
                 const full = path.join(dir, file);
                 const stat = fs.statSync(full);
                 if (stat && stat.isDirectory()) {
-                  if (file !== '.git') results = results.concat(walk(full));
+                  if (file !== '.git' && file !== '.DerivedData' && file !== '.build') {
+                    results = results.concat(walk(full));
+                  }
                 } else if (file === 'Package.swift') {
                   results.push(full);
                 }
@@ -57,27 +60,75 @@ jobs:
             } catch (e) {}
             return results;
           }
-          const files = walk('node_modules');
+          const files = [...walk('node_modules'), ...walk('ios')];
+          console.log('Archivos Package.swift encontrados:', files);
           for (const f of files) {
             let content = fs.readFileSync(f, 'utf8');
-            let changed = false;
-            if (/swift-tools-version:\s*6\.2/i.test(content)) {
-              content = content.replace(/swift-tools-version:\s*6\.2(\.\d+)?/gi, 'swift-tools-version: 6.0');
-              changed = true;
-            }
-            if (/602\.0\.0/i.test(content)) {
-              content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1');
-              changed = true;
-            }
-            if (changed) {
+            let original = content;
+
+            // 1. Normalizar swift-tools-version a 6.0
+            content = content.replace(/swift-tools-version:\s*6\.\d+(\.\d+)?/gi, 'swift-tools-version: 6.0');
+
+            // 2. Ajustar swift-syntax a 600.0.1
+            content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1');
+
+            // 3. Eliminar trailing commas antes de ) y ] (incompatibles con Swift 6.0)
+            let prev;
+            do {
+              prev = content;
+              content = content.replace(/,(\s*[\)\]])/g, '\$1');
+            } while (content !== prev);
+
+            if (content !== original) {
               fs.writeFileSync(f, content, 'utf8');
-              console.log('✅ Patched Swift package:', f);
+              console.log('✅ Paquete Swift corregido con éxito:', f);
             }
           }
           "
 
       - name: ⚙️ Generar proyecto nativo iOS (Expo Prebuild)
         run: npx expo prebuild --platform ios --clean
+
+      - name: 🔧 Re-aplicar parche Swift tras prebuild
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          function walk(dir) {
+            let results = [];
+            try {
+              if (!fs.existsSync(dir)) return results;
+              for (const file of fs.readdirSync(dir)) {
+                const full = path.join(dir, file);
+                const stat = fs.statSync(full);
+                if (stat && stat.isDirectory()) {
+                  if (file !== '.git' && file !== '.DerivedData' && file !== '.build') {
+                    results = results.concat(walk(full));
+                  }
+                } else if (file === 'Package.swift') {
+                  results.push(full);
+                }
+              }
+            } catch (e) {}
+            return results;
+          }
+          const files = [...walk('node_modules'), ...walk('ios')];
+          for (const f of files) {
+            let content = fs.readFileSync(f, 'utf8');
+            let original = content;
+            content = content.replace(/swift-tools-version:\s*6\.\d+(\.\d+)?/gi, 'swift-tools-version: 6.0');
+            content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1');
+            let prev;
+            do {
+              prev = content;
+              content = content.replace(/,(\s*[\)\]])/g, '\$1');
+            } while (content !== prev);
+            if (content !== original) {
+              fs.writeFileSync(f, content, 'utf8');
+              console.log('✅ Re-parcheado:', f);
+            }
+          }
+          "
 
       - name: 📦 Instalar CocoaPods
         run: npx pod-install ios

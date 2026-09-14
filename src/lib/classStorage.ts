@@ -318,7 +318,10 @@ export async function processPendingClassActionsQueue(
           continue
         }
 
-        const syncedTask = (data || taskPayload) as ClassTask
+        const syncedTask: ClassTask = {
+          ...((data || taskPayload) as ClassTask),
+          is_pending_sync: false,
+        }
         const cached = await personalStorage.getClassTasksCache()
         const updatedCache = [
           syncedTask,
@@ -327,7 +330,7 @@ export async function processPendingClassActionsQueue(
             return tRaw !== rawId
           }),
         ]
-        await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+        await personalStorage.setClassTasksCache(updatedCache, { notify: true })
         await personalStorage.removePendingClassAction(action.id)
         processed++
       } else if (action.type === 'update' && action.payload) {

@@ -261,11 +261,21 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
+    // 6. Reintento automático en cuanto se detecten acciones pendientes sin necesidad de cambiar de pestaña
+    const retryInterval = setInterval(async () => {
+      if (!isMounted) return
+      const hasPending = await personalStorage.hasPendingClassActions()
+      if (hasPending) {
+        syncClassTasks().catch(() => {})
+      }
+    }, 4000)
+
     return () => {
       isMounted = false
       subscription.unsubscribe()
       supabase.removeChannel(channel)
       appStateSub.remove()
+      clearInterval(retryInterval)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

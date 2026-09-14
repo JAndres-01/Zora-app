@@ -506,6 +506,82 @@ findAndPatchJSIUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-jsi'
 findAndPatchJSIUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
 findAndPatchJSIUtils(path.join(process.cwd(), 'ios', 'Pods'))
 
+// 5.9. Patch RCTAssert.m to intercept RCTFatal and prevent SIGABRT abort() in Release mode
+function patchRCTAssert(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (!content.includes('RCTFatalHandler fatalHandler = RCTGetFatalHandler();')) return
+  const original = content
+
+  if (!content.includes('#import <UIKit/UIKit.h>')) {
+    content = content.replace('#import "RCTAssert.h"', '#import "RCTAssert.h"\n#import <UIKit/UIKit.h>')
+  }
+
+  const oldBlock = /void RCTFatal\(NSError \*error\)[\s\S]*?\n\}/
+  const newBlock = `void RCTFatal(NSError *error)
+{
+  _RCTLogNativeInternal(RCTLogLevelFatal, NULL, 0, @"%@", error.localizedDescription);
+
+  RCTFatalHandler fatalHandler = RCTGetFatalHandler();
+  if (fatalHandler) {
+    fatalHandler(error);
+    return;
+  }
+
+  @try {
+    NSString *message = RCTFormatError(error.localizedDescription, error.userInfo[RCTJSStackTraceKey], -1);
+    NSLog(@"[Zora RCTFatal Intercepted] Prevented SIGABRT crash:\\n%@", message);
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+      UIWindow *window = nil;
+      for (id scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            if (w.isKeyWindow) { window = w; break; }
+          }
+        }
+        if (window) break;
+      }
+      if (!window) window = [UIApplication sharedApplication].keyWindow;
+      UIViewController *rootVC = window.rootViewController;
+      if (rootVC) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Aviso de Zora"
+                                                                       message:message
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Entendido" style:UIAlertActionStyleDefault handler:nil]];
+        [rootVC presentViewController:alert animated:YES completion:nil];
+      }
+    });
+  } @catch (NSException *) {
+  }
+}`
+
+  if (!content.includes('[Zora RCTFatal Intercepted]')) {
+    content = content.replace(oldBlock, newBlock)
+    if (content !== original) {
+      fs.writeFileSync(filePath, content, 'utf8')
+      console.log(`[patch-swift-packages] Successfully patched RCTAssert.m at: ${filePath}`)
+    }
+  }
+}
+
+function findAndPatchRCTAssert(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchRCTAssert(fullPath)
+      }
+    } else if (entry.name === 'RCTAssert.m') {
+      patchRCTAssert(fullPath)
+    }
+  }
+}
+
+findAndPatchRCTAssert(path.join(process.cwd(), 'node_modules', 'react-native'))
+findAndPatchRCTAssert(path.join(process.cwd(), 'ios', 'Pods'))
+
 // 6. build-xcframework.sh
 const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
 if (fs.existsSync(buildXcframeworkScript)) {

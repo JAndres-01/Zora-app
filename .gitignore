@@ -26,3 +26,8 @@ Thumbs.db
 
 # Graphify
 graphify-out/
+
+# Artifacts
+release-artifacts/
+*.ipa
+

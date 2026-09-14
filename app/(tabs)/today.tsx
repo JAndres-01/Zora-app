@@ -173,7 +173,7 @@ export default function TodayScreen() {
   }, [])
 
   const handleTaskSaved = useCallback(
-    (savedTask?: Task | null) => {
+    (savedTask?: Task | null, isNew?: boolean) => {
       if (!savedTask?.id) {
         loadData()
         return
@@ -186,9 +186,9 @@ export default function TodayScreen() {
 
       isSavingTaskRef.current = true
 
-      // Iniciar inserción y resalte al despejar el modal (~80ms)
+      // Iniciar inserción y resalte al despejar el modal (~160ms)
       entranceTimeoutRef.current = setTimeout(() => {
-        LAYOUT_EASE(220)
+        LAYOUT_EASE(260)
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -203,14 +203,14 @@ export default function TodayScreen() {
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
-        }, 80)
-      }, 80)
+        }, 120)
+      }, 160)
 
       // Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
       loadDataTimeoutRef.current = setTimeout(() => {
         isSavingTaskRef.current = false
         loadData()
-      }, 600)
+      }, 800)
     },
     [loadData]
   )
@@ -221,7 +221,7 @@ export default function TodayScreen() {
     async (taskId: string) => {
       cancelTaskReminder(taskId)
       playTrashSound()
-      LAYOUT_EASE(180)
+      LAYOUT_EASE(220)
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
       setActiveTask((prev) => (prev?.id === taskId ? null : prev))
       setTaskModalMode('none')

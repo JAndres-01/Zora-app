@@ -246,7 +246,7 @@ export default function TasksScreen() {
     async (taskId: string) => {
       cancelTaskReminder(taskId)
       playTrashSound()
-      LAYOUT_EASE(180)
+      LAYOUT_EASE(220)
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
       setActiveTask((prev) => (prev?.id === taskId ? null : prev))
       setTaskModalMode('none')
@@ -344,7 +344,7 @@ export default function TasksScreen() {
   }, [])
 
   const handleTaskSaved = useCallback(
-    (savedTask?: Task | null) => {
+    (savedTask?: Task | null, isNew?: boolean) => {
       if (!savedTask?.id) {
         loadData()
         return
@@ -374,12 +374,14 @@ export default function TasksScreen() {
         setSearchQuery('')
       }
 
-      // Desplazar hacia arriba para enfocar la fila
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
+      // Solo desplazar hacia arriba si es una tarea nueva
+      if (isNew) {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+      }
 
-      // 2. Insertar/actualizar la tarea inmediatamente y activar resalte (~80ms)
+      // 2. Insertar/actualizar la tarea cuando el modal se retira (~160ms) para que el deslizamiento sea 100% visible y fluido
       entranceTimeoutRef.current = setTimeout(() => {
-        LAYOUT_EASE(220)
+        LAYOUT_EASE(260)
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -394,14 +396,14 @@ export default function TasksScreen() {
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
-        }, 80)
-      }, 80)
+        }, 120)
+      }, 160)
 
       // 4. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
       loadDataTimeoutRef.current = setTimeout(() => {
         isSavingTaskRef.current = false
         loadData()
-      }, 600)
+      }, 800)
     },
     [loadData, statusFilter, selectedSubjectId, searchQuery]
   )

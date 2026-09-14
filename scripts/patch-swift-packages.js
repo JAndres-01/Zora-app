@@ -687,7 +687,7 @@ extension Task where Failure == any Error {
           /public\s+var\s+rawBaseAddress:\s*UnsafeRawPointer\?\s*\{[\s\S]*?\n  \}/g,
           `public var rawBaseAddress: UnsafeRawPointer? {
     guard count > 0, let start = start, UInt(bitPattern: start) > 0x1000 else { return nil }
-    return start.map { UnsafeRawPointer($0) }
+    return UnsafeRawPointer(start)
   }`
         )
         code = code.replace(

@@ -1,4 +1,4 @@
-name: Build iOS (Sideloadly IPA)
+﻿name: Build iOS (Sideloadly IPA)
 
 on:
   push:
@@ -14,10 +14,10 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: 📥 Checkout del repositorio
+      - name: ðŸ“¥ Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: 🍎 Seleccionar Xcode 16.2
+      - name: ðŸŽ Seleccionar Xcode 16.2
         run: |
           if [ -d "/Applications/Xcode_16.2.app" ]; then
             sudo xcode-select -switch /Applications/Xcode_16.2.app
@@ -29,37 +29,37 @@ jobs:
           echo "Xcode seleccionado:"
           xcodebuild -version
 
-      - name: 🟢 Configurar Node.js (v20)
+      - name: ðŸŸ¢ Configurar Node.js (v20)
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - name: 📦 Instalar dependencias npm
+      - name: ðŸ“¦ Instalar dependencias npm
         run: npm ci
 
-      - name: 🧹 Limpiar artefactos previos de iOS
+      - name: ðŸ§¹ Limpiar artefactos previos de iOS
         run: |
           rm -rf ios/Pods ios/Podfile.lock ios/build build-output
           rm -rf ~/Library/Developer/Xcode/DerivedData/*Zora* 2>/dev/null || true
           rm -rf ~/Library/Caches/CocoaPods 2>/dev/null || true
 
-      - name: 🔧 Parchear compatibilidad Swift / SwiftPM (Xcode 16 / Swift 6.0)
+      - name: ðŸ”§ Parchear compatibilidad Swift / SwiftPM (Xcode 16 / Swift 6.0)
         run: node scripts/patch-swift-packages.js
 
-      - name: ⚙️ Generar proyecto nativo iOS (Expo Prebuild)
+      - name: âš™ï¸ Generar proyecto nativo iOS (Expo Prebuild)
         run: npx expo prebuild --platform ios --clean
 
-      - name: 🔧 Re-aplicar parche Swift tras prebuild
+      - name: ðŸ”§ Re-aplicar parche Swift tras prebuild
         run: node scripts/patch-swift-packages.js
 
-      - name: 📦 Instalar CocoaPods
+      - name: ðŸ“¦ Instalar CocoaPods
         run: npx pod-install ios
 
-      - name: 🔧 Re-aplicar parche Swift tras pod install
+      - name: ðŸ”§ Re-aplicar parche Swift tras pod install
         run: node scripts/patch-swift-packages.js
 
-      - name: 🔍 Detectar Workspace de Xcode
+      - name: ðŸ” Detectar Workspace de Xcode
         id: detect
         run: |
           WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
@@ -69,12 +69,12 @@ jobs:
           echo "Workspace detectado: $WORKSPACE"
           echo "workspace=$WORKSPACE" >> $GITHUB_OUTPUT
 
-      - name: 🔨 Pre-compilar ExpoModulesJSI xcframework
+      - name: ðŸ”¨ Pre-compilar ExpoModulesJSI xcframework
         run: |
           chmod +x ./node_modules/expo-modules-jsi/apple/scripts/*.sh 2>/dev/null || true
           PLATFORM_NAME=iphoneos PODS_ROOT="$GITHUB_WORKSPACE/ios/Pods" ./node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh || true
 
-      - name: 🔨 Compilar iOS App para Dispositivo Físico (Release iphoneos)
+      - name: ðŸ”¨ Compilar iOS App para Dispositivo FÃ­sico (Release iphoneos)
         id: compile
         run: |
           WORKSPACE="${{ steps.detect.outputs.workspace }}"
@@ -90,7 +90,7 @@ jobs:
             -jobs 4 \
             -skipMacroValidation \
             -scmProvider system \
-            OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -strict-concurrency=minimal -Xfrontend -disable-region-based-isolation" \
+            OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -strict-concurrency=minimal" \
             RCT_NO_LAUNCH_PACKAGER=1 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
@@ -101,21 +101,21 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             build 2>&1 | tee xcodebuild.log
 
-      - name: 📋 Diagnóstico detallado de errores en caso de fallo
+      - name: ðŸ“‹ DiagnÃ³stico detallado de errores en caso de fallo
         if: failure()
         run: |
           echo "======================================================================"
-          echo "🔍 BUSCANDO ERRORES EXPLÍCITOS EN EL LOG DE COMPILACIÓN DE XCODE:"
+          echo "ðŸ” BUSCANDO ERRORES EXPLÃCITOS EN EL LOG DE COMPILACIÃ“N DE XCODE:"
           echo "======================================================================"
           if [ -f "xcodebuild.log" ]; then
             grep -i -C 3 "error:" xcodebuild.log || true
             echo "----------------------------------------------------------------------"
-            echo "📄 ÚLTIMAS 150 LÍNEAS DEL LOG:"
+            echo "ðŸ“„ ÃšLTIMAS 150 LÃNEAS DEL LOG:"
             echo "----------------------------------------------------------------------"
             tail -n 150 xcodebuild.log
           fi
 
-      - name: 📦 Empaquetar IPA para Sideloadly (Payload/Zora.app)
+      - name: ðŸ“¦ Empaquetar IPA para Sideloadly (Payload/Zora.app)
         if: success()
         run: |
           mkdir -p build-output/Payload
@@ -125,13 +125,13 @@ jobs:
             cp -r "$APP_PATH" build-output/Payload/
             cd build-output
             zip -r -y Zora.ipa Payload
-            echo "✅ Zora.ipa empaquetado exitosamente para Sideloadly."
+            echo "âœ… Zora.ipa empaquetado exitosamente para Sideloadly."
           else
-            echo "❌ No se encontró Zora.app en Release-iphoneos"
+            echo "âŒ No se encontrÃ³ Zora.app en Release-iphoneos"
             exit 1
           fi
 
-      - name: 📤 Subir Zora.ipa a Artefactos de GitHub
+      - name: ðŸ“¤ Subir Zora.ipa a Artefactos de GitHub
         uses: actions/upload-artifact@v4
         if: success()
         with:

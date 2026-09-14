@@ -150,7 +150,6 @@ export default function TasksScreen() {
   // Handlers de Tareas
   const handleStatusChange = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
-    PANEL_SWITCH_LAYOUT()
     setStatusFilter(newStatus)
   }
 
@@ -246,7 +245,7 @@ export default function TasksScreen() {
     async (taskId: string) => {
       cancelTaskReminder(taskId)
       playTrashSound()
-      LAYOUT_EASE(220)
+      LAYOUT_EASE(180)
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
       setActiveTask((prev) => (prev?.id === taskId ? null : prev))
       setTaskModalMode('none')
@@ -374,14 +373,13 @@ export default function TasksScreen() {
         setSearchQuery('')
       }
 
-      // Solo desplazar hacia arriba si es una tarea nueva
       if (isNew) {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
       }
 
-      // 2. Insertar/actualizar la tarea cuando el modal se retira (~160ms) para que el deslizamiento sea 100% visible y fluido
+      // 2. Insertar/actualizar la tarea con la misma animación de 180ms easeInEaseOut
       entranceTimeoutRef.current = setTimeout(() => {
-        LAYOUT_EASE(260)
+        LAYOUT_EASE(180)
         setTasks((prevTasks) => {
           const exists = prevTasks.some((t) => t.id === savedTask.id)
           if (exists) {
@@ -396,14 +394,14 @@ export default function TasksScreen() {
           highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedTaskId(null)
           }, 1400)
-        }, 120)
-      }, 160)
+        }, 80)
+      }, 50)
 
       // 4. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
       loadDataTimeoutRef.current = setTimeout(() => {
         isSavingTaskRef.current = false
         loadData()
-      }, 800)
+      }, 600)
     },
     [loadData, statusFilter, selectedSubjectId, searchQuery]
   )

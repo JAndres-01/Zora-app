@@ -94,6 +94,8 @@ let package = Package(
         // Enable some upcoming features that improve ergonomics and reduce executor hoppings
         .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
         .enableUpcomingFeature("InferIsolatedConformances"),
+        .enableExperimentalFeature("NonescapableTypes"),
+        .enableExperimentalFeature("IsolatedAny"),
 
         .unsafeFlags([
           "-enable-library-evolution",
@@ -101,6 +103,10 @@ let package = Package(
           "-no-verify-emitted-module-interface",
           "-Xfrontend",
           "-clang-header-expose-decls=has-expose-attr",
+          "-enable-experimental-feature",
+          "NonescapableTypes",
+          "-enable-experimental-feature",
+          "IsolatedAny",
 
           "-Xcc", "-fmodule-map-file=\\(generatedModuleMap)",
           "-Xcc", "-iapinotes-modules",
@@ -432,6 +438,12 @@ if (fs.existsSync(buildXcframeworkScript)) {
   scriptContent = scriptContent.replace(/^\s*-quiet\s*\\?\r?\n/gm, '')
   scriptContent = scriptContent.replace(/-disableAutomaticPackageResolution\s*\\?/g, '')
   scriptContent = scriptContent.replace(/-quiet\s*\\?/g, '')
+  if (!scriptContent.includes('OTHER_SWIFTFLAGS=')) {
+    scriptContent = scriptContent.replace(
+      'CLANG_COVERAGE_MAPPING=NO \\',
+      'CLANG_COVERAGE_MAPPING=NO \\\n    OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny" \\'
+    )
+  }
   // Clean up any empty lines between backslash continuations so bash commands are not prematurely terminated
   scriptContent = scriptContent.replace(/\\\r?\n(\s*\r?\n)+/g, '\\\n')
   fs.writeFileSync(buildXcframeworkScript, scriptContent, 'utf8')

@@ -50,6 +50,10 @@ export default function TabLayout() {
   useEffect(() => {
     let isMounted = true
     const updateData = () => {
+      const cachedTasks = personalStorage.getCachedTasksWithSubjects()
+      const cachedPending = cachedTasks.filter((t) => t.status === 'pending').length
+      setPendingCount(cachedPending)
+
       personalStorage.getTasksWithSubjects().then((tasks) => {
         if (!isMounted) return
         const pending = tasks.filter((t) => t.status === 'pending').length

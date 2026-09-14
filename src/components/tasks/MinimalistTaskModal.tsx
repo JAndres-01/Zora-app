@@ -467,7 +467,7 @@ export function MinimalistTaskModal({
             logger.warn('[MinimalistTaskModal] Error al actualizar clase en segundo plano:', err)
           })
         } else {
-          await personalStorage.saveTask(savedTaskObj, { notify: false })
+          await personalStorage.saveTask(savedTaskObj)
         }
       } else {
         const fullTask: Task = {
@@ -477,7 +477,7 @@ export function MinimalistTaskModal({
           created_at: new Date().toISOString(),
         }
         savedTaskObj = fullTask
-        await personalStorage.saveTask(fullTask, { notify: false })
+        await personalStorage.saveTask(fullTask)
       }
 
       const isNew = mode === 'create'

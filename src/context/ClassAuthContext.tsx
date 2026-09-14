@@ -587,7 +587,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         const tRaw = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
         return tRaw === rawId ? { ...t, ...updatedTask, is_pending_sync: false } : t
       })
-      await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+      await personalStorage.setClassTasksCache(updatedCache, { notify: true })
       setClassTasks(updatedCache)
 
       syncClassTasks().catch(() => {})
@@ -612,7 +612,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (updatedTaskObj) {
-        await personalStorage.setClassTasksCache(updatedCache, { notify: false })
+        await personalStorage.setClassTasksCache(updatedCache, { notify: true })
         setClassTasks(updatedCache)
 
         await personalStorage.addPendingClassAction({

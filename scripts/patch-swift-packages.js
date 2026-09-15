@@ -909,8 +909,23 @@ extension Task where Failure == any Error {
           )
         }
 
-        // Swift 6.2 data race prevention: convert raw pointers to UInt bitPattern before assumeIsolated
-        // 1. getter in createHostObject
+        // Swift 6 data race prevention: convert raw pointers to UInt bitPattern before assumeIsolated
+        // 1. getter in createHostObject (57.0.8)
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*HostObjectContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated[\s\S]*?asJSIValue\(\)\s*\}\s*\}\s*\}/g,
+          `let resultPtrBits = UInt(bitPattern: resultPtr)
+
+      withGuaranteedContext(context) { (context: HostObjectContext, runtime) in
+        JavaScriptActor.assumeIsolated {
+          forwardingSwiftErrorsToJS(runtime: runtime) {
+            let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+            resultPtr.pointee = try context.get(propertyName).asJSIValue()
+          }
+        }
+      }`
+        )
+
+        // 1b. getter in createHostObject (57.1.0)
         code = code.replace(
           /nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr\s*return\s+withGuaranteedContext\(context\)\s*\{\s*\(context:\s*HostObjectContext,\s*runtime\)\s*in\s*return\s+JavaScriptActor\.assumeIsolated\s*\{\s*return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{\s*try\s+context\.get\(propertyName\)\.writeJSIValue\(to:\s*resultPtr\)\s*\}\s*\}\s*\}/g,
           `let resultPtrBits = UInt(bitPattern: resultPtr)
@@ -925,15 +940,35 @@ extension Task where Failure == any Error {
       }`
         )
 
-        // 2. createFunctionClosure (owning)
+        // 2. createFunctionClosure (owning) for 57.0.8
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*HostFunctionContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated[\s\S]*?asJSIValue\(\)\s*\}\s*\}\s*\}/g,
+          `let thisPtrBits = UInt(bitPattern: thisPtr)
+    let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
+    let resultPtrBits = UInt(bitPattern: resultPtr)
+
+    withGuaranteedContext(context) { (context: HostFunctionContext, runtime) in
+      JavaScriptActor.assumeIsolated {
+        forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
+          let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+          let this = UnsafeMutablePointer(mutating: thisPtr).move()
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptValue(runtime, this)
+          resultPtr.pointee = try context.call(thisValue, consume arguments).asJSIValue()
+        }
+      }
+    }`
+        )
+
+        // 2b. createFunctionClosure (owning) for 57.1.0
         code = code.replace(
           /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*HostFunctionContext,\s*runtime\)\s*in\s*return\s+JavaScriptActor\.assumeIsolated\s*\{\s*return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{\s*let\s+this\s*=\s*UnsafeMutablePointer\(mutating:\s*thisPtr\)\.move\(\)\s*let\s+arguments\s*=\s*JavaScriptValuesBuffer\(runtime,\s*start:\s*argumentsPtr,\s*count:\s*argumentsCount\)\s*let\s+thisValue\s*=\s*JavaScriptValue\(runtime,\s*this\)\s*try\s+context\.call\(thisValue,\s*consume\s+arguments\)\.writeJSIValue\(to:\s*resultPtr\)\s*\}\s*\}\s*\}/g,
           `let thisPtrBits = UInt(bitPattern: thisPtr)
     let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
     let resultPtrBits = UInt(bitPattern: resultPtr)
 
-    // See \`withGuaranteedContext\` for why neither the context nor the runtime is retained here, and
-    // why the result is written to the caller's slot instead of being returned.
     return withGuaranteedContext(context) { (context: HostFunctionContext, runtime) in
       return JavaScriptActor.assumeIsolated {
         return forwardingSwiftErrorsToJS(runtime: runtime) {
@@ -949,15 +984,34 @@ extension Task where Failure == any Error {
     }`
         )
 
-        // 3. createFunctionClosure (unowned)
+        // 3. createFunctionClosure (unowned) for 57.0.8
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*UnownedThisHostFunctionContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated[\s\S]*?asJSIValue\(\)\s*\}\s*\}\s*\}/g,
+          `let thisPtrBits = UInt(bitPattern: thisPtr)
+    let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
+    let resultPtrBits = UInt(bitPattern: resultPtr)
+
+    withGuaranteedContext(context) { (context: UnownedThisHostFunctionContext, runtime) in
+      JavaScriptActor.assumeIsolated {
+        forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
+          let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)
+          resultPtr.pointee = try context.call(thisValue, consume arguments).asJSIValue()
+        }
+      }
+    }`
+        )
+
+        // 3b. createFunctionClosure (unowned) for 57.1.0
         code = code.replace(
           /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*UnownedThisHostFunctionContext,\s*runtime\)\s*in\s*return\s+JavaScriptActor\.assumeIsolated\s*\{\s*return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{\s*let\s+arguments\s*=\s*JavaScriptValuesBuffer\(runtime,\s*start:\s*argumentsPtr,\s*count:\s*argumentsCount\)\s*let\s+thisValue\s*=\s*JavaScriptUnownedValue\(runtime\.pointee,\s*thisPtr\)\s*try\s+context\.call\(thisValue,\s*consume\s+arguments\)\.writeJSIValue\(to:\s*resultPtr\)\s*\}\s*\}\s*\}/g,
           `let thisPtrBits = UInt(bitPattern: thisPtr)
     let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
     let resultPtrBits = UInt(bitPattern: resultPtr)
 
-    // See \`withGuaranteedContext\` for why neither the context nor the runtime is retained here, and
-    // why the result is written to the caller's slot instead of being returned.
     return withGuaranteedContext(context) { (context: UnownedThisHostFunctionContext, runtime) in
       return JavaScriptActor.assumeIsolated {
         return forwardingSwiftErrorsToJS(runtime: runtime) {

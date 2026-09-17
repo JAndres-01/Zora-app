@@ -441,6 +441,12 @@ export default function TasksScreen() {
           onOpenSubjectMenu={() => setShowSubjectMenu(true)}
           onResetSubjectFilter={() => setSelectedSubjectId('all')}
           onOpenClassAuth={() => setShowClassAuthModal(true)}
+          onOpenNewTask={() => {
+            triggerHaptic('medium')
+            setActiveTask(null)
+            setTaskModalMode('create')
+          }}
+          isConnected={isConnected}
           pendingCount={pendingCount}
           cardEntranceAnim={cardEntranceAnims[0]}
         />
@@ -460,6 +466,7 @@ export default function TasksScreen() {
     selectedSubjectId,
     statusFilter,
     tasks,
+    isConnected,
     cardEntranceAnims,
   ])
 
@@ -490,94 +497,7 @@ export default function TasksScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen
-        options={{
-          title: 'Tareas',
-          headerShown: true,
-          headerLargeTitleEnabled: Platform.OS === 'ios',
-          headerTransparent: Platform.OS === 'ios',
-          headerShadowVisible: false,
-          headerTintColor: '#FFFFFF',
-          headerStyle: { backgroundColor: '#000000' },
-          headerSearchBarOptions: {
-            placeholder: 'Buscar por tarea o materia...',
-            tintColor: '#FFFFFF',
-            textColor: '#FFFFFF',
-            headerIconColor: '#A1A1AA',
-            hintTextColor: '#71717A',
-            onChangeText: (e) => setSearchQuery(e.nativeEvent.text),
-            onCancelButtonPress: () => setSearchQuery(''),
-            onSearchButtonPress: (e) => setSearchQuery(e.nativeEvent.text),
-            hideWhenScrolling: false,
-          },
-          unstable_headerRightItems:
-            Platform.OS === 'ios'
-              ? () => [
-                  {
-                    type: 'button',
-                    label: 'Nueva',
-                    icon: { type: 'sfSymbol', name: 'plus' },
-                    variant: 'prominent',
-                    onPress: () => {
-                      triggerHaptic('medium')
-                      setActiveTask(null)
-                      setTaskModalMode('create')
-                    },
-                  },
-                  {
-                    type: 'button',
-                    label: 'Filtrar',
-                    icon: { type: 'sfSymbol', name: 'line.3.horizontal.decrease' },
-                    onPress: () => {
-                      triggerHaptic('selection')
-                      setShowSubjectMenu(true)
-                    },
-                  },
-                  {
-                    type: 'button',
-                    label: 'Clase',
-                    icon: { type: 'sfSymbol', name: 'globe' },
-                    onPress: () => {
-                      triggerHaptic('light')
-                      setShowClassAuthModal(true)
-                    },
-                  },
-                ]
-              : undefined,
-          headerRight:
-            Platform.OS !== 'ios'
-              ? () => (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('light')
-                        setShowClassAuthModal(true)
-                      }}
-                      style={[
-                        styles.classIconButton,
-                        isConnected && styles.classIconButtonConnected,
-                      ]}
-                      hitSlop={8}
-                    >
-                      <Globe size={16} color={isConnected ? '#FFFFFF' : '#A1A1AA'} />
-                      {isConnected && <View style={styles.onlineDot} />}
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('medium')
-                        setActiveTask(null)
-                        setTaskModalMode('create')
-                      }}
-                      style={styles.headerAddBtn}
-                      hitSlop={8}
-                    >
-                      <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
-                    </Pressable>
-                  </View>
-                )
-              : undefined,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
@@ -591,14 +511,14 @@ export default function TasksScreen() {
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={renderEmptyComponent}
           style={styles.flatList}
-          contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
+          contentInsetAdjustmentBehavior="never"
           scrollEnabled={isScrollEnabled}
           bounces={true}
           alwaysBounceVertical={true}
           contentContainerStyle={[
             styles.content,
             {
-              paddingTop: Platform.OS === 'ios' ? 8 : Math.max(insets.top, 16) + 4,
+              paddingTop: Math.max(insets.top, 16) + 4,
               paddingBottom: insets.bottom + 90,
             },
           ]}

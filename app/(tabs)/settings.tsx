@@ -306,60 +306,46 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen
-        options={{
-          title: 'Perfil',
-          headerShown: true,
-          headerLargeTitleEnabled: Platform.OS === 'ios',
-          headerTransparent: Platform.OS === 'ios',
-          headerShadowVisible: false,
-          headerTintColor: '#FFFFFF',
-          headerStyle: { backgroundColor: '#000000' },
-          unstable_headerRightItems:
-            Platform.OS === 'ios'
-              ? () => [
-                  {
-                    type: 'button',
-                    label: 'Ajustes',
-                    icon: { type: 'sfSymbol', name: 'gearshape' },
-                    variant: 'plain',
-                    onPress: () => {
-                      triggerHaptic('light')
-                      setShowSettingsModal(true)
-                    },
-                  },
-                ]
-              : undefined,
-          headerRight:
-            Platform.OS !== 'ios'
-              ? () => (
-                  <Pressable
-                    onPress={() => {
-                      triggerHaptic('light')
-                      setShowSettingsModal(true)
-                    }}
-                    hitSlop={8}
-                    style={styles.gearBtn}
-                  >
-                    <SettingsIcon size={18} color="#FFFFFF" />
-                  </Pressable>
-                )
-              : undefined,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
         style={styles.container}
-        contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
+        contentInsetAdjustmentBehavior="never"
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: Platform.OS === 'ios' ? 8 : Math.max(insets.top, 16) + 4,
+            paddingTop: Math.max(insets.top, 16) + 4,
             paddingBottom: Math.max(insets.bottom, 24) + 64,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Cabecera iOS con Large Title y Botón Ajustes */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View style={styles.titleColumn}>
+              <Text style={styles.title}>Perfil</Text>
+              <Text style={styles.subtitle}>Estudiante • Ajustes y estadísticas</Text>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                triggerHaptic('light')
+                setShowSettingsModal(true)
+              }}
+              style={styles.headerSettingsBtn}
+              hitSlop={8}
+            >
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 50 : 85}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+              <SettingsIcon size={16} color="#FFFFFF" strokeWidth={2} />
+            </Pressable>
+          </View>
+        </View>
+
         {/* Card 0: Tarjeta Hero de Perfil */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
           <ProfileHeroCard
@@ -461,17 +447,40 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    gap: 12,
+    gap: 16,
   },
-  gearBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  header: {
+    paddingHorizontal: 2,
+    marginBottom: 4,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  titleColumn: {
+    gap: 2,
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    color: '#71717A',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  headerSettingsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'hidden',
   },
   widgetSectionCard: {

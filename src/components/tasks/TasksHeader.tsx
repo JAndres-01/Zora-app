@@ -1,13 +1,14 @@
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   StyleSheet,
   Animated,
   Platform,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
-import { SlidersHorizontal, ChevronDown } from 'lucide-react-native'
+import { SlidersHorizontal, ChevronDown, Plus, Search, X, Globe } from 'lucide-react-native'
 import type { Subject } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -23,15 +24,26 @@ export interface TasksHeaderProps {
   onOpenSubjectMenu: () => void
   onResetSubjectFilter: () => void
   onOpenClassAuth?: () => void
+  onOpenNewTask?: () => void
+  isConnected?: boolean
   pendingCount?: number
   cardEntranceAnim?: Animated.Value
 }
 
 export function TasksHeader({
+  isSearchActive = false,
+  searchQuery = '',
+  onSearchQueryChange,
+  onOpenSearch,
+  onCloseSearch,
   selectedSubject,
   selectedSubjectId,
   onOpenSubjectMenu,
   onResetSubjectFilter,
+  onOpenClassAuth,
+  onOpenNewTask,
+  isConnected = false,
+  pendingCount = 0,
   cardEntranceAnim,
 }: TasksHeaderProps) {
   const isSelectedWhite = isWhiteColor(selectedSubject?.color)
@@ -62,7 +74,116 @@ export function TasksHeader({
   return (
     <View style={styles.headerContainer}>
       <Animated.View style={card0Style}>
-        {/* no-glass: control inline */}
+        {/* Cabecera Principal con Large Title o Barra de Búsqueda Activa */}
+        {!isSearchActive ? (
+          <View style={styles.headerTopRow}>
+            <View style={styles.titleColumn}>
+              <Text style={styles.title}>Tareas</Text>
+              <Text style={styles.subtitle}>
+                {pendingCount === 1 ? '1 pendiente' : `${pendingCount} pendientes`}
+              </Text>
+            </View>
+
+            <View style={styles.headerActions}>
+              {/* Botón de Búsqueda */}
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  onOpenSearch?.()
+                }}
+                style={styles.iconActionBtn}
+                hitSlop={8}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Search size={15} color="#FFFFFF" strokeWidth={2.2} />
+              </Pressable>
+
+              {/* Botón de Conexión a Clase */}
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  onOpenClassAuth?.()
+                }}
+                style={[
+                  styles.iconActionBtn,
+                  isConnected && styles.iconActionBtnConnected,
+                ]}
+                hitSlop={8}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Globe size={15} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
+                {isConnected && <View style={styles.onlineDot} />}
+              </Pressable>
+
+              {/* Botón de Añadir Nueva Tarea */}
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('medium')
+                  onOpenNewTask?.()
+                }}
+                style={styles.headerAddBtn}
+                hitSlop={8}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
+                <Text style={styles.headerAddBtnText}>Tarea</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.searchActiveRow}>
+            <View style={styles.searchInputContainer}>
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 50 : 85}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+              <Search size={14} color="#71717A" />
+              <TextInput
+                value={searchQuery}
+                onChangeText={onSearchQueryChange}
+                placeholder="Buscar tarea o materia..."
+                placeholderTextColor="#71717A"
+                autoFocus
+                style={styles.searchInput}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <Pressable
+                  onPress={() => onSearchQueryChange?.('')}
+                  hitSlop={8}
+                  style={styles.searchClearBtn}
+                >
+                  <X size={13} color="#A1A1AA" />
+                </Pressable>
+              )}
+            </View>
+
+            <Pressable
+              onPress={() => {
+                triggerHaptic('light')
+                onCloseSearch?.()
+              }}
+              hitSlop={8}
+              style={styles.cancelSearchBtn}
+            >
+              <Text style={styles.cancelSearchText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Botón Desplegable para Filtrar por Materia */}
         <View style={styles.filterButtonRow}>
           <Pressable
@@ -135,6 +256,111 @@ export function TasksHeader({
 const styles = StyleSheet.create({
   headerContainer: {
     marginBottom: 4,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    marginBottom: 12,
+  },
+  titleColumn: {
+    gap: 2,
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    color: '#71717A',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    overflow: 'hidden',
+  },
+  iconActionBtnConnected: {
+    borderColor: 'rgba(52, 199, 89, 0.4)',
+  },
+  onlineDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34C759',
+  },
+  headerAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  headerAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  searchActiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 2,
+    marginBottom: 12,
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 38,
+    overflow: 'hidden',
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  searchClearBtn: {
+    padding: 4,
+  },
+  cancelSearchBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  cancelSearchText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   filterButtonRow: {
     flexDirection: 'row',

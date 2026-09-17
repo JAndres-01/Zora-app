@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'expo-router'
-import { NativeTabs } from 'expo-router/unstable-native-tabs'
+import { NativeBottomTabs } from '@/components/navigation/NativeBottomTabs'
 import { View, StyleSheet } from 'react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import { MinimalistTaskModal } from '@/components/tasks/MinimalistTaskModal'
@@ -61,45 +61,69 @@ export default function TabLayout() {
 
   return (
     <View style={styles.container}>
-      <NativeTabs
-        tintColor="#FFFFFF"
-        iconColor={{
-          default: '#71717A',
-          selected: '#FFFFFF',
+      <NativeBottomTabs
+        screenOptions={{
+          tabBarActiveTintColor: '#FFFFFF',
+          tabBarInactiveTintColor: '#71717A',
+          tabBarBlurEffect: 'systemMaterialDark',
+          tabBarMinimizeBehavior: 'auto',
+          tabBarControllerMode: 'tabBar',
+          headerShown: false,
         }}
-        labelStyle={{
-          default: { color: '#71717A' },
-          selected: { color: '#FFFFFF' },
-        }}
-        minimizeBehavior="automatic"
-        blurEffect="systemMaterialDark"
-        sidebarAdaptable={false}
       >
-        <NativeTabs.Trigger name="today">
-          <NativeTabs.Trigger.Label>Hoy</NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />
-        </NativeTabs.Trigger>
+        <NativeBottomTabs.Screen
+          name="today"
+          options={{
+            title: 'Hoy',
+            tabBarActiveTintColor: '#FFFFFF',
+            tabBarIcon: ({ focused }) => ({
+              type: 'sfSymbol',
+              name: focused ? 'house.fill' : 'house',
+            }),
+          }}
+        />
 
-        <NativeTabs.Trigger name="schedule">
-          <NativeTabs.Trigger.Label>Horario</NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon sf="calendar" />
-        </NativeTabs.Trigger>
+        <NativeBottomTabs.Screen
+          name="schedule"
+          options={{
+            title: 'Horario',
+            tabBarActiveTintColor: '#FFFFFF',
+            tabBarIcon: ({ focused }) => ({
+              type: 'sfSymbol',
+              name: 'calendar',
+            }),
+          }}
+        />
 
-        <NativeTabs.Trigger name="tasks">
-          <NativeTabs.Trigger.Label>Tareas</NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon sf={{ default: 'checkmark.square', selected: 'checkmark.square.fill' }} />
-          {pendingCount > 0 ? (
-            <NativeTabs.Trigger.Badge selectedBackgroundColor="#FFFFFF">
-              {pendingCount.toString()}
-            </NativeTabs.Trigger.Badge>
-          ) : null}
-        </NativeTabs.Trigger>
+        <NativeBottomTabs.Screen
+          name="tasks"
+          options={{
+            title: 'Tareas',
+            tabBarActiveTintColor: '#FFFFFF',
+            tabBarIcon: ({ focused }) => ({
+              type: 'sfSymbol',
+              name: focused ? 'checkmark.square.fill' : 'checkmark.square',
+            }),
+            tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+            tabBarBadgeStyle: {
+              backgroundColor: '#FFFFFF',
+              color: '#09090B',
+            },
+          }}
+        />
 
-        <NativeTabs.Trigger name="settings">
-          <NativeTabs.Trigger.Label>Ajustes</NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
-        </NativeTabs.Trigger>
-      </NativeTabs>
+        <NativeBottomTabs.Screen
+          name="settings"
+          options={{
+            title: 'Ajustes',
+            tabBarActiveTintColor: '#FFFFFF',
+            tabBarIcon: ({ focused }) => ({
+              type: 'sfSymbol',
+              name: focused ? 'gearshape.fill' : 'gearshape',
+            }),
+          }}
+        />
+      </NativeBottomTabs>
 
       {/* Modal reactivo automático para "Compartir con Zora" */}
       <MinimalistTaskModal

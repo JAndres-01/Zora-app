@@ -18,7 +18,7 @@
       "buildNumber": "2",
       "userInterfaceStyle": "dark",
       "infoPlist": {
-        "UIViewControllerBasedStatusBarAppearance": true,
+        "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Zora necesita acceso a la cámara para tomar fotografías de apuntes, tareas o pizarras y adjuntarlas a tus entregas.",
         "NSPhotoLibraryUsageDescription": "Zora necesita acceso a tu galería de fotos para seleccionar imágenes de tareas o cargar tu credencial digital estudiantil."

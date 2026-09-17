@@ -11,7 +11,6 @@ import {
   Alert,
   ScrollView,
   PanResponder,
-  StatusBar,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
@@ -305,7 +304,6 @@ export function MinimalistImageViewerModal({
       onRequestClose={handleClose}
       statusBarTranslucent={true}
     >
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
       <View style={styles.modalRoot}>
         {/* Fondo oscuro dinámico con soporte de opacidad al arrastrar */}
         <Animated.View

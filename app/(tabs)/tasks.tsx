@@ -445,6 +445,7 @@ export default function TasksScreen() {
   const keyExtractor = useCallback((item: Task) => item.id, [])
 
   const renderListHeader = useMemo(() => {
+    const pendingCount = tasks.filter((t) => t.status === 'pending').length
     return (
       <View style={styles.headerContainer}>
         {/* Cabecera y Buscador */}
@@ -462,6 +463,7 @@ export default function TasksScreen() {
           onOpenSubjectMenu={() => setShowSubjectMenu(true)}
           onResetSubjectFilter={() => setSelectedSubjectId('all')}
           onOpenClassAuth={() => setShowClassAuthModal(true)}
+          pendingCount={pendingCount}
           cardEntranceAnim={cardEntranceAnims[0]}
         />
 
@@ -479,6 +481,7 @@ export default function TasksScreen() {
     selectedSubject,
     selectedSubjectId,
     statusFilter,
+    tasks,
     cardEntranceAnims,
   ])
 
@@ -509,43 +512,7 @@ export default function TasksScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen
-        options={{
-          title: 'Tareas',
-          headerShown: true,
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLargeTitleShadowVisible: false,
-          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
-          headerStyle: { backgroundColor: '#000000' },
-          headerShadowVisible: false,
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
-          headerRight: () => (
-            <Pressable
-              onPress={() => setShowClassAuthModal(true)}
-              style={[styles.classIconButton, isConnected && styles.classIconButtonConnected]}
-              hitSlop={8}
-            >
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 50 : 85}
-                tint="dark"
-                style={StyleSheet.absoluteFill}
-              />
-              <Globe size={16} color={isConnected ? '#FFFFFF' : '#71717A'} />
-              {isConnected && <View style={styles.onlineDot} />}
-            </Pressable>
-          ),
-          headerSearchBarOptions: {
-            placeholder: 'Buscar por tarea o materia...',
-            barTintColor: '#000000',
-            textColor: '#FFFFFF',
-            tintColor: '#FFFFFF',
-            hideWhenScrolling: false,
-            onChangeText: (e: any) => setSearchQuery(e.nativeEvent.text),
-            onCancelButtonPress: () => setSearchQuery(''),
-          },
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
@@ -565,7 +532,7 @@ export default function TasksScreen() {
           alwaysBounceVertical={true}
           contentContainerStyle={[
             styles.content,
-            { paddingTop: Platform.OS === 'ios' ? 4 : 12, paddingBottom: insets.bottom + 105 },
+            { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 105 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

@@ -215,54 +215,46 @@ export default function ScheduleScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen
-        options={{
-          title: 'Horario',
-          headerShown: true,
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLargeTitleShadowVisible: false,
-          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
-          headerStyle: { backgroundColor: '#000000' },
-          headerShadowVisible: false,
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
-          headerRight: canEdit
-            ? () => (
-                <Pressable
-                  onPress={() => {
-                    triggerHaptic('light')
-                    setShowSubjectModal(true)
-                  }}
-                  style={styles.manageSubjBtn}
-                  hitSlop={8}
-                >
-                  <BlurView
-                    intensity={Platform.OS === 'ios' ? 50 : 85}
-                    tint="dark"
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <BookOpen size={13} color="#FFFFFF" />
-                  <Text style={styles.manageSubjBtnText}>Materias</Text>
-                </Pressable>
-              )
-            : undefined,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
         style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.content,
-          { paddingTop: Platform.OS === 'ios' ? 4 : 12, paddingBottom: insets.bottom + 90 },
+          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 90 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Subtítulo de semana académica */}
-        <View style={styles.dateHeaderRow}>
-          <Text style={styles.subtitle}>
-            {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
-          </Text>
+        {/* Cabecera iOS con Large Title y Botón Materias */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View style={styles.titleColumn}>
+              <Text style={styles.title}>Horario</Text>
+              <Text style={styles.subtitle}>
+                {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
+              </Text>
+            </View>
+
+            {canEdit && (
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  setShowSubjectModal(true)
+                }}
+                style={styles.manageSubjBtn}
+                hitSlop={8}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <BookOpen size={14} color="#FFFFFF" />
+                <Text style={styles.manageSubjBtnText}>Materias</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
@@ -400,28 +392,31 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 2,
+    marginBottom: 4,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  titleColumn: {
+    gap: 2,
+  },
   title: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
     color: '#71717A',
-    fontSize: 12.5,
-    marginTop: 2,
+    fontSize: 13,
     fontWeight: '500',
   },
   manageSubjBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5.5,
+    gap: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
@@ -432,7 +427,7 @@ const styles = StyleSheet.create({
   },
   manageSubjBtnText: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   segmentedContainer: {

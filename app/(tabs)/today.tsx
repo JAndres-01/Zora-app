@@ -246,18 +246,28 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen
-        options={{
-          title: 'Hoy',
-          headerShown: true,
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLargeTitleShadowVisible: false,
-          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
-          headerStyle: { backgroundColor: '#000000' },
-          headerShadowVisible: false,
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
-          headerRight: () => (
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Confetti Festivo al Completar Tareas */}
+      <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
+
+      <ScrollView
+        style={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 90 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Cabecera iOS con Large Title y Botón + Tarea */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View style={styles.titleColumn}>
+              <Text style={styles.title}>Hoy</Text>
+              <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
+            </View>
+
             <Pressable
               onPress={() => {
                 triggerHaptic('medium')
@@ -275,25 +285,7 @@ export default function TodayScreen() {
               <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
               <Text style={styles.headerAddBtnText}>Tarea</Text>
             </Pressable>
-          ),
-        }}
-      />
-
-      {/* Confetti Festivo al Completar Tareas */}
-      <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
-
-      <ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: Platform.OS === 'ios' ? 4 : 12, paddingBottom: insets.bottom + 90 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Subtítulo con fecha */}
-        <View style={styles.dateHeaderRow}>
-          <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
+          </View>
         </View>
 
         {/* Card 0: Hero Card Dinámica (Clase en Vivo / Próxima) */}
@@ -367,22 +359,25 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 2,
+    marginBottom: 4,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  titleColumn: {
+    gap: 2,
+  },
   title: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
     color: '#71717A',
-    fontSize: 12.5,
-    marginTop: 2,
+    fontSize: 13,
     fontWeight: '500',
   },
   headerAddBtn: {

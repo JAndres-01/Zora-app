@@ -176,16 +176,16 @@ export function useModalAnimation({
     }
   }, [visible, modalVisible, fadeAnim, slideAnim, panY])
 
-  // Gesto PanResponder para arrastrar hacia abajo y cerrar
+  // Gesto PanResponder para arrastrar hacia abajo y cerrar con física iOS
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+        return Math.abs(gestureState.dy) > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
       },
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+        return Math.abs(gestureState.dy) > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
       },
       onPanResponderGrant: () => {
         panY.stopAnimation()
@@ -193,9 +193,11 @@ export function useModalAnimation({
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
+          // Desplazamiento 1:1 hacia abajo para descarte
           panY.setValue(gestureState.dy)
         } else {
-          panY.setValue(0)
+          // Resistencia elástica iOS (rubber-banding) al arrastrar hacia arriba
+          panY.setValue(gestureState.dy * 0.18)
         }
       },
       onPanResponderTerminationRequest: () => false,
@@ -207,8 +209,8 @@ export function useModalAnimation({
         } else {
           Animated.spring(panY, {
             toValue: 0,
-            stiffness: 400,
-            damping: 25,
+            stiffness: 450,
+            damping: 26,
             useNativeDriver: true,
           }).start()
         }
@@ -216,8 +218,8 @@ export function useModalAnimation({
       onPanResponderTerminate: () => {
         Animated.spring(panY, {
           toValue: 0,
-          stiffness: 400,
-          damping: 25,
+          stiffness: 450,
+          damping: 26,
           useNativeDriver: true,
         }).start()
       },

@@ -9,7 +9,7 @@ export default function ModalLayout() {
         sheetAllowedDetents: [0.6, 0.95],
         sheetGrabberVisible: true,
         sheetInitialDetentIndex: 0,
-        sheetCornerRadius: 24,
+        sheetCornerRadius: 28,
         contentStyle: { backgroundColor: '#1C1C1E' },
         headerStyle: { backgroundColor: '#1C1C1E' },
         headerShadowVisible: false,

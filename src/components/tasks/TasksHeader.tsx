@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   Animated,
-  Keyboard,
   Platform,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
@@ -27,6 +26,7 @@ export interface TasksHeaderProps {
   onOpenSubjectMenu: () => void
   onResetSubjectFilter: () => void
   onOpenClassAuth?: () => void
+  pendingCount?: number
   cardEntranceAnim?: Animated.Value
 }
 
@@ -41,6 +41,7 @@ export function TasksHeader({
   onOpenSubjectMenu,
   onResetSubjectFilter,
   onOpenClassAuth,
+  pendingCount = 0,
   cardEntranceAnim,
 }: TasksHeaderProps) {
   const { isConnected } = useClassAuth()
@@ -50,14 +51,14 @@ export function TasksHeader({
 
   useEffect(() => {
     if (isSearchActive) {
-      searchScaleAnim.setValue(0.88)
+      searchScaleAnim.setValue(0.92)
       searchOpacityAnim.setValue(0)
       Animated.parallel([
         Animated.spring(searchScaleAnim, {
           toValue: 1,
           stiffness: 550,
-          damping: 22,
-          mass: 0.7,
+          damping: 24,
+          mass: 0.6,
           useNativeDriver: true,
         }),
         Animated.timing(searchOpacityAnim, {
@@ -69,7 +70,7 @@ export function TasksHeader({
         searchInputRef.current?.focus()
       })
     }
-  }, [isSearchActive])
+  }, [isSearchActive, searchScaleAnim, searchOpacityAnim])
 
   const isSelectedWhite = isWhiteColor(selectedSubject?.color)
 
@@ -83,13 +84,13 @@ export function TasksHeader({
           {
             translateY: cardEntranceAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [-36, 0],
+              outputRange: [-24, 0],
             }),
           },
           {
             scale: cardEntranceAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [0.96, 1],
+              outputRange: [0.97, 1],
             }),
           },
         ],
@@ -98,11 +99,121 @@ export function TasksHeader({
 
   return (
     <View style={styles.headerContainer}>
-      {/* Botón Desplegable para Filtrar por Materia */}
       <Animated.View style={card0Style}>
+        {isSearchActive ? (
+          /* Barra de Búsqueda Interactiva Animada iOS */
+          <Animated.View
+            style={[
+              styles.dynamicSearchContainer,
+              {
+                opacity: searchOpacityAnim,
+                transform: [{ scale: searchScaleAnim }],
+              },
+            ]}
+          >
+            <View style={styles.dynamicSearchInputWrapper}>
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 50 : 85}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+              <Search size={15} color="#A1A1AA" style={styles.searchIcon} />
+              <TextInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChangeText={onSearchQueryChange}
+                placeholder="Buscar por tarea o materia..."
+                placeholderTextColor="#71717A"
+                style={styles.dynamicSearchInput}
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('light')
+                    onSearchQueryChange('')
+                  }}
+                  hitSlop={8}
+                  style={styles.clearSearchBtn}
+                >
+                  <X size={12} color="#FFFFFF" strokeWidth={2.4} />
+                </Pressable>
+              )}
+            </View>
+
+            <Pressable
+              onPress={() => {
+                triggerHaptic('light')
+                onCloseSearch()
+              }}
+              style={styles.cancelSearchBtn}
+              hitSlop={8}
+            >
+              <Text style={styles.cancelSearchText}>Cancelar</Text>
+            </Pressable>
+          </Animated.View>
+        ) : (
+          /* Cabecera Principal con Large Title y Botones de Acción */
+          <View style={styles.headerTop}>
+            <View style={styles.titleColumn}>
+              <Text style={styles.title}>Tareas</Text>
+              <Text style={styles.subtitle}>
+                {pendingCount > 0
+                  ? `${pendingCount} ${pendingCount === 1 ? 'pendiente' : 'pendientes'}`
+                  : 'Todo al día'}
+              </Text>
+            </View>
+
+            <View style={styles.topRightActions}>
+              {/* Botón Feed de Clase */}
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  onOpenClassAuth?.()
+                }}
+                style={[
+                  styles.headerIconBtn,
+                  isConnected && styles.classIconButtonConnected,
+                ]}
+                hitSlop={8}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Globe size={16} color={isConnected ? '#FFFFFF' : '#A1A1AA'} />
+                {isConnected && <View style={styles.onlineDot} />}
+              </Pressable>
+
+              {/* Botón Buscar */}
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  onOpenSearch()
+                }}
+                style={styles.headerIconBtn}
+                hitSlop={8}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Search size={16} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* Botón Desplegable para Filtrar por Materia */}
         <View style={styles.filterButtonRow}>
           <Pressable
-            onPress={onOpenSubjectMenu}
+            onPress={() => {
+              triggerHaptic('selection')
+              onOpenSubjectMenu()
+            }}
             style={[
               styles.subjectDropdownButton,
               selectedSubjectId !== 'all' && {
@@ -145,7 +256,10 @@ export function TasksHeader({
 
           {selectedSubjectId !== 'all' && (
             <Pressable
-              onPress={onResetSubjectFilter}
+              onPress={() => {
+                triggerHaptic('light')
+                onResetSubjectFilter()
+              }}
               style={styles.resetFilterBtn}
             >
               <BlurView
@@ -165,26 +279,27 @@ export function TasksHeader({
 const styles = StyleSheet.create({
   headerContainer: {
     gap: 12,
-    marginBottom: 8,
-  },
-  header: {
-    paddingHorizontal: 2,
+    marginBottom: 4,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    paddingBottom: 10,
+  },
+  titleColumn: {
+    gap: 2,
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
     color: '#71717A',
-    fontSize: 12.5,
-    marginTop: 2,
+    fontSize: 13,
     fontWeight: '500',
   },
   topRightActions: {
@@ -192,7 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  classIconButton: {
+  headerIconBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -205,8 +320,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   classIconButtonConnected: {
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
   },
   onlineDot: {
     position: 'absolute',
@@ -215,23 +330,14 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  searchIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    backgroundColor: '#10B981',
   },
   dynamicSearchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    paddingBottom: 10,
+    paddingHorizontal: 2,
   },
   dynamicSearchInputWrapper: {
     flex: 1,
@@ -251,24 +357,25 @@ const styles = StyleSheet.create({
   dynamicSearchInput: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: 13.5,
+    fontSize: 14,
     paddingVertical: 0,
   },
   clearSearchBtn: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6,
   },
   cancelSearchBtn: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   cancelSearchText: {
-    color: '#A1A1AA',
-    fontSize: 13,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '600',
   },
   filterButtonRow: {
@@ -284,9 +391,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
     overflow: 'hidden',
   },
   dropdownBtnLeft: {
@@ -303,18 +410,18 @@ const styles = StyleSheet.create({
   },
   dropdownBtnText: {
     color: '#71717A',
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '600',
   },
   dropdownBtnTextActive: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   resetFilterBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
@@ -322,7 +429,7 @@ const styles = StyleSheet.create({
   },
   resetFilterText: {
     color: '#A1A1AA',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
   },
   dot: {

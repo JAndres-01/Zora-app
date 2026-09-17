@@ -124,8 +124,8 @@ const styles = StyleSheet.create({
   },
   timeSheetContainer: {
     backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingHorizontal: 20,
     paddingTop: 12,
     borderWidth: 1,
@@ -138,11 +138,11 @@ const styles = StyleSheet.create({
   },
   dragHandle: {
     width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#3F3F46',
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   timeSheetHeader: {
     flexDirection: 'row',

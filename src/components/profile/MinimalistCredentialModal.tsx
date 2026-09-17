@@ -463,9 +463,9 @@ const styles = StyleSheet.create({
   },
   dragHandle: {
     width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#3F3F46',
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
     marginBottom: 12,
   },

@@ -326,18 +326,28 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen
-        options={{
-          title: 'Perfil',
-          headerShown: true,
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLargeTitleShadowVisible: false,
-          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
-          headerStyle: { backgroundColor: '#000000' },
-          headerShadowVisible: false,
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
-          headerRight: () => (
+      <Stack.Screen options={{ headerShown: false }} />
+
+      <ScrollView
+        style={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: Math.max(insets.bottom, 24) + 64,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Cabecera iOS con Large Title y Botón de Ajustes */}
+        <View style={styles.header}>
+          <View style={styles.headerTopRow}>
+            <View style={styles.titleColumn}>
+              <Text style={styles.title}>Perfil</Text>
+              <Text style={styles.subtitle}>Estudiante • Ajustes y estadísticas</Text>
+            </View>
+
             <Animated.View style={{ transform: [{ scale: gearScaleAnim }] }}>
               <Pressable
                 onPress={() => {
@@ -357,22 +367,8 @@ export default function ProfileScreen() {
                 <SettingsIcon size={18} color="#FFFFFF" />
               </Pressable>
             </Animated.View>
-          ),
-        }}
-      />
-
-      <ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Platform.OS === 'ios' ? 4 : 12,
-            paddingBottom: Math.max(insets.bottom, 24) + 64,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
+          </View>
+        </View>
 
         {/* Card 0: Tarjeta Hero de Perfil */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
@@ -479,22 +475,25 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 2,
+    marginBottom: 4,
   },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  titleColumn: {
+    gap: 2,
+  },
   title: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
     color: '#71717A',
-    fontSize: 12.5,
-    marginTop: 2,
+    fontSize: 13,
     fontWeight: '500',
   },
   gearBtn: {

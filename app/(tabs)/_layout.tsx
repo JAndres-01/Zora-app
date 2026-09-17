@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Tabs, usePathname, useRouter } from 'expo-router'
-import { View, StyleSheet, BackHandler } from 'react-native'
-import { MinimalistFloatingIsland, type TabKey } from '@/components/navigation/MinimalistFloatingIsland'
+import { useRouter } from 'expo-router'
+import { NativeTabs } from 'expo-router/unstable-native-tabs'
+import { View, StyleSheet } from 'react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import { MinimalistTaskModal } from '@/components/tasks/MinimalistTaskModal'
 import { useIncomingShareIntent } from '@/lib/useIncomingShareIntent'
@@ -9,7 +9,6 @@ import { useClassAuth } from '@/context/ClassAuthContext'
 import type { Subject } from '@/types/personal'
 
 export default function TabLayout() {
-  const pathname = usePathname()
   const router = useRouter()
   const { isConnected, isLoading } = useClassAuth()
   const [pendingCount, setPendingCount] = useState(() => {
@@ -32,20 +31,6 @@ export default function TabLayout() {
     incomingDescription,
     closeIncomingShareModal,
   } = useIncomingShareIntent()
-
-  const pathnameTab: TabKey = pathname.includes('schedule')
-    ? 'schedule'
-    : pathname.includes('tasks')
-    ? 'tasks'
-    : pathname.includes('settings')
-    ? 'settings'
-    : 'today'
-
-  const [activeTab, setActiveTab] = useState<TabKey>(pathnameTab)
-
-  useEffect(() => {
-    setActiveTab(pathnameTab)
-  }, [pathnameTab])
 
   useEffect(() => {
     let isMounted = true
@@ -74,47 +59,47 @@ export default function TabLayout() {
     }
   }, [])
 
-  // Proteger la navegación en Android para no volver a pantallas de autenticación
-  useEffect(() => {
-    const onBackPress = () => {
-      if (activeTab !== 'today') {
-        handleSelectTab('today')
-        return true
-      }
-      return false
-    }
-    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress)
-    return () => backSubscription.remove()
-  }, [activeTab])
-
-  const handleSelectTab = (tab: TabKey) => {
-    if (tab === activeTab) return
-    setActiveTab(tab)
-    if (tab === 'today') router.navigate('/(tabs)/today')
-    if (tab === 'schedule') router.navigate('/(tabs)/schedule')
-    if (tab === 'tasks') router.navigate('/(tabs)/tasks')
-    if (tab === 'settings') router.navigate('/(tabs)/settings')
-  }
-
   return (
     <View style={styles.container}>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: { display: 'none' }, // Ocultamos la barra nativa para usar nuestra cápsula flotante
+      <NativeTabs
+        tintColor="#FFFFFF"
+        iconColor={{
+          default: '#71717A',
+          selected: '#FFFFFF',
         }}
+        labelStyle={{
+          default: { color: '#71717A' },
+          selected: { color: '#FFFFFF' },
+        }}
+        minimizeBehavior="automatic"
+        blurEffect="systemMaterialDark"
+        sidebarAdaptable={false}
       >
-        <Tabs.Screen name="today" />
-        <Tabs.Screen name="schedule" />
-        <Tabs.Screen name="tasks" />
-        <Tabs.Screen name="settings" />
-      </Tabs>
+        <NativeTabs.Trigger name="today">
+          <NativeTabs.Trigger.Label>Hoy</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />
+        </NativeTabs.Trigger>
 
-      <MinimalistFloatingIsland
-        activeTab={activeTab}
-        onSelectTab={handleSelectTab}
-        pendingTasksCount={pendingCount}
-      />
+        <NativeTabs.Trigger name="schedule">
+          <NativeTabs.Trigger.Label>Horario</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="calendar" />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="tasks">
+          <NativeTabs.Trigger.Label>Tareas</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={{ default: 'checkmark.square', selected: 'checkmark.square.fill' }} />
+          {pendingCount > 0 ? (
+            <NativeTabs.Trigger.Badge selectedBackgroundColor="#FFFFFF">
+              {pendingCount.toString()}
+            </NativeTabs.Trigger.Badge>
+          ) : null}
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="settings">
+          <NativeTabs.Trigger.Label>Ajustes</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
+        </NativeTabs.Trigger>
+      </NativeTabs>
 
       {/* Modal reactivo automático para "Compartir con Zora" */}
       <MinimalistTaskModal
@@ -137,3 +122,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#09090B',
   },
 })
+
+

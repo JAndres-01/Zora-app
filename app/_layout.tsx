@@ -1,52 +1,134 @@
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, type ReactNode } from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { PersonalAuthProvider } from '@/context/PersonalAuthContext'
 import { ClassAuthProvider } from '@/context/ClassAuthContext'
-import { StyleSheet, Platform } from 'react-native'
+import { StyleSheet, Platform, View, Text, Alert } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { personalStorage } from '@/lib/personalStorage'
 import { setupNotificationInfrastructure } from '@/lib/personalNotifications'
 import { preloadAllAudio } from '@/lib/personalAudio'
 import { logger } from '@/lib/logger'
 
-// Retener el Splash Screen nativo hasta que los datos estén 100% listos en memoria
-SplashScreen.preventAutoHideAsync().catch(() => {})
+// Retener el Splash Screen nativo de forma segura con protección de excepciones
+try {
+  SplashScreen.preventAutoHideAsync().catch(() => {})
+} catch {}
+
+// Configurar captura global de errores de JS para evitar que escalen a abort() nativo
+if (typeof (globalThis as any).ErrorUtils !== 'undefined') {
+  const originalHandler = (globalThis as any).ErrorUtils.getGlobalHandler?.()
+  ;(globalThis as any).ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+    logger.error('[GlobalErrorHandler]', error)
+    if (isFatal) {
+      const msg = error?.message || (typeof error === 'string' ? error : 'Error inesperado al inicializar la app')
+      Alert.alert('Aviso de Zora', msg, [{ text: 'Continuar' }])
+    }
+    if (originalHandler) {
+      // Siempre forzar isFatal a false para que el runtime nativo no invoque abort()
+      originalHandler(error, false)
+    }
+  })
+}
+
+interface ErrorBoundaryProps {
+  children: ReactNode
+}
+interface ErrorBoundaryState {
+  hasError: boolean
+  error: Error | null
+}
+
+class RootErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    logger.error('[RootErrorBoundary] Error de renderizado:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Error al iniciar Zora</Text>
+          <Text style={styles.errorMessage}>
+            {this.state.error?.message || 'Ocurrió un error inesperado al renderizar la interfaz.'}
+          </Text>
+        </View>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false)
 
   useEffect(() => {
+    // Timeout de seguridad: asegura que la interfaz monte en máximo 800ms incluso si el storage o nativo demoran
+    const fallbackTimer = setTimeout(() => {
+      setAppIsReady(true)
+    }, 800)
+
     async function prepare() {
       try {
-        // Inicializar infraestructura de notificaciones de forma controlada
-        setupNotificationInfrastructure()
-        // Precarga ultrarrápida en memoria (~100-200ms)
-        await personalStorage.preloadAll()
-        // Precargar sistema de audio nativo
-        preloadAllAudio().catch(() => {})
+        // 1. Inicializar infraestructura de notificaciones
+        try {
+          setupNotificationInfrastructure()
+        } catch (e) {
+          logger.warn('[RootLayout] Notificaciones omitidas:', e)
+        }
+
+        // 2. Precarga ultrarrápida en memoria
+        try {
+          await personalStorage.preloadAll()
+        } catch (e) {
+          logger.warn('[RootLayout] Preload storage omitido:', e)
+        }
+
+        // 3. Precargar sistema de audio nativo
+        try {
+          await preloadAllAudio()
+        } catch (e) {
+          logger.warn('[RootLayout] Audio preload omitido:', e)
+        }
       } catch (e) {
-        logger.warn('[RootLayout] Error precargando datos:', e)
+        logger.warn('[RootLayout] Error en prepare:', e)
       } finally {
         setAppIsReady(true)
+        clearTimeout(fallbackTimer)
       }
     }
 
     prepare()
+
+    return () => {
+      clearTimeout(fallbackTimer)
+    }
   }, [])
 
   useEffect(() => {
     if (appIsReady) {
-      SplashScreen.hideAsync().catch(() => {})
+      try {
+        SplashScreen.hideAsync().catch(() => {})
+      } catch {}
     }
   }, [appIsReady])
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
-      // Ocultar suavemente el Splash Screen nativo una vez montada la UI
-      await SplashScreen.hideAsync().catch(() => {})
+      try {
+        await SplashScreen.hideAsync().catch(() => {})
+      } catch {}
     }
   }, [appIsReady])
 
@@ -55,36 +137,57 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
-      <SafeAreaProvider>
-        <PersonalAuthProvider>
-          <ClassAuthProvider>
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'fade',
-                contentStyle: { backgroundColor: '#09090B' },
-                gestureEnabled: false,
-              }}
-            >
-              <Stack.Screen name="index" options={{ gestureEnabled: false }} />
-              <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
-              <Stack.Screen name="auth" options={{ animation: 'fade', gestureEnabled: false }} />
-              <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
-            </Stack>
-          </ClassAuthProvider>
-        </PersonalAuthProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <RootErrorBoundary>
+      <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
+        <SafeAreaProvider>
+          <PersonalAuthProvider>
+            <ClassAuthProvider>
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'fade',
+                  contentStyle: { backgroundColor: '#09090B' },
+                  gestureEnabled: false,
+                }}
+              >
+                <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+                <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
+                <Stack.Screen name="auth" options={{ animation: 'fade', gestureEnabled: false }} />
+                <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
+              </Stack>
+            </ClassAuthProvider>
+          </PersonalAuthProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </RootErrorBoundary>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    height: Platform.OS === 'web' ? '100vh' as any : '100%',
+    height: Platform.OS === 'web' ? ('100vh' as any) : '100%',
     width: '100%',
     backgroundColor: '#09090B',
+  },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#09090B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorTitle: {
+    color: '#F43F5E',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  errorMessage: {
+    color: '#A1A1AA',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 })

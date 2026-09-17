@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.zora.app",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "userInterfaceStyle": "dark",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": true,
@@ -26,7 +26,7 @@
     },
     "android": {
       "package": "com.zora.app",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#09090b"
@@ -60,27 +60,11 @@
           "color": "#09090b"
         }
       ],
-      [
-        "expo-share-intent",
-        {
-          "iosAppGroupIdentifier": "group.com.zora.app",
-          "androidIntentFilters": [
-            "text/*",
-            "image/*",
-            "*/*"
-          ],
-          "androidMultiIntentFilters": [
-            "image/*",
-            "*/*"
-          ]
-        }
-      ],
       "@react-native-community/datetimepicker",
       "expo-sharing",
       "expo-splash-screen",
       "expo-status-bar",
       "expo-asset",
-      "./plugins/withZoraWidget",
       "expo-audio"
     ],
     "extra": {

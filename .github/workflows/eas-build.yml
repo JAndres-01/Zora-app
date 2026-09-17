@@ -1,0 +1,48 @@
+name: EAS Cloud Build (iOS & Android)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Plataforma para EAS Build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'android'
+          - 'ios'
+      profile:
+        description: 'Perfil de EAS Build'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - 'preview'
+          - 'preview-simulator'
+          - 'production'
+
+jobs:
+  eas-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: 🟢 Configurar Node.js (v20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 🚀 Configurar EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Instalar dependencias
+        run: npm ci
+
+      - name: 🔨 Disparar EAS Build
+        run: eas build --platform ${{ github.event.inputs.platform }} --profile ${{ github.event.inputs.profile }} --non-interactive

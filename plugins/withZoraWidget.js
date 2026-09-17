@@ -130,6 +130,7 @@ const withZoraWidget = (config) => {
         bs.PRODUCT_BUNDLE_IDENTIFIER = `"${widgetBundleId}"`
         bs.SWIFT_VERSION = '5.0'
         bs.TARGETED_DEVICE_FAMILY = '"1,2"'
+        bs.IPHONEOS_DEPLOYMENT_TARGET = '16.0'
         bs.SKIP_INSTALL = 'YES'
         if (devTeam) {
           bs.DEVELOPMENT_TEAM = devTeam

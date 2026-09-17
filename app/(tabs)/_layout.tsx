@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'expo-router'
-import { NativeBottomTabs } from '@/components/navigation/NativeBottomTabs'
+import { NativeTabs } from 'expo-router/unstable-native-tabs'
 import { View, StyleSheet } from 'react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import { MinimalistTaskModal } from '@/components/tasks/MinimalistTaskModal'
@@ -16,14 +16,12 @@ export default function TabLayout() {
   })
   const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
 
-  // Si no está autenticado y ya terminó de cargar, redirigir a /auth
   useEffect(() => {
     if (!isLoading && !isConnected) {
       router.replace('/auth')
     }
   }, [isLoading, isConnected, router])
 
-  // Integración "Compartir con Zora" (Share Extension / Send Intent)
   const {
     isShareModalOpen,
     incomingAttachments,
@@ -61,69 +59,38 @@ export default function TabLayout() {
 
   return (
     <View style={styles.container}>
-      <NativeBottomTabs
-        screenOptions={{
-          tabBarActiveTintColor: '#FFFFFF',
-          tabBarInactiveTintColor: '#71717A',
-          tabBarBlurEffect: 'systemMaterialDark',
-          tabBarMinimizeBehavior: 'auto',
-          tabBarControllerMode: 'tabBar',
-          headerShown: false,
-        }}
+      <NativeTabs
+        tintColor="#FFFFFF"
+        blurEffect="systemMaterialDark"
+        minimizeBehavior="automatic"
       >
-        <NativeBottomTabs.Screen
-          name="today"
-          options={{
-            title: 'Hoy',
-            tabBarActiveTintColor: '#FFFFFF',
-            tabBarIcon: ({ focused }) => ({
-              type: 'sfSymbol',
-              name: focused ? 'house.fill' : 'house',
-            }),
-          }}
-        />
+        {/* Hoy */}
+        <NativeTabs.Trigger name="today">
+          <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />
+          <NativeTabs.Trigger.Label>Hoy</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
 
-        <NativeBottomTabs.Screen
-          name="schedule"
-          options={{
-            title: 'Horario',
-            tabBarActiveTintColor: '#FFFFFF',
-            tabBarIcon: ({ focused }) => ({
-              type: 'sfSymbol',
-              name: 'calendar',
-            }),
-          }}
-        />
+        {/* Horario */}
+        <NativeTabs.Trigger name="schedule">
+          <NativeTabs.Trigger.Icon sf="calendar" />
+          <NativeTabs.Trigger.Label>Horario</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
 
-        <NativeBottomTabs.Screen
-          name="tasks"
-          options={{
-            title: 'Tareas',
-            tabBarActiveTintColor: '#FFFFFF',
-            tabBarIcon: ({ focused }) => ({
-              type: 'sfSymbol',
-              name: focused ? 'checkmark.square.fill' : 'checkmark.square',
-            }),
-            tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
-            tabBarBadgeStyle: {
-              backgroundColor: '#FFFFFF',
-              color: '#09090B',
-            },
-          }}
-        />
+        {/* Tareas */}
+        <NativeTabs.Trigger name="tasks">
+          <NativeTabs.Trigger.Icon sf={{ default: 'checkmark.square', selected: 'checkmark.square.fill' }} />
+          <NativeTabs.Trigger.Label>Tareas</NativeTabs.Trigger.Label>
+          {pendingCount > 0 && (
+            <NativeTabs.Trigger.Badge>{`${pendingCount}`}</NativeTabs.Trigger.Badge>
+          )}
+        </NativeTabs.Trigger>
 
-        <NativeBottomTabs.Screen
-          name="settings"
-          options={{
-            title: 'Ajustes',
-            tabBarActiveTintColor: '#FFFFFF',
-            tabBarIcon: ({ focused }) => ({
-              type: 'sfSymbol',
-              name: focused ? 'gearshape.fill' : 'gearshape',
-            }),
-          }}
-        />
-      </NativeBottomTabs>
+        {/* Ajustes */}
+        <NativeTabs.Trigger name="settings">
+          <NativeTabs.Trigger.Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
+          <NativeTabs.Trigger.Label>Ajustes</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
 
       {/* Modal reactivo automático para "Compartir con Zora" */}
       <MinimalistTaskModal
@@ -146,5 +113,3 @@ const styles = StyleSheet.create({
     backgroundColor: '#09090B',
   },
 })
-
-

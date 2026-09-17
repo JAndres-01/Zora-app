@@ -668,7 +668,7 @@ export function MinimalistTaskModal({
                     style={styles.saveHeaderBtn}
                   >
                     {saveLoading ? (
-                      <ActivityIndicator size="small" color="#09090B" />
+                      <ActivityIndicator size="small" color="#000000" />
                     ) : (
                       <Text style={styles.saveHeaderBtnText}>Guardar</Text>
                     )}
@@ -930,11 +930,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#0F0F13',
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.09)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     maxHeight: '92%',
   },
   dragHandle: {
@@ -949,7 +949,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: 'transparent',
+    backgroundColor: '#1C1C1E',
     position: 'relative',
   },
   headerRow: {
@@ -977,7 +977,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   saveHeaderBtnText: {
-    color: '#09090B',
+    color: '#000000',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -1018,9 +1018,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 8.5,
     borderRadius: 13,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   attrPillActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
@@ -1039,9 +1039,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },

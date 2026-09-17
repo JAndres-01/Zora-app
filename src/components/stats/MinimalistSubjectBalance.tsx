@@ -380,11 +380,11 @@ export function MinimalistSubjectBalance() {
 
 const styles = StyleSheet.create({
   cardWrapper: {
-    backgroundColor: '#121215',
+    backgroundColor: '#000000',
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1E1E24',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 14,
   },
   headerRow: {
@@ -410,11 +410,11 @@ const styles = StyleSheet.create({
   scopeToggleContainer: {
     flexDirection: 'row',
     position: 'relative',
-    backgroundColor: '#18181B',
+    backgroundColor: '#000000',
     borderRadius: 12,
     padding: 2,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     width: TOGGLE_WIDTH * 2 + 4,
   },
   activePill: {
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     left: 2,
     width: TOGGLE_WIDTH,
     bottom: 2,
-    backgroundColor: '#27272A',
+    backgroundColor: '#1C1C1E',
     borderRadius: 10,
   },
   scopeButton: {
@@ -452,12 +452,12 @@ const styles = StyleSheet.create({
   segmentedBarTrack: {
     height: 8,
     borderRadius: 999,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     flexDirection: 'row',
     overflow: 'hidden',
     gap: 2,
     borderWidth: 1,
-    borderColor: '#1E1E22',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   segmentedBarItem: {
     height: '100%',
@@ -514,11 +514,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#1E1E22',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   emptyText: {
     fontSize: 12,

@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   segmentedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(24, 24, 27, 0.7)',
+    backgroundColor: '#000000',
     borderRadius: 14,
     padding: 3,
     position: 'relative',
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   segmentButtonTextActive: {
-    color: '#09090B',
+    color: '#000000',
     fontWeight: '800',
   },
 })

@@ -64,7 +64,7 @@ const TimelineTaskLine = memo(function TimelineTaskLine({
           hitSlop={8}
           style={[styles.microCheckbox, isDone && styles.microCheckboxDone]}
         >
-          {isDone && <Check size={8} color="#09090B" strokeWidth={3.8} />}
+          {isDone && <Check size={8} color="#000000" strokeWidth={3.8} />}
         </Pressable>
       </Animated.View>
 

@@ -125,7 +125,7 @@ export function MinimalistPdfViewerModal({
                 En Android, los documentos PDF se abren directamente con el visor nativo de tu dispositivo (Google Drive o visor del sistema).
               </Text>
               <Pressable onPress={handleShare} style={styles.androidOpenBtn}>
-                <Share2 size={15} color="#09090B" />
+                <Share2 size={15} color="#000000" />
                 <Text style={styles.androidOpenBtnText}>Abrir en Visor del Sistema</Text>
               </Pressable>
             </View>
@@ -157,7 +157,7 @@ export function MinimalistPdfViewerModal({
                     Pulsa abrir para visualizar este documento con la aplicación del sistema.
                   </Text>
                   <Pressable onPress={handleShare} style={styles.androidOpenBtn}>
-                    <Share2 size={15} color="#09090B" />
+                    <Share2 size={15} color="#000000" />
                     <Text style={styles.androidOpenBtnText}>Abrir Documento</Text>
                   </Pressable>
                 </View>
@@ -173,7 +173,7 @@ export function MinimalistPdfViewerModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#1C1C1E',
   },
   header: {
     flexDirection: 'row',
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: '#09090B',
+    backgroundColor: '#1C1C1E',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -224,7 +224,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#2C2C2E',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -232,21 +234,23 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#2C2C2E',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   webviewContainer: {
     flex: 1,
-    backgroundColor: '#18181B',
+    backgroundColor: '#1C1C1E',
   },
   webview: {
     flex: 1,
-    backgroundColor: '#18181B',
+    backgroundColor: '#1C1C1E',
   },
   loadingBox: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#09090B',
+    backgroundColor: '#1C1C1E',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
@@ -258,7 +262,7 @@ const styles = StyleSheet.create({
   },
   androidFallbackBox: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#09090B',
+    backgroundColor: '#1C1C1E',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -306,7 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   androidOpenBtnText: {
-    color: '#09090B',
+    color: '#000000',
     fontSize: 13.5,
     fontWeight: '700',
   },

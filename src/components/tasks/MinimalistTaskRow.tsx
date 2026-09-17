@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   glowWrapper: {
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     borderRadius: 14,
     paddingHorizontal: 8,
     position: 'relative',
@@ -882,8 +882,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   rowBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   contentArea: {
     flex: 1,

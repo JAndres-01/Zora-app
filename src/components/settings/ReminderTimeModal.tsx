@@ -99,7 +99,7 @@ export function ReminderTimeModal({
                   </View>
                   {isSelected && (
                     <View style={styles.selectedCheck}>
-                      <Check size={14} color="#09090B" strokeWidth={3} />
+                      <Check size={14} color="#000000" strokeWidth={3} />
                     </View>
                   )}
                 </Pressable>
@@ -123,13 +123,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
   },
   timeSheetContainer: {
-    backgroundColor: '#121214',
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     paddingHorizontal: 20,
     paddingTop: 12,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   headerPanArea: {
     paddingTop: 4,
@@ -165,9 +165,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#18181B',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -178,9 +178,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#18181B',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,

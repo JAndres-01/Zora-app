@@ -292,10 +292,10 @@ export function MinimalistActivityHeatmap() {
 
 const styles = StyleSheet.create({
   cardWrapper: {
-    backgroundColor: '#121215',
+    backgroundColor: '#000000',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1E1E24',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: 16,
   },
   headerRow: {
@@ -318,10 +318,10 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181B',
+    backgroundColor: '#000000',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: 2,
     position: 'relative',
     width: 164,
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     left: 2,
     width: 80,
     bottom: 2,
-    backgroundColor: '#27272A',
+    backgroundColor: '#1C1C1E',
     borderRadius: 10,
   },
   tabButton: {
@@ -340,11 +340,11 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
+    zIndex: 2,
   },
   tabButtonText: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 11.5,
+    fontWeight: '600',
     color: '#71717A',
   },
   tabButtonTextActive: {
@@ -352,10 +352,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   gridOuterBox: {
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#18181B',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingVertical: 12,
     paddingHorizontal: 8,
   },
@@ -440,10 +440,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#18181B',
+    backgroundColor: '#1C1C1E',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     paddingVertical: 7,
     paddingHorizontal: 10,
     marginTop: 10,
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#18181B',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   summaryBadge: {
     flexDirection: 'row',

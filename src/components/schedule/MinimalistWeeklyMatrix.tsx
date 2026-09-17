@@ -300,11 +300,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   dayHeaderTextToday: {
-    color: '#09090B',
+    color: '#000000',
     fontWeight: '800',
   },
   todayIndicator: {
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 5,
@@ -337,14 +337,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   slotCardFilled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.035)',
+    backgroundColor: '#000000',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   slotCardEmpty: {
-    backgroundColor: 'rgba(255, 255, 255, 0.015)',
+    backgroundColor: '#000000',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },

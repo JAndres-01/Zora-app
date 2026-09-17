@@ -147,7 +147,7 @@ export default function RootLayout() {
                 screenOptions={{
                   headerShown: false,
                   animation: 'fade',
-                  contentStyle: { backgroundColor: '#09090B' },
+                  contentStyle: { backgroundColor: '#000000' },
                   gestureEnabled: false,
                 }}
               >
@@ -169,11 +169,11 @@ const styles = StyleSheet.create({
     flex: 1,
     height: Platform.OS === 'web' ? ('100vh' as any) : '100%',
     width: '100%',
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,

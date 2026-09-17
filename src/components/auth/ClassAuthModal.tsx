@@ -171,13 +171,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
   },
   sheetContainer: {
-    backgroundColor: '#121214',
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     paddingHorizontal: 22,
     paddingTop: 12,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   headerPanArea: {
     paddingTop: 4,
@@ -235,18 +235,18 @@ const styles = StyleSheet.create({
   },
   fieldDivider: {
     height: 1,
-    backgroundColor: '#27272A',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#18181B',
+    backgroundColor: '#2C2C2E',
     borderRadius: 14,
     paddingVertical: 13,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginTop: 4,
   },
   signOutBtnText: {

@@ -345,7 +345,7 @@ export function DynamicSplashScreen({
               <RadialGradient id="cinematicAtmosphere" cx="50%" cy="50%" r="55%">
                 <Stop offset="0%" stopColor="#818CF8" stopOpacity="0.14" />
                 <Stop offset="45%" stopColor="#6366F1" stopOpacity="0.04" />
-                <Stop offset="100%" stopColor="#09090B" stopOpacity="0" />
+                <Stop offset="100%" stopColor="#000000" stopOpacity="0" />
               </RadialGradient>
             </Defs>
             <Rect x="0" y="0" width="100%" height="100%" fill="url(#cinematicAtmosphere)" />
@@ -378,7 +378,7 @@ export function DynamicSplashScreen({
                   <Stop offset="0%" stopColor="#818CF8" stopOpacity="0.18" />
                   <Stop offset="40%" stopColor="#6366F1" stopOpacity="0.06" />
                   <Stop offset="75%" stopColor="#4338CA" stopOpacity="0.01" />
-                  <Stop offset="100%" stopColor="#09090B" stopOpacity="0" />
+                  <Stop offset="100%" stopColor="#000000" stopOpacity="0" />
                 </RadialGradient>
               </Defs>
               <Ellipse cx="140" cy="90" rx="130" ry="70" fill="url(#envWashGlow)" />
@@ -439,7 +439,7 @@ export function DynamicSplashScreen({
                   <Stop offset="20%" stopColor="#E0E7FF" stopOpacity="0.85" />
                   <Stop offset="45%" stopColor="#A5B4FC" stopOpacity="0.50" />
                   <Stop offset="75%" stopColor="#6366F1" stopOpacity="0.15" />
-                  <Stop offset="100%" stopColor="#09090B" stopOpacity="0" />
+                  <Stop offset="100%" stopColor="#000000" stopOpacity="0" />
                 </RadialGradient>
                 {/* Núcleo especular blanco incandescente */}
                 <RadialGradient id="specularCoreGlow" cx="50%" cy="50%" rx="25%" ry="50%">
@@ -477,7 +477,7 @@ export function DynamicSplashScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },

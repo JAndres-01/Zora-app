@@ -158,7 +158,7 @@ export function TaskDatePicker({
           >
             <GraduationCap
               size={13.5}
-              color={datePickerTab === 'class' ? '#09090B' : '#A1A1AA'}
+              color={datePickerTab === 'class' ? '#000000' : '#A1A1AA'}
             />
             <Text
               style={[
@@ -180,7 +180,7 @@ export function TaskDatePicker({
           >
             <Calendar
               size={13.5}
-              color={datePickerTab === 'manual' ? '#09090B' : '#A1A1AA'}
+              color={datePickerTab === 'manual' ? '#000000' : '#A1A1AA'}
             />
             <Text
               style={[
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   segmentButtonTextActive: {
-    color: '#09090B',
+    color: '#000000',
     fontWeight: '800',
   },
   classPickerContainer: {
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dayPillTextActive: {
-    color: '#09090B',
+    color: '#000000',
     fontWeight: '800',
   },
   dayPillTextToday: {
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   todayDotActive: {
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
   blocksList: {
     paddingHorizontal: 2,
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   nativePickerBox: {
-    backgroundColor: '#18181B',
+    backgroundColor: '#2C2C2E',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   dateOptionDoneText: {
-    color: '#09090B',
+    color: '#000000',
     fontSize: 12,
     fontWeight: '800',
   },

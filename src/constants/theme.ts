@@ -5,17 +5,18 @@ export const WHITE_DOT_BORDER = {
 
 export const THEME_COLORS = {
   bg: {
-    primary: '#09090B',
-    card: '#121216',
-    cardSubtle: '#18181D',
-    sheet: '#0E0E12',
-    input: '#1C1C22',
+    primary: '#000000',
+    card: '#000000',
+    cardSubtle: '#000000',
+    sheet: '#1C1C1E',
+    input: '#2C2C2E',
+    floating: '#1C1C1E',
   },
   text: {
     primary: '#FFFFFF',
     secondary: '#A1A1AA',
     muted: '#71717A',
-    inverted: '#09090B',
+    inverted: '#000000',
   },
   border: {
     subtle: 'rgba(255, 255, 255, 0.08)',

@@ -283,7 +283,7 @@ export function MinimalistSubjectModal({
                     style={styles.saveHeaderBtn}
                   >
                     {loading ? (
-                      <ActivityIndicator size="small" color="#09090B" />
+                      <ActivityIndicator size="small" color="#000000" />
                     ) : (
                       <Text style={styles.saveHeaderBtnText}>
                         {editingSubject ? 'Guardar' : 'Añadir'}
@@ -337,7 +337,7 @@ export function MinimalistSubjectModal({
                     {isSelected && (
                       <Check
                         size={11}
-                        color={isWhite ? '#09090B' : '#FFFFFF'}
+                        color={isWhite ? '#000000' : '#FFFFFF'}
                         strokeWidth={3}
                       />
                     )}
@@ -425,18 +425,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#0E0E11',
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.09)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     maxHeight: SCREEN_HEIGHT * 0.65,
   },
   sheetHeader: {
     paddingTop: 8,
     paddingBottom: 10,
     paddingHorizontal: 16,
-    backgroundColor: 'transparent',
+    backgroundColor: '#1C1C1E',
   },
   dragHandle: {
     width: 32,
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   saveHeaderBtnText: {
-    color: '#09090B',
+    color: '#000000',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -557,10 +557,10 @@ const styles = StyleSheet.create({
   },
   subjectRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   subjectRowEditing: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#2C2C2E',
     borderRadius: 8,
     paddingHorizontal: 6,
   },

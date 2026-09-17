@@ -159,7 +159,7 @@ export function MinimalistDayTasksModal({
                         style={styles.checkboxArea}
                       >
                         <View style={[styles.checkbox, isDone && styles.checkboxDone]}>
-                          {isDone && <Check size={10} color="#09090B" strokeWidth={3.5} />}
+                          {isDone && <Check size={10} color="#000000" strokeWidth={3.5} />}
                         </View>
                       </Pressable>
 
@@ -238,18 +238,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#0E0E11',
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.09)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     maxHeight: SCREEN_HEIGHT * 0.75,
   },
   sheetHeader: {
     paddingTop: 12,
     paddingBottom: 14,
     paddingHorizontal: 20,
-    backgroundColor: 'transparent',
+    backgroundColor: '#1C1C1E',
   },
   dragHandle: {
     width: 36,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   countBadgeText: {
-    color: '#09090B',
+    color: '#000000',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   },
   taskItemRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   checkboxArea: {
     padding: 2,

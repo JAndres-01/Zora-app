@@ -255,8 +255,8 @@ export default function WelcomeScreen() {
           <Svg width="100%" height="100%">
             <Defs>
               <LinearGradient id="topFade" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor="#09090B" stopOpacity="1" />
-                <Stop offset="100%" stopColor="#09090B" stopOpacity="0" />
+                <Stop offset="0%" stopColor="#000000" stopOpacity="1" />
+                <Stop offset="100%" stopColor="#000000" stopOpacity="0" />
               </LinearGradient>
             </Defs>
             <Rect x="0" y="0" width="100%" height="100%" fill="url(#topFade)" />
@@ -284,8 +284,8 @@ export default function WelcomeScreen() {
           <Svg width="100%" height="100%">
             <Defs>
               <LinearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor="#09090B" stopOpacity="0" />
-                <Stop offset="100%" stopColor="#09090B" stopOpacity="1" />
+                <Stop offset="0%" stopColor="#000000" stopOpacity="0" />
+                <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
               </LinearGradient>
             </Defs>
             <Rect x="0" y="0" width="100%" height="100%" fill="url(#bottomFade)" />
@@ -342,7 +342,7 @@ export default function WelcomeScreen() {
                   style={styles.nextButton}
                   accessibilityLabel="Siguiente pantalla"
                 >
-                  <ChevronRight size={24} color="#09090B" strokeWidth={2.6} />
+                  <ChevronRight size={24} color="#000000" strokeWidth={2.6} />
                 </Pressable>
               </Animated.View>
             </View>
@@ -698,7 +698,7 @@ function StatsMockup() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     paddingHorizontal: 22,
     justifyContent: 'space-between',
   },
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
   },
   schedBlockBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#18181D',
+    backgroundColor: '#000000',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 5,
@@ -1073,9 +1073,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#18181D',
+    backgroundColor: '#1C1C1E',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1100,7 +1100,7 @@ const styles = StyleSheet.create({
   finishButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#09090B',
+    color: '#000000',
   },
 
   // ─── 4ª Pantalla (Hero ZORA y Acciones de Cuenta) ────────────────
@@ -1151,15 +1151,15 @@ const styles = StyleSheet.create({
   createAccountBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#09090B',
+    color: '#000000',
     letterSpacing: 0.1,
   },
   loginBtn: {
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',

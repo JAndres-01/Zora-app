@@ -70,7 +70,7 @@ const generateAndroidPdfHtml = (base64: string) => `
       height: auto !important;
       border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-      background-color: #18181B;
+      background-color: #000000;
     }
     #status {
       display: flex;
@@ -411,7 +411,7 @@ export function MinimalistCredentialModal({
                 pressed && styles.btnPressed,
               ]}
             >
-              <Share2 size={15} color="#09090B" strokeWidth={2.2} />
+              <Share2 size={15} color="#000000" strokeWidth={2.2} />
               <Text style={styles.shareBtnText}>Compartir</Text>
             </Pressable>
 
@@ -444,11 +444,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
   },
   sheetContainer: {
-    backgroundColor: '#0E0E12',
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    borderColor: '#222228',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     height: '94%',
     paddingHorizontal: 16,
     shadowColor: '#000000',
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     paddingBottom: 10,
-    backgroundColor: 'transparent',
+    backgroundColor: '#1C1C1E',
   },
   dragHandle: {
     width: 36,
@@ -484,9 +484,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#1C1C22',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#2E2E38',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -527,9 +527,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#18181B',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -538,13 +538,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#222228',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     position: 'relative',
   },
   errorOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -599,9 +599,9 @@ const styles = StyleSheet.create({
   },
   changeBtn: {
     flex: 1,
-    backgroundColor: '#1C1C22',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#2E2E38',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   changeBtnText: {
     color: '#FFFFFF',
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   shareBtnText: {
-    color: '#09090B',
+    color: '#000000',
     fontSize: 13.5,
     fontWeight: '700',
   },

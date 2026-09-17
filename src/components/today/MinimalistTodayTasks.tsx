@@ -197,7 +197,7 @@ const TodayTaskItem = memo(function TodayTaskItem({
             style={[styles.checkbox, isDone && styles.checkboxDone]}
             hitSlop={8}
           >
-            {isDone && <Check size={11} color="#09090B" strokeWidth={3.5} />}
+            {isDone && <Check size={11} color="#000000" strokeWidth={3.5} />}
           </Pressable>
         </Animated.View>
 
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   },
   taskRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   checkbox: {
     width: 20,

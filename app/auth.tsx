@@ -301,7 +301,7 @@ export default function AuthScreen() {
                   accessibilityLabel={authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
                 >
                   {submitting ? (
-                    <ActivityIndicator size="small" color="#09090B" />
+                    <ActivityIndicator size="small" color="#000000" />
                   ) : (
                     <Text style={styles.primaryWhiteBtnText}>
                       {authMode === 'register' ? 'Completar Registro' : 'Iniciar Sesión'}
@@ -347,7 +347,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
 
   // Barra Superior con Botón Discreto sin fondo
@@ -430,10 +430,10 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   fieldCard: {
-    backgroundColor: '#121215',
+    backgroundColor: '#000000',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 10,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   primaryWhiteBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#09090B',
+    color: '#000000',
     letterSpacing: 0.1,
   },
   buttonPressed: {

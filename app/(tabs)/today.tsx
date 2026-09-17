@@ -339,7 +339,7 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   screenWrapper: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
   container: {
     flex: 1,

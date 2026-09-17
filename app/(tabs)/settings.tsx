@@ -461,7 +461,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   screenWrapper: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
   container: {
     flex: 1,
@@ -502,10 +502,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   widgetSectionCard: {
-    backgroundColor: '#18181B',
+    backgroundColor: '#000000',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: 16,
     gap: 14,
   },

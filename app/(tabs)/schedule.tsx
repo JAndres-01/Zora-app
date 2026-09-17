@@ -277,7 +277,7 @@ export default function ScheduleScreen() {
             >
               <CalendarDays
                 size={13.5}
-                color={viewMode === 'day' ? '#09090B' : '#A1A1AA'}
+                color={viewMode === 'day' ? '#000000' : '#A1A1AA'}
               />
               <Text
                 style={[
@@ -295,7 +295,7 @@ export default function ScheduleScreen() {
             >
               <LayoutGrid
                 size={13.5}
-                color={viewMode === 'week' ? '#09090B' : '#A1A1AA'}
+                color={viewMode === 'week' ? '#000000' : '#A1A1AA'}
               />
               <Text
                 style={[
@@ -372,7 +372,7 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
   screenWrapper: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
   container: {
     flex: 1,
@@ -420,11 +420,11 @@ const styles = StyleSheet.create({
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#000000',
     padding: 3,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     position: 'relative',
     height: 42,
     alignItems: 'center',
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   segmentButtonTextActive: {
-    color: '#09090B',
+    color: '#000000',
     fontWeight: '800',
   },
 })

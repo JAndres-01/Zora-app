@@ -242,7 +242,7 @@ export function SystemSettingsModal({
                     value={advanceReminderEnabled}
                     onValueChange={onToggleAdvanceReminder}
                     trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={advanceReminderEnabled ? '#09090B' : '#71717A'}
+                    thumbColor={advanceReminderEnabled ? '#000000' : '#71717A'}
                     ios_backgroundColor="#27272A"
                   />
                 </View>
@@ -286,7 +286,7 @@ export function SystemSettingsModal({
                     value={classReminderEnabled}
                     onValueChange={onToggleClassReminder}
                     trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={classReminderEnabled ? '#09090B' : '#71717A'}
+                    thumbColor={classReminderEnabled ? '#000000' : '#71717A'}
                     ios_backgroundColor="#27272A"
                   />
                 </View>
@@ -375,7 +375,7 @@ export function SystemSettingsModal({
                     value={hapticsEnabled}
                     onValueChange={onToggleHaptics}
                     trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={hapticsEnabled ? '#09090B' : '#71717A'}
+                    thumbColor={hapticsEnabled ? '#000000' : '#71717A'}
                     ios_backgroundColor="#27272A"
                   />
                 </View>
@@ -395,7 +395,7 @@ export function SystemSettingsModal({
                     value={confettiEnabled}
                     onValueChange={onToggleConfetti}
                     trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={confettiEnabled ? '#09090B' : '#71717A'}
+                    thumbColor={confettiEnabled ? '#000000' : '#71717A'}
                     ios_backgroundColor="#27272A"
                   />
                 </View>
@@ -415,7 +415,7 @@ export function SystemSettingsModal({
                     value={soundEnabled}
                     onValueChange={onToggleSound}
                     trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={soundEnabled ? '#09090B' : '#71717A'}
+                    thumbColor={soundEnabled ? '#000000' : '#71717A'}
                     ios_backgroundColor="#27272A"
                   />
                 </View>
@@ -480,14 +480,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
   },
   settingsSheetContainer: {
-    backgroundColor: '#121214',
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
     paddingTop: 12,
     maxHeight: '85%',
     borderWidth: 1,
-    borderColor: '#23232A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   headerPanArea: {
     paddingTop: 4,
@@ -524,9 +524,9 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#18181B',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -567,10 +567,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   groupedList: {
-    backgroundColor: '#18181B',
+    backgroundColor: '#2C2C2E',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#23232A',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   listRow: {
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     height: 1,
-    backgroundColor: '#23232A',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginLeft: 48,
   },
   versionText: {

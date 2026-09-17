@@ -62,7 +62,7 @@ export function TaskTypePicker({
 
 const styles = StyleSheet.create({
   inlineMenu: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#2C2C2E',
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   typeOptionTextActive: {
-    color: '#09090B',
+    color: '#000000',
     fontWeight: '800',
   },
 })

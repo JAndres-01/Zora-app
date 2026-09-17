@@ -63,6 +63,7 @@ export default function TabLayout() {
         tintColor="#FFFFFF"
         blurEffect="systemMaterialDark"
         minimizeBehavior="automatic"
+        backgroundColor="#000000"
       >
         {/* Hoy */}
         <NativeTabs.Trigger name="today">
@@ -111,6 +112,6 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
 })

@@ -305,11 +305,11 @@ const styles = StyleSheet.create({
   },
   daySelectorContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#000000',
     padding: 3,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dayPillTextActive: {
-    color: '#09090B',
+    color: '#000000',
     fontWeight: '800',
   },
   dayPillTextToday: {
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   todayDotActive: {
-    backgroundColor: '#09090B',
+    backgroundColor: '#000000',
   },
   blocksList: {
     paddingHorizontal: 2,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   timeCol: {
     width: 54,

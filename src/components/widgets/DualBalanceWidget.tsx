@@ -188,7 +188,7 @@ export function DualBalanceWidget({
 
 const styles = StyleSheet.create({
   cardBase: {
-    backgroundColor: '#121215',
+    backgroundColor: '#000000',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 24,

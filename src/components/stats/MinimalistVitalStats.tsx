@@ -161,11 +161,11 @@ export function MinimalistVitalStats() {
 
 const styles = StyleSheet.create({
   cardWrapper: {
-    backgroundColor: '#121215',
+    backgroundColor: '#000000',
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1E1E24',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 14,
   },
   headerRow: {

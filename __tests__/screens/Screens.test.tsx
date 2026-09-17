@@ -44,11 +44,12 @@ describe('Smoke and Regression Tests for All Main Screens', () => {
   })
 
   test('SettingsScreen renderiza las preferencias de la aplicación sin fallos', async () => {
-    const { getByText } = await render(
+    const { getAllByText, getByText } = await render(
       <PersonalAuthProvider>
         <SettingsScreen />
       </PersonalAuthProvider>
     )
-    expect(getByText('Perfil')).toBeTruthy()
+    expect(getAllByText('Perfil').length).toBeGreaterThanOrEqual(1)
+    expect(getByText('WIDGETS · PANTALLA DE INICIO')).toBeTruthy()
   })
 })

@@ -2,14 +2,20 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
-  ScrollView,
+  Animated,
   Pressable,
   StyleSheet,
   Alert,
-  Animated,
   Platform,
+  AccessibilityInfo,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
+import {
+  GlassView,
+  isLiquidGlassAvailable,
+  isGlassEffectAPIAvailable,
+} from 'expo-glass-effect'
+import { SymbolView } from 'expo-symbols'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useFocusEffect } from 'expo-router'
 import { Settings as SettingsIcon } from 'lucide-react-native'
@@ -41,6 +47,97 @@ import {
 } from '@/lib/personalAudio'
 import { logger } from '@/lib/logger'
 
+const GLASS_AVAILABLE =
+  Platform.OS === 'ios' &&
+  typeof isLiquidGlassAvailable === 'function' &&
+  isLiquidGlassAvailable() &&
+  typeof isGlassEffectAPIAvailable === 'function' &&
+  isGlassEffectAPIAvailable()
+
+function GlassSettingsButton({ onPress }: { onPress: () => void }) {
+  const [reduceTransparency, setReduceTransparency] = useState(false)
+  const scaleAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    let active = true
+    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
+      if (active) setReduceTransparency(val)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start()
+  }
+
+  const useGlass = GLASS_AVAILABLE && !reduceTransparency
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      {useGlass ? (
+        <GlassView isInteractive style={styles.glassBtn}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light')
+              onPress()
+            }}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Ajustes"
+            style={styles.glassBtnInner}
+          >
+            <SymbolView
+              name="gearshape"
+              tintColor="#FFFFFF"
+              size={18}
+              weight="regular"
+            />
+          </Pressable>
+        </GlassView>
+      ) : (
+        <Pressable
+          onPress={() => {
+            triggerHaptic('light')
+            onPress()
+          }}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Ajustes"
+          style={styles.blurBtn}
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 85}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <SettingsIcon size={17} color="#FFFFFF" strokeWidth={2} />
+        </Pressable>
+      )}
+    </Animated.View>
+  )
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const { profile, updateCredential, clearData } = usePersonalAuth()
@@ -67,6 +164,45 @@ export default function ProfileScreen() {
 
   // Animaciones de Entrada Escalonada
   const cardEntranceAnims = useCardEntrance(5, 'settings')
+
+  // Animación de Scroll para Colapso de Header Estilo Apple Notes
+  const scrollY = useRef(new Animated.Value(0)).current
+
+  const headerBgOpacity = scrollY.interpolate({
+    inputRange: [0, 25, 60],
+    outputRange: [0, 0.5, 1],
+    extrapolate: 'clamp',
+  })
+
+  const compactTitleOpacity = scrollY.interpolate({
+    inputRange: [25, 60],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  })
+
+  const compactTitleTranslateY = scrollY.interpolate({
+    inputRange: [25, 60],
+    outputRange: [6, 0],
+    extrapolate: 'clamp',
+  })
+
+  const largeTitleOpacity = scrollY.interpolate({
+    inputRange: [0, 40],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  })
+
+  const largeTitleTranslateY = scrollY.interpolate({
+    inputRange: [-80, 0, 50],
+    outputRange: [20, 0, -14],
+    extrapolate: 'clamp',
+  })
+
+  const largeTitleScale = scrollY.interpolate({
+    inputRange: [-100, 0],
+    outputRange: [1.08, 1],
+    extrapolateRight: 'clamp',
+  })
 
   const loadData = useCallback(async () => {
     const prefs = await personalStorage.getPreferences()
@@ -308,43 +444,91 @@ export default function ProfileScreen() {
     <View style={styles.screenWrapper}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView
+      {/* Barra de Navegación Sticky Superior (Estilo Apple Notes de iOS) */}
+      <View
+        pointerEvents="box-none"
+        style={[
+          styles.stickyHeaderBar,
+          {
+            height: insets.top + 44,
+            paddingTop: insets.top,
+          },
+        ]}
+      >
+        {/* Fondo Translúcido / Frosted Glass con Transición en Scroll */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: headerBgOpacity },
+          ]}
+          pointerEvents="none"
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 75 : 90}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.stickyHeaderBorder} />
+        </Animated.View>
+
+        {/* Contenido de la Barra: Título Centrado y Botón Liquid Glass a la Derecha */}
+        <View style={styles.stickyHeaderContent} pointerEvents="box-none">
+          <View style={styles.stickyHeaderLeftSpacer} />
+
+          <Animated.View
+            style={[
+              styles.compactTitleWrapper,
+              {
+                opacity: compactTitleOpacity,
+                transform: [{ translateY: compactTitleTranslateY }],
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={styles.compactTitle}>Perfil</Text>
+          </Animated.View>
+
+          <View style={styles.stickyHeaderRight}>
+            <GlassSettingsButton onPress={() => setShowSettingsModal(true)} />
+          </View>
+        </View>
+      </View>
+
+      <Animated.ScrollView
         style={styles.container}
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: Math.max(insets.top, 16) + 4,
+            paddingTop: insets.top + 10,
             paddingBottom: Math.max(insets.bottom, 24) + 64,
           },
         ]}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
       >
-        {/* Cabecera iOS con Large Title y Botón Ajustes */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.titleColumn}>
-              <Text style={styles.title}>Perfil</Text>
-              <Text style={styles.subtitle}>Estudiante • Ajustes y estadísticas</Text>
-            </View>
-
-            <Pressable
-              onPress={() => {
-                triggerHaptic('light')
-                setShowSettingsModal(true)
-              }}
-              style={styles.headerSettingsBtn}
-              hitSlop={8}
-            >
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 50 : 85}
-                tint="dark"
-                style={StyleSheet.absoluteFill}
-              />
-              <SettingsIcon size={16} color="#FFFFFF" strokeWidth={2} />
-            </Pressable>
+        {/* Cabecera iOS con Large Title y Subtítulo en el Cuerpo */}
+        <Animated.View
+          style={[
+            styles.largeHeader,
+            {
+              opacity: largeTitleOpacity,
+              transform: [
+                { translateY: largeTitleTranslateY },
+                { scale: largeTitleScale },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.titleColumn}>
+            <Text style={styles.title}>Perfil</Text>
+            <Text style={styles.subtitle}>Estudiante • Ajustes y estadísticas</Text>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Card 0: Tarjeta Hero de Perfil */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
@@ -385,7 +569,7 @@ export default function ProfileScreen() {
             </View>
           </View>
         </Animated.View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Modal Principal de Ajustes del Sistema */}
       <SystemSettingsModal
@@ -449,30 +633,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 16,
   },
-  header: {
-    paddingHorizontal: 2,
-    marginBottom: 4,
+  stickyHeaderBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   },
-  headerTop: {
+  stickyHeaderBorder: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  stickyHeaderContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
   },
-  titleColumn: {
-    gap: 2,
+  stickyHeaderLeftSpacer: {
+    width: 36,
   },
-  title: {
+  compactTitleWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactTitle: {
     color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.8,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    textAlign: 'center',
   },
-  subtitle: {
-    color: '#71717A',
-    fontSize: 13,
-    fontWeight: '500',
+  stickyHeaderRight: {
+    width: 36,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
-  headerSettingsBtn: {
+  glassBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderCurve: 'continuous',
+  },
+  glassBtnInner: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blurBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -482,6 +697,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     overflow: 'hidden',
+  },
+  largeHeader: {
+    paddingHorizontal: 2,
+    marginBottom: 4,
+  },
+  titleColumn: {
+    gap: 2,
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    color: '#71717A',
+    fontSize: 13,
+    fontWeight: '500',
   },
   widgetSectionCard: {
     backgroundColor: '#000000',

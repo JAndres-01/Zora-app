@@ -18,9 +18,9 @@ try {
 } catch {}
 
 // Configurar captura global de errores de JS para evitar que escalen a abort() nativo
-if (typeof (global as any).ErrorUtils !== 'undefined') {
-  const originalHandler = (global as any).ErrorUtils.getGlobalHandler?.()
-  ;(global as any).ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+if (typeof (globalThis as any).ErrorUtils !== 'undefined') {
+  const originalHandler = (globalThis as any).ErrorUtils.getGlobalHandler?.()
+  ;(globalThis as any).ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
     logger.error('[GlobalErrorHandler]', error)
     if (isFatal) {
       const msg = error?.message || (typeof error === 'string' ? error : 'Error inesperado al inicializar la app')

@@ -6,12 +6,15 @@
   "scripts": {
     "postinstall": "node scripts/patch-swift-packages.js",
     "start": "expo start -c",
+    "start:dev": "expo start --dev-client -c",
+    "start:tunnel": "expo start --dev-client --tunnel -c",
     "test": "jest",
     "ios": "expo run:ios",
     "android": "expo run:android",
     "export": "expo export -p ios",
     "build:ios": "eas build -p ios --profile preview"
   },
+
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
     "@react-native-async-storage/async-storage": "2.2.0",

@@ -2,6 +2,15 @@ name: Build iOS (Sideloadly IPA)
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Tipo de compilación (development = Expo Dev Client con live reload / release = Producción offline)'
+        required: true
+        type: choice
+        default: 'development'
+        options:
+          - development
+          - release
 
 jobs:
   build-ios-sideloadly:
@@ -11,6 +20,22 @@ jobs:
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
+
+      - name: Configurar Tipo de Compilación
+        id: config
+        run: |
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'development' }}"
+          echo "Tipo de compilación seleccionado: $BUILD_TYPE"
+          if [ "$BUILD_TYPE" = "development" ]; then
+            echo "configuration=Debug" >> $GITHUB_OUTPUT
+            echo "artifact_name=Zora-iOS-DevClient-IPA" >> $GITHUB_OUTPUT
+            echo "ipa_name=Zora-DevClient.ipa" >> $GITHUB_OUTPUT
+          else
+            echo "configuration=Release" >> $GITHUB_OUTPUT
+            echo "artifact_name=Zora-iOS-Release-IPA" >> $GITHUB_OUTPUT
+            echo "ipa_name=Zora-Release.ipa" >> $GITHUB_OUTPUT
+          fi
+
 
       - name: Seleccionar Xcode
         run: |
@@ -85,16 +110,17 @@ jobs:
           chmod +x ./node_modules/expo-modules-jsi/apple/scripts/*.sh 2>/dev/null || true
           PLATFORM_NAME=iphoneos PODS_ROOT="$GITHUB_WORKSPACE/ios/Pods" ./node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh || true
 
-      - name: Compilar iOS App para Dispositivo Fisico (Release iphoneos)
+      - name: Compilar iOS App para Dispositivo Fisico (${{ steps.config.outputs.configuration }} iphoneos)
         id: compile
         run: |
           WORKSPACE="${{ steps.detect.outputs.workspace }}"
+          CONFIGURATION="${{ steps.config.outputs.configuration }}"
           mkdir -p build-output
 
           set -o pipefail
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "Zora" \
-            -configuration Release \
+            -configuration "$CONFIGURATION" \
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
             -derivedDataPath ios/build \
@@ -132,9 +158,10 @@ jobs:
           echo "======================================================================"
           echo "VERIFICACION PREVIA AL EMPAQUETADO IPA"
           echo "======================================================================"
-          APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
+          CONFIGURATION="${{ steps.config.outputs.configuration }}"
+          APP_PATH=$(find "ios/build/Build/Products/${CONFIGURATION}-iphoneos" -name "*.app" -maxdepth 1 | head -n 1)
           if [ -z "$APP_PATH" ]; then
-            echo "ERROR: No se encontro Zora.app para validar."
+            echo "ERROR: No se encontro Zora.app en ${CONFIGURATION}-iphoneos para validar."
             exit 1
           fi
           echo "Validando bundle en: $APP_PATH"
@@ -153,7 +180,7 @@ jobs:
           if [ -n "$BUNDLE_FILE" ]; then
             echo "[OK] JavaScript / Hermes bytecode bundle encontrado en: $BUNDLE_FILE ($(ls -lh "$BUNDLE_FILE" | awk '{print $5}'))"
           else
-            echo "ADVERTENCIA: No se detecto main.jsbundle en la raiz de Zora.app"
+            echo "INFO: No se detecto main.jsbundle embebido en la raiz (en Debug/Dev Client se conecta al Metro bundler en vivo)."
           fi
 
           # 3. Validar simbolos nativos y parches interceptores en el binario Zora
@@ -182,23 +209,26 @@ jobs:
       - name: Empaquetar IPA para Sideloadly (Payload/Zora.app)
         if: success()
         run: |
+          CONFIGURATION="${{ steps.config.outputs.configuration }}"
+          IPA_NAME="${{ steps.config.outputs.ipa_name }}"
           mkdir -p build-output/Payload
-          APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -n 1)
+          APP_PATH=$(find "ios/build/Build/Products/${CONFIGURATION}-iphoneos" -name "*.app" -maxdepth 1 | head -n 1)
           if [ -n "$APP_PATH" ]; then
             echo "Encontrado App bundle en: $APP_PATH"
             cp -r "$APP_PATH" build-output/Payload/
             cd build-output
-            zip -r -y Zora.ipa Payload
-            echo "Zora.ipa empaquetado exitosamente para Sideloadly."
+            zip -r -y "$IPA_NAME" Payload
+            cp "$IPA_NAME" Zora.ipa
+            echo "$IPA_NAME empaquetado exitosamente para Sideloadly."
           else
-            echo "No se encontro Zora.app en Release-iphoneos"
+            echo "No se encontro Zora.app en ${CONFIGURATION}-iphoneos"
             exit 1
           fi
 
-      - name: Subir Zora.ipa a Artefactos de GitHub
+      - name: Subir IPA a Artefactos de GitHub
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Zora-iOS-Sideloadly-IPA
-          path: build-output/Zora.ipa
+          name: ${{ steps.config.outputs.artifact_name }}
+          path: build-output/*.ipa
           retention-days: 14

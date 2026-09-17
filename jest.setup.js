@@ -79,6 +79,20 @@ const mockRouter = {
   back: jest.fn(),
   navigate: jest.fn(),
 }
+const MockScreen = ({ children, options }) => {
+  const { View, Text } = require('react-native')
+  return (
+    <View testID="mock-stack-screen">
+      {options?.title ? <Text>{options.title}</Text> : null}
+      {typeof options?.headerRight === 'function' ? options.headerRight() : null}
+      {children || null}
+    </View>
+  )
+}
+const MockStack = Object.assign(({ children }) => children || null, {
+  Screen: MockScreen,
+})
+
 jest.mock('expo-router', () => ({
   router: mockRouter,
   useRouter: () => mockRouter,
@@ -88,6 +102,7 @@ jest.mock('expo-router', () => ({
     useEffect(cb, [])
   },
   Redirect: jest.fn(({ href }) => null),
+  Stack: MockStack,
 }))
 
 // Mock Expo Notifications

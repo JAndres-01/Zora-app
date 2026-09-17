@@ -27,7 +27,7 @@ import {
   cancelTaskReminder,
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { Stack, useRouter, useFocusEffect } from 'expo-router'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
 import { SCREEN_WIDTH } from '@/constants/layout'
@@ -215,42 +215,54 @@ export default function ScheduleScreen() {
 
   return (
     <View style={styles.screenWrapper}>
+      <Stack.Screen
+        options={{
+          title: 'Horario',
+          headerShown: true,
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLargeTitleShadowVisible: false,
+          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
+          headerStyle: { backgroundColor: '#000000' },
+          headerShadowVisible: false,
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
+          headerRight: canEdit
+            ? () => (
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('light')
+                    setShowSubjectModal(true)
+                  }}
+                  style={styles.manageSubjBtn}
+                  hitSlop={8}
+                >
+                  <BlurView
+                    intensity={Platform.OS === 'ios' ? 50 : 85}
+                    tint="dark"
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <BookOpen size={13} color="#FFFFFF" />
+                  <Text style={styles.manageSubjBtnText}>Materias</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
+
       <ScrollView
         style={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 90 },
+          { paddingTop: Platform.OS === 'ios' ? 4 : 12, paddingBottom: insets.bottom + 90 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Coherente con Tareas y Hoy */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.title}>Horario</Text>
-              <Text style={styles.subtitle}>
-                {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
-              </Text>
-            </View>
-
-            {canEdit && (
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  setShowSubjectModal(true)
-                }}
-                style={styles.manageSubjBtn}
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <BookOpen size={13} color="#FFFFFF" />
-                <Text style={styles.manageSubjBtnText}>Materias</Text>
-              </Pressable>
-            )}
-          </View>
+        {/* Subtítulo de semana académica */}
+        <View style={styles.dateHeaderRow}>
+          <Text style={styles.subtitle}>
+            {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
+          </Text>
         </View>
 
         {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
@@ -380,6 +392,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     gap: 16,
+  },
+  dateHeaderRow: {
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 4,
   },
   header: {
     paddingHorizontal: 2,

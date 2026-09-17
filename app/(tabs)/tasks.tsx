@@ -13,8 +13,8 @@ import {
 } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useFocusEffect } from 'expo-router'
-import { Plus, CheckCircle2 } from 'lucide-react-native'
+import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router'
+import { Plus, CheckCircle2, Globe } from 'lucide-react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import type { Task, Subject } from '@/types/personal'
 import { MinimalistTaskRow } from '@/components/tasks/MinimalistTaskRow'
@@ -241,7 +241,7 @@ export default function TasksScreen() {
     []
   )
 
-  const { isAdmin, deleteClassTask } = useClassAuth()
+  const { isConnected, isAdmin, deleteClassTask } = useClassAuth()
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
@@ -509,6 +509,44 @@ export default function TasksScreen() {
 
   return (
     <View style={styles.screenWrapper}>
+      <Stack.Screen
+        options={{
+          title: 'Tareas',
+          headerShown: true,
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLargeTitleShadowVisible: false,
+          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
+          headerStyle: { backgroundColor: '#000000' },
+          headerShadowVisible: false,
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
+          headerRight: () => (
+            <Pressable
+              onPress={() => setShowClassAuthModal(true)}
+              style={[styles.classIconButton, isConnected && styles.classIconButtonConnected]}
+              hitSlop={8}
+            >
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 50 : 85}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+              <Globe size={16} color={isConnected ? '#FFFFFF' : '#71717A'} />
+              {isConnected && <View style={styles.onlineDot} />}
+            </Pressable>
+          ),
+          headerSearchBarOptions: {
+            placeholder: 'Buscar por tarea o materia...',
+            barTintColor: '#000000',
+            textColor: '#FFFFFF',
+            tintColor: '#FFFFFF',
+            hideWhenScrolling: false,
+            onChangeText: (e: any) => setSearchQuery(e.nativeEvent.text),
+            onCancelButtonPress: () => setSearchQuery(''),
+          },
+        }}
+      />
+
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
       <View style={styles.flatListWrapper}>
@@ -521,12 +559,13 @@ export default function TasksScreen() {
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={renderEmptyComponent}
           style={styles.flatList}
+          contentInsetAdjustmentBehavior="automatic"
           scrollEnabled={isScrollEnabled}
           bounces={true}
           alwaysBounceVertical={true}
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 105 },
+            { paddingTop: Platform.OS === 'ios' ? 4 : 12, paddingBottom: insets.bottom + 105 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -660,5 +699,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  classIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  classIconButtonConnected: {
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  onlineDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
   },
 })

@@ -18,7 +18,7 @@ import { MinimalistDayTimeline } from '@/components/today/MinimalistDayTimeline'
 import { MinimalistTaskModal, TaskModalMode } from '@/components/tasks/MinimalistTaskModal'
 import { MinimalistConfetti } from '@/components/effects/MinimalistConfetti'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { Stack, useRouter, useFocusEffect } from 'expo-router'
 import { Plus } from 'lucide-react-native'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -246,25 +246,18 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      {/* Confetti Festivo al Completar Tareas */}
-      <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 90 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header Coherente con Tareas y Horario */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.title}>Hoy</Text>
-              <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
-            </View>
-
+      <Stack.Screen
+        options={{
+          title: 'Hoy',
+          headerShown: true,
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLargeTitleShadowVisible: false,
+          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
+          headerStyle: { backgroundColor: '#000000' },
+          headerShadowVisible: false,
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
+          headerRight: () => (
             <Pressable
               onPress={() => {
                 triggerHaptic('medium')
@@ -272,6 +265,7 @@ export default function TodayScreen() {
                 setTaskModalMode('create')
               }}
               style={styles.headerAddBtn}
+              hitSlop={8}
             >
               <BlurView
                 intensity={Platform.OS === 'ios' ? 50 : 85}
@@ -281,7 +275,25 @@ export default function TodayScreen() {
               <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
               <Text style={styles.headerAddBtnText}>Tarea</Text>
             </Pressable>
-          </View>
+          ),
+        }}
+      />
+
+      {/* Confetti Festivo al Completar Tareas */}
+      <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
+
+      <ScrollView
+        style={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: Platform.OS === 'ios' ? 4 : 12, paddingBottom: insets.bottom + 90 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Subtítulo con fecha */}
+        <View style={styles.dateHeaderRow}>
+          <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
         </View>
 
         {/* Card 0: Hero Card Dinámica (Clase en Vivo / Próxima) */}
@@ -347,6 +359,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     gap: 16,
+  },
+  dateHeaderRow: {
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 4,
   },
   header: {
     paddingHorizontal: 2,

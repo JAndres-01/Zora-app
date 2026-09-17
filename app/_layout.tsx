@@ -146,15 +146,29 @@ export default function RootLayout() {
               <Stack
                 screenOptions={{
                   headerShown: false,
-                  animation: 'fade',
+                  animation: 'default',
                   contentStyle: { backgroundColor: '#000000' },
-                  gestureEnabled: false,
                 }}
               >
                 <Stack.Screen name="index" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
-                <Stack.Screen name="auth" options={{ animation: 'fade', gestureEnabled: false }} />
-                <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
+                <Stack.Screen name="welcome" options={{ animation: 'default' }} />
+                <Stack.Screen name="auth" options={{ animation: 'default' }} />
+                <Stack.Screen name="(tabs)" options={{ animation: 'default' }} />
+                <Stack.Screen
+                  name="modal"
+                  options={{
+                    presentation: 'formSheet',
+                    sheetAllowedDetents: [0.6, 0.95],
+                    sheetGrabberVisible: true,
+                    sheetInitialDetentIndex: 0,
+                    sheetCornerRadius: 24,
+                    contentStyle: { backgroundColor: '#1C1C1E' },
+                    headerStyle: { backgroundColor: '#1C1C1E' },
+                    headerShadowVisible: false,
+                    headerTintColor: '#FFFFFF',
+                    headerShown: false,
+                  }}
+                />
               </Stack>
             </ClassAuthProvider>
           </PersonalAuthProvider>

@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { Stack, useFocusEffect } from 'expo-router'
 import { Settings as SettingsIcon } from 'lucide-react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -326,25 +326,18 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + 16,
-            paddingBottom: Math.max(insets.bottom, 24) + 64,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Cabecera Principal */}
-        <View style={styles.header}>
-          <View style={styles.headerTopRow}>
-            <View>
-              <Text style={styles.title}>Perfil</Text>
-              <Text style={styles.subtitle}>Tu espacio personal</Text>
-            </View>
-
+      <Stack.Screen
+        options={{
+          title: 'Perfil',
+          headerShown: true,
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLargeTitleShadowVisible: false,
+          headerLargeTitleStyle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
+          headerStyle: { backgroundColor: '#000000' },
+          headerShadowVisible: false,
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { color: '#FFFFFF', fontWeight: '700' },
+          headerRight: () => (
             <Animated.View style={{ transform: [{ scale: gearScaleAnim }] }}>
               <Pressable
                 onPress={() => {
@@ -353,7 +346,7 @@ export default function ProfileScreen() {
                 }}
                 onPressIn={handleGearPressIn}
                 onPressOut={handleGearPressOut}
-                hitSlop={12}
+                hitSlop={8}
                 style={styles.gearBtn}
               >
                 <BlurView
@@ -364,8 +357,22 @@ export default function ProfileScreen() {
                 <SettingsIcon size={18} color="#FFFFFF" />
               </Pressable>
             </Animated.View>
-          </View>
-        </View>
+          ),
+        }}
+      />
+
+      <ScrollView
+        style={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Platform.OS === 'ios' ? 4 : 12,
+            paddingBottom: Math.max(insets.bottom, 24) + 64,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Card 0: Tarjeta Hero de Perfil */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>

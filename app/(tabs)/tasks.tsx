@@ -10,8 +10,14 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  AccessibilityInfo,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
+import {
+  GlassView,
+  isLiquidGlassAvailable,
+  isGlassEffectAPIAvailable,
+} from 'expo-glass-effect'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { Plus, CheckCircle2, Globe, Search } from 'lucide-react-native'
@@ -38,6 +44,263 @@ import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { sortTasksByDueDate } from '@/lib/taskSort'
 import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
 import { useClassAuth } from '@/context/ClassAuthContext'
+
+const GLASS_AVAILABLE =
+  Platform.OS === 'ios' &&
+  typeof isLiquidGlassAvailable === 'function' &&
+  isLiquidGlassAvailable() &&
+  typeof isGlassEffectAPIAvailable === 'function' &&
+  isGlassEffectAPIAvailable()
+
+function GlassSearchButton({ onPress }: { onPress: () => void }) {
+  const [reduceTransparency, setReduceTransparency] = useState(false)
+  const scaleAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    let active = true
+    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
+      if (active) setReduceTransparency(val)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start()
+  }
+
+  const useGlass = GLASS_AVAILABLE && !reduceTransparency
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      {useGlass ? (
+        <GlassView isInteractive style={styles.glassBtn}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light')
+              onPress()
+            }}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Buscar tareas"
+            style={styles.glassBtnInner}
+          >
+            <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
+          </Pressable>
+        </GlassView>
+      ) : (
+        <Pressable
+          onPress={() => {
+            triggerHaptic('light')
+            onPress()
+          }}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Buscar tareas"
+          style={styles.blurBtn}
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 85}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
+        </Pressable>
+      )}
+    </Animated.View>
+  )
+}
+
+function GlassClassButton({
+  isConnected,
+  onPress,
+}: {
+  isConnected: boolean
+  onPress: () => void
+}) {
+  const [reduceTransparency, setReduceTransparency] = useState(false)
+  const scaleAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    let active = true
+    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
+      if (active) setReduceTransparency(val)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start()
+  }
+
+  const useGlass = GLASS_AVAILABLE && !reduceTransparency
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      {useGlass ? (
+        <GlassView
+          isInteractive
+          style={[styles.glassBtn, isConnected && styles.glassBtnConnected]}
+        >
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light')
+              onPress()
+            }}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Estado de clase"
+            style={styles.glassBtnInner}
+          >
+            <Globe size={19} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
+            {isConnected && <View style={styles.onlineDot} />}
+          </Pressable>
+        </GlassView>
+      ) : (
+        <Pressable
+          onPress={() => {
+            triggerHaptic('light')
+            onPress()
+          }}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Estado de clase"
+          style={[styles.blurBtn, isConnected && styles.iconActionBtnConnected]}
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 85}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <Globe size={19} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
+          {isConnected && <View style={styles.onlineDot} />}
+        </Pressable>
+      )}
+    </Animated.View>
+  )
+}
+
+function GlassAddTaskButton({ onPress }: { onPress: () => void }) {
+  const [reduceTransparency, setReduceTransparency] = useState(false)
+  const scaleAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    let active = true
+    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
+      if (active) setReduceTransparency(val)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start()
+  }
+
+  const useGlass = GLASS_AVAILABLE && !reduceTransparency
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      {useGlass ? (
+        <GlassView isInteractive style={styles.glassAddBtn}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('medium')
+              onPress()
+            }}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Nueva tarea"
+            style={styles.glassAddBtnInner}
+          >
+            <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
+            <Text style={styles.headerAddBtnText}>Tarea</Text>
+          </Pressable>
+        </GlassView>
+      ) : (
+        <Pressable
+          onPress={() => {
+            triggerHaptic('medium')
+            onPress()
+          }}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Nueva tarea"
+          style={styles.headerAddBtn}
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 85}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
+          <Text style={styles.headerAddBtnText}>Tarea</Text>
+        </Pressable>
+      )}
+    </Animated.View>
+  )
+}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -461,29 +724,6 @@ export default function TasksScreen() {
     extrapolateRight: 'clamp',
   })
 
-  // Botones de Acción del Header
-  const searchScaleAnim = useRef(new Animated.Value(1)).current
-  const classScaleAnim = useRef(new Animated.Value(1)).current
-  const addScaleAnim = useRef(new Animated.Value(1)).current
-
-  const handleButtonPressIn = (anim: Animated.Value) => {
-    Animated.spring(anim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start()
-  }
-
-  const handleButtonPressOut = (anim: Animated.Value) => {
-    Animated.spring(anim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 6,
-    }).start()
-  }
-
   const renderListHeader = useMemo(() => {
     const pendingCount = tasks.filter((t) => t.status === 'pending').length
     return (
@@ -613,80 +853,18 @@ export default function TasksScreen() {
           </Animated.View>
 
           <View style={styles.stickyHeaderRight}>
-            {/* Botón de Búsqueda */}
-            <Animated.View style={{ transform: [{ scale: searchScaleAnim }] }}>
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  setIsSearchActive(true)
-                }}
-                onPressIn={() => handleButtonPressIn(searchScaleAnim)}
-                onPressOut={() => handleButtonPressOut(searchScaleAnim)}
-                style={styles.iconActionBtn}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Buscar tareas"
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
-              </Pressable>
-            </Animated.View>
-
-            {/* Botón de Conexión a Clase */}
-            <Animated.View style={{ transform: [{ scale: classScaleAnim }] }}>
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  setShowClassAuthModal(true)
-                }}
-                onPressIn={() => handleButtonPressIn(classScaleAnim)}
-                onPressOut={() => handleButtonPressOut(classScaleAnim)}
-                style={[
-                  styles.iconActionBtn,
-                  isConnected && styles.iconActionBtnConnected,
-                ]}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Estado de clase"
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <Globe size={19} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
-                {isConnected && <View style={styles.onlineDot} />}
-              </Pressable>
-            </Animated.View>
-
-            {/* Botón de Añadir Nueva Tarea */}
-            <Animated.View style={{ transform: [{ scale: addScaleAnim }] }}>
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('medium')
-                  setActiveTask(null)
-                  setTaskModalMode('create')
-                }}
-                onPressIn={() => handleButtonPressIn(addScaleAnim)}
-                onPressOut={() => handleButtonPressOut(addScaleAnim)}
-                style={styles.headerAddBtn}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Nueva tarea"
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
-                <Text style={styles.headerAddBtnText}>Tarea</Text>
-              </Pressable>
-            </Animated.View>
+            <GlassSearchButton onPress={() => setIsSearchActive(true)} />
+            <GlassClassButton
+              isConnected={isConnected}
+              onPress={() => setShowClassAuthModal(true)}
+            />
+            <GlassAddTaskButton
+              onPress={() => {
+                triggerHaptic('medium')
+                setActiveTask(null)
+                setTaskModalMode('create')
+              }}
+            />
           </View>
         </View>
       </View>
@@ -849,7 +1027,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  iconActionBtn: {
+  glassBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassBtnInner: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassBtnConnected: {
+    borderColor: 'rgba(52, 199, 89, 0.4)',
+  },
+  glassAddBtn: {
+    height: 40,
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassAddBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 15,
+    height: 40,
+    borderRadius: 20,
+    borderCurve: 'continuous',
+  },
+  blurBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,

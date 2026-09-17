@@ -8,8 +8,14 @@ import {
   Animated,
   Platform,
   UIManager,
+  AccessibilityInfo,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
+import {
+  GlassView,
+  isLiquidGlassAvailable,
+  isGlassEffectAPIAvailable,
+} from 'expo-glass-effect'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import type { Schedule, Task, Subject } from '@/types/personal'
 import { MinimalistLiveHero } from '@/components/today/MinimalistLiveHero'
@@ -35,6 +41,94 @@ import {
 } from '@/lib/personalNotifications'
 import { useClassAuth } from '@/context/ClassAuthContext'
 import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
+
+const GLASS_AVAILABLE =
+  Platform.OS === 'ios' &&
+  typeof isLiquidGlassAvailable === 'function' &&
+  isLiquidGlassAvailable() &&
+  typeof isGlassEffectAPIAvailable === 'function' &&
+  isGlassEffectAPIAvailable()
+
+function GlassAddTaskButton({ onPress }: { onPress: () => void }) {
+  const [reduceTransparency, setReduceTransparency] = useState(false)
+  const scaleAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    let active = true
+    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
+      if (active) setReduceTransparency(val)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start()
+  }
+
+  const useGlass = GLASS_AVAILABLE && !reduceTransparency
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      {useGlass ? (
+        <GlassView isInteractive style={styles.glassAddBtn}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('medium')
+              onPress()
+            }}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Nueva tarea"
+            style={styles.glassAddBtnInner}
+          >
+            <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
+            <Text style={styles.headerAddBtnText}>Tarea</Text>
+          </Pressable>
+        </GlassView>
+      ) : (
+        <Pressable
+          onPress={() => {
+            triggerHaptic('medium')
+            onPress()
+          }}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Nueva tarea"
+          style={styles.headerAddBtn}
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 85}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
+          <Text style={styles.headerAddBtnText}>Tarea</Text>
+        </Pressable>
+      )}
+    </Animated.View>
+  )
+}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -271,23 +365,13 @@ export default function TodayScreen() {
               <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
             </View>
 
-            <Pressable
+            <GlassAddTaskButton
               onPress={() => {
                 triggerHaptic('medium')
                 setActiveTask(null)
                 setTaskModalMode('create')
               }}
-              style={styles.headerAddBtn}
-              hitSlop={8}
-            >
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 50 : 85}
-                tint="dark"
-                style={StyleSheet.absoluteFill}
-              />
-              <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
-              <Text style={styles.headerAddBtnText}>Tarea</Text>
-            </Pressable>
+            />
           </View>
         </View>
 
@@ -370,7 +454,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   titleColumn: {
-    gap: 2,
+    gap: 3,
   },
   title: {
     color: '#FFFFFF',
@@ -379,9 +463,26 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   subtitle: {
-    color: '#71717A',
-    fontSize: 13,
-    fontWeight: '500',
+    color: '#A1A1AA',
+    fontSize: 13.5,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  glassAddBtn: {
+    height: 40,
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassAddBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 15,
+    height: 40,
+    borderRadius: 20,
+    borderCurve: 'continuous',
   },
   headerAddBtn: {
     flexDirection: 'row',
@@ -390,14 +491,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 15,
+    height: 40,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   headerAddBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
   },
 })

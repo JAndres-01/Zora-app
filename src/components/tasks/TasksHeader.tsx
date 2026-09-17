@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -7,8 +7,14 @@ import {
   StyleSheet,
   Animated,
   Platform,
+  AccessibilityInfo,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
+import {
+  GlassView,
+  isLiquidGlassAvailable,
+  isGlassEffectAPIAvailable,
+} from 'expo-glass-effect'
 import {
   SlidersHorizontal,
   ChevronDown,
@@ -20,6 +26,13 @@ import {
 import type { Subject } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
+
+const GLASS_AVAILABLE =
+  Platform.OS === 'ios' &&
+  typeof isLiquidGlassAvailable === 'function' &&
+  isLiquidGlassAvailable() &&
+  typeof isGlassEffectAPIAvailable === 'function' &&
+  isGlassEffectAPIAvailable()
 
 export interface TasksHeaderProps {
   isSearchActive?: boolean
@@ -335,7 +348,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   titleColumn: {
-    gap: 2,
+    gap: 3,
   },
   title: {
     color: '#FFFFFF',
@@ -344,9 +357,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   subtitle: {
-    color: '#71717A',
-    fontSize: 13,
-    fontWeight: '500',
+    color: '#A1A1AA',
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   headerActions: {
     flexDirection: 'row',

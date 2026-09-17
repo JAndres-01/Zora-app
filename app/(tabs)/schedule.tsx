@@ -239,10 +239,16 @@ export default function ScheduleScreen() {
                   triggerHaptic('light')
                   setShowSubjectModal(true)
                 }}
-                style={styles.manageSubjBtn}
+                style={styles.manageSubjBtnWrapper}
               >
-                <BookOpen size={13} color="#09090B" />
-                <Text style={styles.manageSubjBtnText}>Materias</Text>
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 60 : 90}
+                  tint="systemUltraThinMaterialDark"
+                  style={styles.manageSubjBtn}
+                >
+                  <BookOpen size={13} color="#FFFFFF" strokeWidth={2.4} />
+                  <Text style={styles.manageSubjBtnText}>Materias</Text>
+                </BlurView>
               </Pressable>
             )}
           </View>
@@ -250,7 +256,11 @@ export default function ScheduleScreen() {
 
         {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
-          <View style={styles.segmentedContainer}>
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 55 : 90}
+            tint="systemUltraThinMaterialDark"
+            style={styles.segmentedContainer}
+          >
             <Animated.View
               style={[
                 styles.activeSegmentPill,
@@ -296,7 +306,7 @@ export default function ScheduleScreen() {
                 Matriz Semanal
               </Text>
             </Pressable>
-          </View>
+          </BlurView>
         </Animated.View>
 
         {/* Card 1: Vista Seleccionada (Diaria / Semanal) */}
@@ -391,23 +401,29 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
+  manageSubjBtnWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   manageSubjBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5.5,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 13,
-    paddingVertical: 7.5,
-    borderRadius: 14,
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
   manageSubjBtnText: {
-    color: '#09090B',
-    fontSize: 12.5,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     padding: 3,
     borderRadius: 15,
     borderWidth: 1,

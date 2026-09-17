@@ -62,7 +62,15 @@ export default function TabLayout() {
   return (
     <View style={styles.container}>
       <NativeTabs
-        tintColor="#6366F1"
+        tintColor="#FFFFFF"
+        iconColor={{
+          default: '#71717A',
+          selected: '#FFFFFF',
+        }}
+        labelStyle={{
+          default: { color: '#71717A' },
+          selected: { color: '#FFFFFF' },
+        }}
         minimizeBehavior="automatic"
         blurEffect="systemMaterialDark"
         sidebarAdaptable={false}
@@ -81,7 +89,7 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Label>Tareas</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={{ default: 'checkmark.square', selected: 'checkmark.square.fill' }} />
           {pendingCount > 0 ? (
-            <NativeTabs.Trigger.Badge selectedBackgroundColor="#6366F1">
+            <NativeTabs.Trigger.Badge selectedBackgroundColor="#FFFFFF">
               {pendingCount.toString()}
             </NativeTabs.Trigger.Badge>
           ) : null}

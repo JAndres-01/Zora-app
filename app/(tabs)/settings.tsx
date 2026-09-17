@@ -9,6 +9,7 @@ import {
   Animated,
   Platform,
 } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { Settings as SettingsIcon } from 'lucide-react-native'
@@ -352,9 +353,15 @@ export default function ProfileScreen() {
                 onPressIn={handleGearPressIn}
                 onPressOut={handleGearPressOut}
                 hitSlop={12}
-                style={styles.gearBtn}
+                style={styles.gearBtnWrapper}
               >
-                <SettingsIcon size={18} color="#FFFFFF" />
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 60 : 90}
+                  tint="systemUltraThinMaterialDark"
+                  style={styles.gearBtn}
+                >
+                  <SettingsIcon size={18} color="#FFFFFF" />
+                </BlurView>
               </Pressable>
             </Animated.View>
           </View>
@@ -468,13 +475,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
+  gearBtnWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
   gearBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#18181B',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },

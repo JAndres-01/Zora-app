@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Animated,
   Keyboard,
+  Platform,
 } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { Search, X, SlidersHorizontal, ChevronDown, Globe } from 'lucide-react-native'
 import type { Subject } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
@@ -107,21 +109,39 @@ export function TasksHeader({
             <View style={styles.topRightActions}>
               {onOpenClassAuth && (
                 <Pressable
-                  onPress={onOpenClassAuth}
-                  style={[styles.classIconButton, isConnected && styles.classIconButtonConnected]}
+                  onPress={() => {
+                    triggerHaptic('light')
+                    onOpenClassAuth()
+                  }}
+                  style={styles.iconButtonWrapper}
                   hitSlop={10}
                 >
-                  <Globe size={16} color={isConnected ? '#FFFFFF' : '#71717A'} />
-                  {isConnected && <View style={styles.onlineDot} />}
+                  <BlurView
+                    intensity={Platform.OS === 'ios' ? 60 : 90}
+                    tint="systemUltraThinMaterialDark"
+                    style={[styles.classIconButton, isConnected && styles.classIconButtonConnected]}
+                  >
+                    <Globe size={16} color={isConnected ? '#FFFFFF' : '#A1A1AA'} />
+                    {isConnected && <View style={styles.onlineDot} />}
+                  </BlurView>
                 </Pressable>
               )}
 
               <Pressable
-                onPress={onOpenSearch}
-                style={styles.searchIconButton}
+                onPress={() => {
+                  triggerHaptic('light')
+                  onOpenSearch()
+                }}
+                style={styles.iconButtonWrapper}
                 hitSlop={10}
               >
-                <Search size={16} color="#FFFFFF" />
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 60 : 90}
+                  tint="systemUltraThinMaterialDark"
+                  style={styles.searchIconButton}
+                >
+                  <Search size={16} color="#FFFFFF" />
+                </BlurView>
               </Pressable>
             </View>
           </View>
@@ -136,7 +156,11 @@ export function TasksHeader({
             },
           ]}
         >
-          <View style={styles.dynamicSearchInputWrapper}>
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 60 : 90}
+            tint="systemUltraThinMaterialDark"
+            style={styles.dynamicSearchInputWrapper}
+          >
             <Search size={15} color="#A1A1AA" style={styles.searchIcon} />
             <TextInput
               ref={searchInputRef}
@@ -160,7 +184,7 @@ export function TasksHeader({
                 <X size={12} color="#FFFFFF" />
               </Pressable>
             )}
-          </View>
+          </BlurView>
 
           <Pressable
             onPress={onCloseSearch}
@@ -177,20 +201,25 @@ export function TasksHeader({
         <View style={styles.filterButtonRow}>
           <Pressable
             onPress={onOpenSubjectMenu}
-            style={[
-              styles.subjectDropdownButton,
-              selectedSubjectId !== 'all' && {
-                borderColor: isSelectedWhite
-                  ? '#FFFFFF'
-                  : selectedSubject?.color || '#FFFFFF',
-                backgroundColor: isSelectedWhite
-                  ? 'rgba(255, 255, 255, 0.15)'
-                  : `${selectedSubject?.color || '#FFFFFF'}1F`,
-              },
-            ]}
+            style={styles.subjectDropdownWrapper}
           >
-            <View style={styles.dropdownBtnLeft}>
-              <SlidersHorizontal size={13} color="#A1A1AA" />
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 50 : 80}
+              tint="systemUltraThinMaterialDark"
+              style={[
+                styles.subjectDropdownButton,
+                selectedSubjectId !== 'all' && {
+                  borderColor: isSelectedWhite
+                    ? '#FFFFFF'
+                    : selectedSubject?.color || '#FFFFFF',
+                  backgroundColor: isSelectedWhite
+                    ? 'rgba(255, 255, 255, 0.15)'
+                    : `${selectedSubject?.color || '#FFFFFF'}1F`,
+                },
+              ]}
+            >
+              <View style={styles.dropdownBtnLeft}>
+                <SlidersHorizontal size={13} color="#A1A1AA" />
               {selectedSubject ? (
                 <View style={styles.selectedSubjectInfo}>
                   <View
@@ -210,6 +239,7 @@ export function TasksHeader({
             </View>
 
             <ChevronDown size={14} color="#A1A1AA" />
+            </BlurView>
           </Pressable>
 
           {selectedSubjectId !== 'all' && (
@@ -256,37 +286,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  iconButtonWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
   classIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#18181B',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   classIconButtonConnected: {
-    borderColor: '#3F3F46',
-    backgroundColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   onlineDot: {
     position: 'absolute',
-    top: 7,
-    right: 7,
+    top: 8,
+    right: 8,
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#FFFFFF',
   },
   searchIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#18181B',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -299,12 +333,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181B',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 14,
     paddingHorizontal: 12,
     height: 42,
+    overflow: 'hidden',
   },
   searchIcon: {
     marginRight: 8,
@@ -319,7 +354,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#27272A',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6,
@@ -337,15 +372,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  subjectDropdownWrapper: {
+    flex: 1,
+    borderRadius: 13,
+    overflow: 'hidden',
+  },
   subjectDropdownButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#18181B',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 12,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 13,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
@@ -374,8 +414,10 @@ const styles = StyleSheet.create({
   resetFilterBtn: {
     paddingHorizontal: 12,
     paddingVertical: 9,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   resetFilterText: {
     color: '#A1A1AA',

@@ -11,6 +11,7 @@ import {
   Platform,
   UIManager,
 } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { Plus, CheckCircle2 } from 'lucide-react-native'
@@ -567,7 +568,12 @@ export default function TasksScreen() {
           onPressOut={handleFabPressOut}
           style={styles.fab}
         >
-          <Plus size={22} color="#09090B" strokeWidth={2.8} />
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 60 : 90}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <Plus size={22} color="#FFFFFF" strokeWidth={2.4} />
         </Pressable>
       </Animated.View>
 
@@ -648,12 +654,15 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 8,
   },

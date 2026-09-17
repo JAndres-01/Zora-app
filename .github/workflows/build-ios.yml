@@ -1,12 +1,6 @@
 name: Build iOS (Sideloadly IPA)
 
 on:
-  push:
-    branches:
-      - 'release/**'
-      - 'feature/**'
-      - main
-      - production-build
   workflow_dispatch:
 
 jobs:

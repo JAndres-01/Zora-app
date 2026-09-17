@@ -241,7 +241,12 @@ export default function ScheduleScreen() {
                 }}
                 style={styles.manageSubjBtn}
               >
-                <BookOpen size={13} color="#09090B" />
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <BookOpen size={13} color="#FFFFFF" />
                 <Text style={styles.manageSubjBtnText}>Materias</Text>
               </Pressable>
             )}
@@ -251,6 +256,11 @@ export default function ScheduleScreen() {
         {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
           <View style={styles.segmentedContainer}>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 50 : 85}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
             <Animated.View
               style={[
                 styles.activeSegmentPill,
@@ -395,15 +405,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5.5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     paddingHorizontal: 13,
     paddingVertical: 7.5,
     borderRadius: 14,
+    overflow: 'hidden',
   },
   manageSubjBtnText: {
-    color: '#09090B',
+    color: '#FFFFFF',
     fontSize: 12.5,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   segmentedContainer: {
     flexDirection: 'row',

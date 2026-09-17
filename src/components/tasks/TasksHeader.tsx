@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Animated,
   Keyboard,
+  Platform,
 } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { Search, X, SlidersHorizontal, ChevronDown, Globe } from 'lucide-react-native'
 import type { Subject } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
@@ -111,16 +113,29 @@ export function TasksHeader({
                   style={[styles.classIconButton, isConnected && styles.classIconButtonConnected]}
                   hitSlop={10}
                 >
+                  <BlurView
+                    intensity={Platform.OS === 'ios' ? 50 : 85}
+                    tint="dark"
+                    style={StyleSheet.absoluteFill}
+                  />
                   <Globe size={16} color={isConnected ? '#FFFFFF' : '#71717A'} />
                   {isConnected && <View style={styles.onlineDot} />}
                 </Pressable>
               )}
 
               <Pressable
-                onPress={onOpenSearch}
+                onPress={() => {
+                  triggerHaptic('light')
+                  onOpenSearch()
+                }}
                 style={styles.searchIconButton}
                 hitSlop={10}
               >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
                 <Search size={16} color="#FFFFFF" />
               </Pressable>
             </View>
@@ -137,6 +152,11 @@ export function TasksHeader({
           ]}
         >
           <View style={styles.dynamicSearchInputWrapper}>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 50 : 85}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
             <Search size={15} color="#A1A1AA" style={styles.searchIcon} />
             <TextInput
               ref={searchInputRef}
@@ -189,6 +209,11 @@ export function TasksHeader({
               },
             ]}
           >
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 45 : 80}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
             <View style={styles.dropdownBtnLeft}>
               <SlidersHorizontal size={13} color="#A1A1AA" />
               {selectedSubject ? (
@@ -217,6 +242,11 @@ export function TasksHeader({
               onPress={onResetSubjectFilter}
               style={styles.resetFilterBtn}
             >
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 45 : 80}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
               <Text style={styles.resetFilterText}>Ver todas</Text>
             </Pressable>
           )}
@@ -260,16 +290,17 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#18181B',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    overflow: 'hidden',
   },
   classIconButtonConnected: {
-    borderColor: '#3F3F46',
-    backgroundColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
   },
   onlineDot: {
     position: 'absolute',
@@ -284,11 +315,12 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#18181B',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   dynamicSearchContainer: {
     flexDirection: 'row',
@@ -299,12 +331,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181B',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     borderRadius: 14,
     paddingHorizontal: 12,
     height: 42,
+    overflow: 'hidden',
   },
   searchIcon: {
     marginRight: 8,
@@ -319,7 +352,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#27272A',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6,
@@ -342,12 +375,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#18181B',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 9,
+    overflow: 'hidden',
   },
   dropdownBtnLeft: {
     flexDirection: 'row',
@@ -375,7 +409,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    overflow: 'hidden',
   },
   resetFilterText: {
     color: '#A1A1AA',

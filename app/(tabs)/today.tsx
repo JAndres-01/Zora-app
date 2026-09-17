@@ -9,6 +9,7 @@ import {
   Platform,
   UIManager,
 } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import type { Schedule, Task, Subject } from '@/types/personal'
 import { MinimalistLiveHero } from '@/components/today/MinimalistLiveHero'
@@ -272,7 +273,12 @@ export default function TodayScreen() {
               }}
               style={styles.headerAddBtn}
             >
-              <Plus size={14} color="#09090B" strokeWidth={2.8} />
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 50 : 85}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+              <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
               <Text style={styles.headerAddBtnText}>Tarea</Text>
             </Pressable>
           </View>
@@ -365,15 +371,18 @@ const styles = StyleSheet.create({
   headerAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 13,
-    paddingVertical: 7.5,
-    borderRadius: 14,
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   headerAddBtnText: {
-    color: '#09090B',
-    fontSize: 12.5,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 })

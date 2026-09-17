@@ -105,12 +105,7 @@ function GlassSettingsButton({ onPress }: { onPress: () => void }) {
             accessibilityLabel="Ajustes"
             style={styles.glassBtnInner}
           >
-            <SymbolView
-              name="gearshape"
-              tintColor="#FFFFFF"
-              size={18}
-              weight="regular"
-            />
+            <SettingsIcon size={20} color="#FFFFFF" strokeWidth={2.2} />
           </Pressable>
         </GlassView>
       ) : (
@@ -131,7 +126,7 @@ function GlassSettingsButton({ onPress }: { onPress: () => void }) {
             tint="dark"
             style={StyleSheet.absoluteFill}
           />
-          <SettingsIcon size={17} color="#FFFFFF" strokeWidth={2} />
+          <SettingsIcon size={20} color="#FFFFFF" strokeWidth={2.2} />
         </Pressable>
       )}
     </Animated.View>
@@ -655,9 +650,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
   },
-  stickyHeaderLeftSpacer: {
-    width: 36,
-  },
   compactTitleWrapper: {
     flex: 1,
     alignItems: 'center',
@@ -670,27 +662,32 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     textAlign: 'center',
   },
+  stickyHeaderLeftSpacer: {
+    width: 40,
+  },
   stickyHeaderRight: {
-    width: 36,
+    width: 40,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   glassBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   glassBtnInner: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   blurBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',

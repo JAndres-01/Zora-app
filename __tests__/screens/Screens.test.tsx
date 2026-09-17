@@ -26,12 +26,12 @@ describe('Smoke and Regression Tests for All Main Screens', () => {
   })
 
   test('TasksScreen renderiza y muestra la barra de tareas y botón de crear', async () => {
-    const { getByText } = await render(
+    const { getAllByText } = await render(
       <PersonalAuthProvider>
         <TasksScreen />
       </PersonalAuthProvider>
     )
-    expect(getByText('Tareas')).toBeTruthy()
+    expect(getAllByText('Tareas').length).toBeGreaterThanOrEqual(1)
   })
 
   test('ScheduleScreen renderiza la vista de horario sin fallos', async () => {

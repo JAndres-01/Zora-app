@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,7 +9,14 @@ import {
   Platform,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
-import { SlidersHorizontal, ChevronDown, Plus, Search, X, Globe } from 'lucide-react-native'
+import {
+  SlidersHorizontal,
+  ChevronDown,
+  Plus,
+  Search,
+  X,
+  Globe,
+} from 'lucide-react-native'
 import type { Subject } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -28,6 +36,10 @@ export interface TasksHeaderProps {
   isConnected?: boolean
   pendingCount?: number
   cardEntranceAnim?: Animated.Value
+  largeTitleOpacity?: Animated.AnimatedInterpolation<number>
+  largeTitleTranslateY?: Animated.AnimatedInterpolation<number>
+  largeTitleScale?: Animated.AnimatedInterpolation<number>
+  hideHeaderActions?: boolean
 }
 
 export function TasksHeader({
@@ -45,8 +57,35 @@ export function TasksHeader({
   isConnected = false,
   pendingCount = 0,
   cardEntranceAnim,
+  largeTitleOpacity,
+  largeTitleTranslateY,
+  largeTitleScale,
+  hideHeaderActions = false,
 }: TasksHeaderProps) {
   const isSelectedWhite = isWhiteColor(selectedSubject?.color)
+
+  // Spring animation scales for action buttons
+  const searchScaleAnim = useRef(new Animated.Value(1)).current
+  const classScaleAnim = useRef(new Animated.Value(1)).current
+  const addScaleAnim = useRef(new Animated.Value(1)).current
+
+  const handlePressIn = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handlePressOut = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start()
+  }
 
   const card0Style = cardEntranceAnim
     ? {
@@ -76,7 +115,18 @@ export function TasksHeader({
       <Animated.View style={card0Style}>
         {/* Cabecera Principal con Large Title o Barra de Búsqueda Activa */}
         {!isSearchActive ? (
-          <View style={styles.headerTopRow}>
+          <Animated.View
+            style={[
+              styles.headerTopRow,
+              largeTitleOpacity !== undefined && {
+                opacity: largeTitleOpacity,
+                transform: [
+                  { translateY: largeTitleTranslateY || 0 },
+                  { scale: largeTitleScale || 1 },
+                ],
+              },
+            ]}
+          >
             <View style={styles.titleColumn}>
               <Text style={styles.title}>Tareas</Text>
               <Text style={styles.subtitle}>
@@ -84,64 +134,84 @@ export function TasksHeader({
               </Text>
             </View>
 
-            <View style={styles.headerActions}>
-              {/* Botón de Búsqueda */}
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  onOpenSearch?.()
-                }}
-                style={styles.iconActionBtn}
-                hitSlop={8}
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <Search size={15} color="#FFFFFF" strokeWidth={2.2} />
-              </Pressable>
+            {!hideHeaderActions && (
+              <View style={styles.headerActions}>
+                {/* Botón de Búsqueda */}
+                <Animated.View style={{ transform: [{ scale: searchScaleAnim }] }}>
+                  <Pressable
+                    onPress={() => {
+                      triggerHaptic('light')
+                      onOpenSearch?.()
+                    }}
+                    onPressIn={() => handlePressIn(searchScaleAnim)}
+                    onPressOut={() => handlePressOut(searchScaleAnim)}
+                    style={styles.iconActionBtn}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Buscar tareas"
+                  >
+                    <BlurView
+                      intensity={Platform.OS === 'ios' ? 50 : 85}
+                      tint="dark"
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
+                  </Pressable>
+                </Animated.View>
 
-              {/* Botón de Conexión a Clase */}
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  onOpenClassAuth?.()
-                }}
-                style={[
-                  styles.iconActionBtn,
-                  isConnected && styles.iconActionBtnConnected,
-                ]}
-                hitSlop={8}
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <Globe size={15} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
-                {isConnected && <View style={styles.onlineDot} />}
-              </Pressable>
+                {/* Botón de Conexión a Clase */}
+                <Animated.View style={{ transform: [{ scale: classScaleAnim }] }}>
+                  <Pressable
+                    onPress={() => {
+                      triggerHaptic('light')
+                      onOpenClassAuth?.()
+                    }}
+                    onPressIn={() => handlePressIn(classScaleAnim)}
+                    onPressOut={() => handlePressOut(classScaleAnim)}
+                    style={[
+                      styles.iconActionBtn,
+                      isConnected && styles.iconActionBtnConnected,
+                    ]}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Estado de clase"
+                  >
+                    <BlurView
+                      intensity={Platform.OS === 'ios' ? 50 : 85}
+                      tint="dark"
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Globe size={19} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
+                    {isConnected && <View style={styles.onlineDot} />}
+                  </Pressable>
+                </Animated.View>
 
-              {/* Botón de Añadir Nueva Tarea */}
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('medium')
-                  onOpenNewTask?.()
-                }}
-                style={styles.headerAddBtn}
-                hitSlop={8}
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
-                <Text style={styles.headerAddBtnText}>Tarea</Text>
-              </Pressable>
-            </View>
-          </View>
+                {/* Botón de Añadir Nueva Tarea */}
+                <Animated.View style={{ transform: [{ scale: addScaleAnim }] }}>
+                  <Pressable
+                    onPress={() => {
+                      triggerHaptic('medium')
+                      onOpenNewTask?.()
+                    }}
+                    onPressIn={() => handlePressIn(addScaleAnim)}
+                    onPressOut={() => handlePressOut(addScaleAnim)}
+                    style={styles.headerAddBtn}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Nueva tarea"
+                  >
+                    <BlurView
+                      intensity={Platform.OS === 'ios' ? 50 : 85}
+                      tint="dark"
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
+                    <Text style={styles.headerAddBtnText}>Tarea</Text>
+                  </Pressable>
+                </Animated.View>
+              </View>
+            )}
+          </Animated.View>
         ) : (
           <View style={styles.searchActiveRow}>
             <View style={styles.searchInputContainer}>
@@ -150,7 +220,7 @@ export function TasksHeader({
                 tint="dark"
                 style={StyleSheet.absoluteFill}
               />
-              <Search size={14} color="#71717A" />
+              <Search size={16} color="#71717A" />
               <TextInput
                 value={searchQuery}
                 onChangeText={onSearchQueryChange}
@@ -166,7 +236,7 @@ export function TasksHeader({
                   hitSlop={8}
                   style={styles.searchClearBtn}
                 >
-                  <X size={13} color="#A1A1AA" />
+                  <X size={14} color="#A1A1AA" />
                 </Pressable>
               )}
             </View>
@@ -269,7 +339,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '800',
     letterSpacing: -0.8,
   },
@@ -284,9 +354,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -301,9 +371,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 7,
     right: 7,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#34C759',
   },
   headerAddBtn: {
@@ -313,14 +383,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 15,
+    height: 40,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   headerAddBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
   },
   searchActiveRow: {
@@ -340,7 +410,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.16)',
     borderRadius: 14,
     paddingHorizontal: 12,
-    height: 38,
+    height: 40,
     overflow: 'hidden',
   },
   searchInput: {

@@ -14,7 +14,7 @@ import {
 import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router'
-import { Plus, CheckCircle2, Globe } from 'lucide-react-native'
+import { Plus, CheckCircle2, Globe, Search } from 'lucide-react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import type { Task, Subject } from '@/types/personal'
 import { MinimalistTaskRow } from '@/components/tasks/MinimalistTaskRow'
@@ -422,6 +422,68 @@ export default function TasksScreen() {
 
   const keyExtractor = useCallback((item: Task) => item.id, [])
 
+  // Animación de Scroll para Colapso de Header Estilo Apple Notes
+  const scrollY = useRef(new Animated.Value(0)).current
+
+  const headerBgOpacity = scrollY.interpolate({
+    inputRange: [0, 25, 60],
+    outputRange: [0, 0.5, 1],
+    extrapolate: 'clamp',
+  })
+
+  const compactTitleOpacity = scrollY.interpolate({
+    inputRange: [25, 60],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  })
+
+  const compactTitleTranslateY = scrollY.interpolate({
+    inputRange: [25, 60],
+    outputRange: [6, 0],
+    extrapolate: 'clamp',
+  })
+
+  const largeTitleOpacity = scrollY.interpolate({
+    inputRange: [0, 40],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  })
+
+  const largeTitleTranslateY = scrollY.interpolate({
+    inputRange: [-80, 0, 50],
+    outputRange: [20, 0, -14],
+    extrapolate: 'clamp',
+  })
+
+  const largeTitleScale = scrollY.interpolate({
+    inputRange: [-100, 0],
+    outputRange: [1.08, 1],
+    extrapolateRight: 'clamp',
+  })
+
+  // Botones de Acción del Header
+  const searchScaleAnim = useRef(new Animated.Value(1)).current
+  const classScaleAnim = useRef(new Animated.Value(1)).current
+  const addScaleAnim = useRef(new Animated.Value(1)).current
+
+  const handleButtonPressIn = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handleButtonPressOut = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start()
+  }
+
   const renderListHeader = useMemo(() => {
     const pendingCount = tasks.filter((t) => t.status === 'pending').length
     return (
@@ -449,6 +511,10 @@ export default function TasksScreen() {
           isConnected={isConnected}
           pendingCount={pendingCount}
           cardEntranceAnim={cardEntranceAnims[0]}
+          largeTitleOpacity={largeTitleOpacity}
+          largeTitleTranslateY={largeTitleTranslateY}
+          largeTitleScale={largeTitleScale}
+          hideHeaderActions={true}
         />
 
         {/* Segmented Control iOS */}
@@ -468,6 +534,9 @@ export default function TasksScreen() {
     tasks,
     isConnected,
     cardEntranceAnims,
+    largeTitleOpacity,
+    largeTitleTranslateY,
+    largeTitleScale,
   ])
 
   const renderEmptyComponent = useMemo(() => {
@@ -499,10 +568,133 @@ export default function TasksScreen() {
     <View style={styles.screenWrapper}>
       <Stack.Screen options={{ headerShown: false }} />
 
+      {/* Barra de Navegación Sticky Superior (Estilo Apple Notes de iOS) */}
+      <View
+        pointerEvents="box-none"
+        style={[
+          styles.stickyHeaderBar,
+          {
+            height: insets.top + 44,
+            paddingTop: insets.top,
+          },
+        ]}
+      >
+        {/* Fondo Translúcido con Transición en Scroll */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: headerBgOpacity },
+          ]}
+          pointerEvents="none"
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 75 : 90}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.stickyHeaderBorder} />
+        </Animated.View>
+
+        {/* Contenido de la Barra: Título Centrado y Acciones a la Derecha */}
+        <View style={styles.stickyHeaderContent} pointerEvents="box-none">
+          <View style={styles.stickyHeaderLeftSpacer} />
+
+          <Animated.View
+            style={[
+              styles.compactTitleWrapper,
+              {
+                opacity: compactTitleOpacity,
+                transform: [{ translateY: compactTitleTranslateY }],
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={styles.compactTitle}>Tareas</Text>
+          </Animated.View>
+
+          <View style={styles.stickyHeaderRight}>
+            {/* Botón de Búsqueda */}
+            <Animated.View style={{ transform: [{ scale: searchScaleAnim }] }}>
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  setIsSearchActive(true)
+                }}
+                onPressIn={() => handleButtonPressIn(searchScaleAnim)}
+                onPressOut={() => handleButtonPressOut(searchScaleAnim)}
+                style={styles.iconActionBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Buscar tareas"
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
+              </Pressable>
+            </Animated.View>
+
+            {/* Botón de Conexión a Clase */}
+            <Animated.View style={{ transform: [{ scale: classScaleAnim }] }}>
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light')
+                  setShowClassAuthModal(true)
+                }}
+                onPressIn={() => handleButtonPressIn(classScaleAnim)}
+                onPressOut={() => handleButtonPressOut(classScaleAnim)}
+                style={[
+                  styles.iconActionBtn,
+                  isConnected && styles.iconActionBtnConnected,
+                ]}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Estado de clase"
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Globe size={19} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
+                {isConnected && <View style={styles.onlineDot} />}
+              </Pressable>
+            </Animated.View>
+
+            {/* Botón de Añadir Nueva Tarea */}
+            <Animated.View style={{ transform: [{ scale: addScaleAnim }] }}>
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('medium')
+                  setActiveTask(null)
+                  setTaskModalMode('create')
+                }}
+                onPressIn={() => handleButtonPressIn(addScaleAnim)}
+                onPressOut={() => handleButtonPressOut(addScaleAnim)}
+                style={styles.headerAddBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Nueva tarea"
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 50 : 85}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                />
+                <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
+                <Text style={styles.headerAddBtnText}>Tarea</Text>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </View>
+      </View>
+
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
       <View style={styles.flatListWrapper}>
-        <FlatList
+        <Animated.FlatList
           ref={flatListRef}
           data={filteredTasks}
           extraData={highlightedTaskId}
@@ -518,13 +710,18 @@ export default function TasksScreen() {
           contentContainerStyle={[
             styles.content,
             {
-              paddingTop: Math.max(insets.top, 16) + 4,
+              paddingTop: insets.top + 10,
               paddingBottom: insets.bottom + 90,
             },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => Keyboard.dismiss()}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
           initialNumToRender={15}
           maxToRenderPerBatch={12}
           windowSize={9}
@@ -610,38 +807,86 @@ const styles = StyleSheet.create({
     paddingHorizontal: 36,
     lineHeight: 17,
   },
-  headerAddBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  stickyHeaderBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  stickyHeaderBorder: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  stickyHeaderContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  stickyHeaderLeftSpacer: {
+    width: 40,
+  },
+  compactTitleWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    textAlign: 'center',
+  },
+  stickyHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconActionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  classIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
     overflow: 'hidden',
   },
-  classIconButtonConnected: {
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+  iconActionBtnConnected: {
+    borderColor: 'rgba(52, 199, 89, 0.4)',
   },
   onlineDot: {
     position: 'absolute',
     top: 7,
     right: 7,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#34C759',
+  },
+  headerAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    paddingHorizontal: 15,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  headerAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
 })

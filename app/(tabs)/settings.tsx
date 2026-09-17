@@ -68,8 +68,6 @@ export default function ProfileScreen() {
   // Animaciones de Entrada Escalonada
   const cardEntranceAnims = useCardEntrance(5, 'settings')
 
-  const gearScaleAnim = useRef(new Animated.Value(1)).current
-
   const loadData = useCallback(async () => {
     const prefs = await personalStorage.getPreferences()
     setHapticsEnabled(prefs.haptics_enabled)
@@ -306,70 +304,62 @@ export default function ProfileScreen() {
     )
   }
 
-  const handleGearPressIn = () => {
-    Animated.spring(gearScaleAnim, {
-      toValue: 0.88,
-      speed: 60,
-      bounciness: 0,
-      useNativeDriver: true,
-    }).start()
-  }
-
-  const handleGearPressOut = () => {
-    Animated.spring(gearScaleAnim, {
-      toValue: 1,
-      speed: 40,
-      bounciness: 5,
-      useNativeDriver: true,
-    }).start()
-  }
-
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen
+        options={{
+          title: 'Perfil',
+          headerShown: true,
+          headerLargeTitleEnabled: Platform.OS === 'ios',
+          headerTransparent: Platform.OS === 'ios',
+          headerShadowVisible: false,
+          headerTintColor: '#FFFFFF',
+          headerStyle: { backgroundColor: '#000000' },
+          unstable_headerRightItems:
+            Platform.OS === 'ios'
+              ? () => [
+                  {
+                    type: 'button',
+                    label: 'Ajustes',
+                    icon: { type: 'sfSymbol', name: 'gearshape' },
+                    variant: 'plain',
+                    onPress: () => {
+                      triggerHaptic('light')
+                      setShowSettingsModal(true)
+                    },
+                  },
+                ]
+              : undefined,
+          headerRight:
+            Platform.OS !== 'ios'
+              ? () => (
+                  <Pressable
+                    onPress={() => {
+                      triggerHaptic('light')
+                      setShowSettingsModal(true)
+                    }}
+                    hitSlop={8}
+                    style={styles.gearBtn}
+                  >
+                    <SettingsIcon size={18} color="#FFFFFF" />
+                  </Pressable>
+                )
+              : undefined,
+        }}
+      />
 
       <ScrollView
         style={styles.container}
-        contentInsetAdjustmentBehavior="never"
+        contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: Math.max(insets.top, 16) + 4,
+            paddingTop: Platform.OS === 'ios' ? 8 : Math.max(insets.top, 16) + 4,
             paddingBottom: Math.max(insets.bottom, 24) + 64,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Cabecera iOS con Large Title y Botón de Ajustes */}
-        <View style={styles.header}>
-          <View style={styles.headerTopRow}>
-            <View style={styles.titleColumn}>
-              <Text style={styles.title}>Perfil</Text>
-              <Text style={styles.subtitle}>Estudiante • Ajustes y estadísticas</Text>
-            </View>
-
-            <Animated.View style={{ transform: [{ scale: gearScaleAnim }] }}>
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  setShowSettingsModal(true)
-                }}
-                onPressIn={handleGearPressIn}
-                onPressOut={handleGearPressOut}
-                hitSlop={8}
-                style={styles.gearBtn}
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <SettingsIcon size={18} color="#FFFFFF" />
-              </Pressable>
-            </Animated.View>
-          </View>
-        </View>
-
         {/* Card 0: Tarjeta Hero de Perfil */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
           <ProfileHeroCard
@@ -472,29 +462,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     gap: 12,
-  },
-  header: {
-    paddingHorizontal: 2,
-    marginBottom: 4,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  titleColumn: {
-    gap: 2,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-  },
-  subtitle: {
-    color: '#71717A',
-    fontSize: 13,
-    fontWeight: '500',
   },
   gearBtn: {
     width: 38,

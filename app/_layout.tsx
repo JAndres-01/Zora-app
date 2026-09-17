@@ -3,6 +3,7 @@ import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { ThemeProvider, DarkTheme } from '@react-navigation/native'
 import { PersonalAuthProvider } from '@/context/PersonalAuthContext'
 import { ClassAuthProvider } from '@/context/ClassAuthContext'
 import { StyleSheet, Platform, View, Text, Alert } from 'react-native'
@@ -11,6 +12,19 @@ import { personalStorage } from '@/lib/personalStorage'
 import { setupNotificationInfrastructure } from '@/lib/personalNotifications'
 import { preloadAllAudio } from '@/lib/personalAudio'
 import { logger } from '@/lib/logger'
+
+const ZoraDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: '#FFFFFF',
+    background: '#000000',
+    card: '#000000',
+    text: '#FFFFFF',
+    border: 'rgba(255, 255, 255, 0.08)',
+    notification: '#F43F5E',
+  },
+}
 
 // Retener el Splash Screen nativo de forma segura con protección de excepciones
 try {
@@ -142,34 +156,36 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <PersonalAuthProvider>
             <ClassAuthProvider>
-              <StatusBar style="light" />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  animation: 'default',
-                  contentStyle: { backgroundColor: '#000000' },
-                }}
-              >
-                <Stack.Screen name="index" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="welcome" options={{ animation: 'default' }} />
-                <Stack.Screen name="auth" options={{ animation: 'default' }} />
-                <Stack.Screen name="(tabs)" options={{ animation: 'default' }} />
-                <Stack.Screen
-                  name="modal"
-                  options={{
-                    presentation: 'formSheet',
-                    sheetAllowedDetents: [0.6, 0.95],
-                    sheetGrabberVisible: true,
-                    sheetInitialDetentIndex: 0,
-                    sheetCornerRadius: 28,
-                    contentStyle: { backgroundColor: '#1C1C1E' },
-                    headerStyle: { backgroundColor: '#1C1C1E' },
-                    headerShadowVisible: false,
-                    headerTintColor: '#FFFFFF',
+              <ThemeProvider value={ZoraDarkTheme}>
+                <StatusBar style="light" />
+                <Stack
+                  screenOptions={{
                     headerShown: false,
+                    animation: 'default',
+                    contentStyle: { backgroundColor: '#000000' },
                   }}
-                />
-              </Stack>
+                >
+                  <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="welcome" options={{ animation: 'default' }} />
+                  <Stack.Screen name="auth" options={{ animation: 'default' }} />
+                  <Stack.Screen name="(tabs)" options={{ animation: 'default' }} />
+                  <Stack.Screen
+                    name="modal"
+                    options={{
+                      presentation: 'formSheet',
+                      sheetAllowedDetents: [0.6, 0.95],
+                      sheetGrabberVisible: true,
+                      sheetInitialDetentIndex: 0,
+                      sheetCornerRadius: 28,
+                      contentStyle: { backgroundColor: '#1C1C1E' },
+                      headerStyle: { backgroundColor: '#1C1C1E' },
+                      headerShadowVisible: false,
+                      headerTintColor: '#FFFFFF',
+                      headerShown: false,
+                    }}
+                  />
+                </Stack>
+              </ThemeProvider>
             </ClassAuthProvider>
           </PersonalAuthProvider>
         </SafeAreaProvider>

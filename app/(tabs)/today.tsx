@@ -246,46 +246,70 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen
+        options={{
+          title: 'Hoy',
+          headerShown: true,
+          headerLargeTitleEnabled: Platform.OS === 'ios',
+          headerTransparent: Platform.OS === 'ios',
+          headerShadowVisible: false,
+          headerTintColor: '#FFFFFF',
+          headerStyle: { backgroundColor: '#000000' },
+          unstable_headerRightItems:
+            Platform.OS === 'ios'
+              ? () => [
+                  {
+                    type: 'button',
+                    label: 'Tarea',
+                    icon: { type: 'sfSymbol', name: 'plus.circle' },
+                    variant: 'prominent',
+                    sharesBackground: true,
+                    onPress: () => {
+                      triggerHaptic('medium')
+                      setActiveTask(null)
+                      setTaskModalMode('create')
+                    },
+                  },
+                ]
+              : undefined,
+          headerRight:
+            Platform.OS !== 'ios'
+              ? () => (
+                  <Pressable
+                    onPress={() => {
+                      triggerHaptic('medium')
+                      setActiveTask(null)
+                      setTaskModalMode('create')
+                    }}
+                    style={styles.headerAddBtn}
+                    hitSlop={8}
+                  >
+                    <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
+                    <Text style={styles.headerAddBtnText}>Tarea</Text>
+                  </Pressable>
+                )
+              : undefined,
+        }}
+      />
 
       {/* Confetti Festivo al Completar Tareas */}
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
       <ScrollView
         style={styles.container}
-        contentInsetAdjustmentBehavior="never"
+        contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: Math.max(insets.top, 16) + 4, paddingBottom: insets.bottom + 90 },
+          {
+            paddingTop: Platform.OS === 'ios' ? 8 : Math.max(insets.top, 16) + 4,
+            paddingBottom: insets.bottom + 90,
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Cabecera iOS con Large Title y Botón + Tarea */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.titleColumn}>
-              <Text style={styles.title}>Hoy</Text>
-              <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
-            </View>
-
-            <Pressable
-              onPress={() => {
-                triggerHaptic('medium')
-                setActiveTask(null)
-                setTaskModalMode('create')
-              }}
-              style={styles.headerAddBtn}
-              hitSlop={8}
-            >
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 50 : 85}
-                tint="dark"
-                style={StyleSheet.absoluteFill}
-              />
-              <Plus size={14} color="#FFFFFF" strokeWidth={2.4} />
-              <Text style={styles.headerAddBtnText}>Tarea</Text>
-            </Pressable>
-          </View>
+        {/* Subtítulo con fecha actual elegante bajo el header nativo */}
+        <View style={styles.dateHeaderRow}>
+          <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
         </View>
 
         {/* Card 0: Hero Card Dinámica (Clase en Vivo / Próxima) */}
@@ -356,24 +380,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingTop: 2,
     paddingBottom: 4,
-  },
-  header: {
-    paddingHorizontal: 2,
-    marginBottom: 4,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  titleColumn: {
-    gap: 2,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.8,
   },
   subtitle: {
     color: '#71717A',

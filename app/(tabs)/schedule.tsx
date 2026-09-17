@@ -215,46 +215,66 @@ export default function ScheduleScreen() {
 
   return (
     <View style={styles.screenWrapper}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen
+        options={{
+          title: 'Horario',
+          headerShown: true,
+          headerLargeTitleEnabled: Platform.OS === 'ios',
+          headerTransparent: Platform.OS === 'ios',
+          headerShadowVisible: false,
+          headerTintColor: '#FFFFFF',
+          headerStyle: { backgroundColor: '#000000' },
+          unstable_headerRightItems:
+            Platform.OS === 'ios' && canEdit
+              ? () => [
+                  {
+                    type: 'button',
+                    label: 'Materias',
+                    icon: { type: 'sfSymbol', name: 'book' },
+                    variant: 'plain',
+                    onPress: () => {
+                      triggerHaptic('light')
+                      setShowSubjectModal(true)
+                    },
+                  },
+                ]
+              : undefined,
+          headerRight:
+            Platform.OS !== 'ios' && canEdit
+              ? () => (
+                  <Pressable
+                    onPress={() => {
+                      triggerHaptic('light')
+                      setShowSubjectModal(true)
+                    }}
+                    style={styles.manageSubjBtn}
+                    hitSlop={8}
+                  >
+                    <BookOpen size={14} color="#FFFFFF" />
+                    <Text style={styles.manageSubjBtnText}>Materias</Text>
+                  </Pressable>
+                )
+              : undefined,
+        }}
+      />
 
       <ScrollView
         style={styles.container}
-        contentInsetAdjustmentBehavior="never"
+        contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: Math.max(insets.top, 16) + 4, paddingBottom: insets.bottom + 90 },
+          {
+            paddingTop: Platform.OS === 'ios' ? 8 : Math.max(insets.top, 16) + 4,
+            paddingBottom: insets.bottom + 90,
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Cabecera iOS con Large Title y Botón Materias */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.titleColumn}>
-              <Text style={styles.title}>Horario</Text>
-              <Text style={styles.subtitle}>
-                {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
-              </Text>
-            </View>
-
-            {canEdit && (
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light')
-                  setShowSubjectModal(true)
-                }}
-                style={styles.manageSubjBtn}
-                hitSlop={8}
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 50 : 85}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                />
-                <BookOpen size={14} color="#FFFFFF" />
-                <Text style={styles.manageSubjBtnText}>Materias</Text>
-              </Pressable>
-            )}
-          </View>
+        {/* Subtítulo de semana académica bajo el header nativo */}
+        <View style={styles.dateHeaderRow}>
+          <Text style={styles.subtitle}>
+            {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
+          </Text>
         </View>
 
         {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
@@ -389,24 +409,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingTop: 2,
     paddingBottom: 4,
-  },
-  header: {
-    paddingHorizontal: 2,
-    marginBottom: 4,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  titleColumn: {
-    gap: 2,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.8,
   },
   subtitle: {
     color: '#71717A',

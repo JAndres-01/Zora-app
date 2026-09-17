@@ -159,9 +159,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     maxHeight: '80%',
     paddingBottom: 36,
+    overflow: 'hidden',
   },
   menuHeader: {
     alignItems: 'center',

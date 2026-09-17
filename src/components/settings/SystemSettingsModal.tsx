@@ -487,7 +487,8 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     maxHeight: '88%',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    overflow: 'hidden',
   },
   headerPanArea: {
     paddingTop: 4,

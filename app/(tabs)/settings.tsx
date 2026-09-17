@@ -330,11 +330,11 @@ export default function ProfileScreen() {
 
       <ScrollView
         style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: insets.top + 8,
+            paddingTop: Math.max(insets.top, 16) + 4,
             paddingBottom: Math.max(insets.bottom, 24) + 64,
           },
         ]}

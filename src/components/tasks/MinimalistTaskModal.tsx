@@ -934,8 +934,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     maxHeight: '92%',
+    overflow: 'hidden',
   },
   dragHandle: {
     width: 36,
@@ -951,7 +954,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: 'transparent',
     position: 'relative',
   },
   headerRow: {

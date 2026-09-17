@@ -448,9 +448,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     height: '94%',
     paddingHorizontal: 16,
+    overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.7,
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     paddingBottom: 10,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: 'transparent',
   },
   dragHandle: {
     width: 36,

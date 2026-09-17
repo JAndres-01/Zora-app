@@ -526,13 +526,13 @@ export default function TasksScreen() {
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={renderEmptyComponent}
           style={styles.flatList}
-          contentInsetAdjustmentBehavior="automatic"
+          contentInsetAdjustmentBehavior="never"
           scrollEnabled={isScrollEnabled}
           bounces={true}
           alwaysBounceVertical={true}
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 105 },
+            { paddingTop: Math.max(insets.top, 16) + 4, paddingBottom: insets.bottom + 105 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

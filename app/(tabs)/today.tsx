@@ -253,10 +253,10 @@ export default function TodayScreen() {
 
       <ScrollView
         style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 90 },
+          { paddingTop: Math.max(insets.top, 16) + 4, paddingBottom: insets.bottom + 90 },
         ]}
         showsVerticalScrollIndicator={false}
       >

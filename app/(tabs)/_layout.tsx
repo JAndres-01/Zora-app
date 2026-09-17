@@ -85,11 +85,12 @@ export default function TabLayout() {
           )}
         </NativeTabs.Trigger>
 
-        {/* Ajustes */}
+        {/* Perfil */}
         <NativeTabs.Trigger name="settings">
-          <NativeTabs.Trigger.Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
-          <NativeTabs.Trigger.Label>Ajustes</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={{ default: 'person', selected: 'person.fill' }} />
+          <NativeTabs.Trigger.Label>Perfil</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
+
       </NativeTabs>
 
       {/* Modal reactivo automático para "Compartir con Zora" */}

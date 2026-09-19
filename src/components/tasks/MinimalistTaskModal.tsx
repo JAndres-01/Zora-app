@@ -949,7 +949,6 @@ export function MinimalistTaskModal({
                           onPress={closeSubPage}
                           icon="back"
                           accessibilityLabel="Volver"
-                          iconSize={20}
                         />
                       </View>
                     </View>

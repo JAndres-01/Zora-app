@@ -67,7 +67,7 @@ export function NativeGlassIconButton({
       >
         <BlurView intensity={prominent ? 30 : 26} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.glassSheen} />
-        <Icon size={26} color={disabled ? '#8E8E93' : '#FFFFFF'} />
+        <Icon size={20} color={disabled ? '#8E8E93' : '#FFFFFF'} />
       </Pressable>
     </Animated.View>
   )

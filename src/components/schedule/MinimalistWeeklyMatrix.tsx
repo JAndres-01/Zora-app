@@ -280,8 +280,8 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
                     </View>
                   </View>
 
-                  {/* Bloques del día */}
-                  <View style={styles.daySlotsColumn}>
+                  {/* Bloques del día en grilla 2×2 (sin efecto estirado) */}
+                  <View style={styles.daySlotsGrid}>
                     {PERSONAL_SCHEDULE_BLOCKS.map((blockDef) => {
                       const item = daySchedules.find(
                         (s) => s.block_number === blockDef.block
@@ -291,20 +291,24 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
                         : 0
 
                       return (
-                        <MatrixSlotCard
+                        <View
                           key={blockDef.block}
-                          blockNum={blockDef.block}
-                          schedule={item}
-                          pendingTaskCount={pendingTaskCount}
-                          canAssign={Boolean(onAssignSlot)}
-                          onPress={() => {
-                            if (onAssignSlot) {
-                              onAssignSlot(d.num, blockDef.block, item)
-                            } else if (item?.subject && onOpenDayTasks) {
-                              onOpenDayTasks(d.num, item.subject_id)
-                            }
-                          }}
-                        />
+                          style={{ width: (pageWidth - 16) / 2 }}
+                        >
+                          <MatrixSlotCard
+                            blockNum={blockDef.block}
+                            schedule={item}
+                            pendingTaskCount={pendingTaskCount}
+                            canAssign={Boolean(onAssignSlot)}
+                            onPress={() => {
+                              if (onAssignSlot) {
+                                onAssignSlot(d.num, blockDef.block, item)
+                              } else if (item?.subject && onOpenDayTasks) {
+                                onOpenDayTasks(d.num, item.subject_id)
+                              }
+                            }}
+                          />
+                        </View>
                       )
                     })}
                   </View>
@@ -394,7 +398,9 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
   },
-  daySlotsColumn: {
+  daySlotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   daysRow: {

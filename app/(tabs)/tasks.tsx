@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+﻿import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -11,26 +11,27 @@ import {
   Platform,
   UIManager,
   AccessibilityInfo,
+  TextInput,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
-import {
-  GlassView,
-  isLiquidGlassAvailable,
-  isGlassEffectAPIAvailable,
-} from 'expo-glass-effect'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router'
-import { Plus, CheckCircle2, Globe, Search } from 'lucide-react-native'
+import { CheckCircle2, Search, X, ChevronLeft } from 'lucide-react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import type { Task, Subject } from '@/types/personal'
 import { MinimalistTaskRow } from '@/components/tasks/MinimalistTaskRow'
 import { MinimalistTaskModal, TaskModalMode } from '@/components/tasks/MinimalistTaskModal'
-import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { MinimalistConfetti } from '@/components/effects/MinimalistConfetti'
-import { TasksHeader } from '@/components/tasks/TasksHeader'
+import {
+  TasksHeader,
+  GlassAddTaskButton,
+  GlassSubjectIconButton,
+  GlassSearchButton,
+} from '@/components/tasks/TasksHeader'
 import { TasksSegmentControl } from '@/components/tasks/TasksSegmentControl'
 import { TasksSubjectFilterModal } from '@/components/tasks/TasksSubjectFilterModal'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { isWhiteColor } from '@/constants/theme'
 import {
   playConfettiSound,
   playTrashSound,
@@ -44,263 +45,6 @@ import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { sortTasksByDueDate } from '@/lib/taskSort'
 import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
 import { useClassAuth } from '@/context/ClassAuthContext'
-
-const GLASS_AVAILABLE =
-  Platform.OS === 'ios' &&
-  typeof isLiquidGlassAvailable === 'function' &&
-  isLiquidGlassAvailable() &&
-  typeof isGlassEffectAPIAvailable === 'function' &&
-  isGlassEffectAPIAvailable()
-
-function GlassSearchButton({ onPress }: { onPress: () => void }) {
-  const [reduceTransparency, setReduceTransparency] = useState(false)
-  const scaleAnim = useRef(new Animated.Value(1)).current
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return
-    let active = true
-    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
-      if (active) setReduceTransparency(val)
-    })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start()
-  }
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 6,
-    }).start()
-  }
-
-  const useGlass = GLASS_AVAILABLE && !reduceTransparency
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      {useGlass ? (
-        <GlassView isInteractive style={styles.glassBtn}>
-          <Pressable
-            onPress={() => {
-              triggerHaptic('light')
-              onPress()
-            }}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Buscar tareas"
-            style={styles.glassBtnInner}
-          >
-            <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
-          </Pressable>
-        </GlassView>
-      ) : (
-        <Pressable
-          onPress={() => {
-            triggerHaptic('light')
-            onPress()
-          }}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Buscar tareas"
-          style={styles.blurBtn}
-        >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-          <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
-        </Pressable>
-      )}
-    </Animated.View>
-  )
-}
-
-function GlassClassButton({
-  isConnected,
-  onPress,
-}: {
-  isConnected: boolean
-  onPress: () => void
-}) {
-  const [reduceTransparency, setReduceTransparency] = useState(false)
-  const scaleAnim = useRef(new Animated.Value(1)).current
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return
-    let active = true
-    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
-      if (active) setReduceTransparency(val)
-    })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start()
-  }
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 6,
-    }).start()
-  }
-
-  const useGlass = GLASS_AVAILABLE && !reduceTransparency
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      {useGlass ? (
-        <GlassView
-          isInteractive
-          style={[styles.glassBtn, isConnected && styles.glassBtnConnected]}
-        >
-          <Pressable
-            onPress={() => {
-              triggerHaptic('light')
-              onPress()
-            }}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Estado de clase"
-            style={styles.glassBtnInner}
-          >
-            <Globe size={19} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
-            {isConnected && <View style={styles.onlineDot} />}
-          </Pressable>
-        </GlassView>
-      ) : (
-        <Pressable
-          onPress={() => {
-            triggerHaptic('light')
-            onPress()
-          }}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Estado de clase"
-          style={[styles.blurBtn, isConnected && styles.iconActionBtnConnected]}
-        >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-          <Globe size={19} color={isConnected ? '#FFFFFF' : '#A1A1AA'} strokeWidth={2} />
-          {isConnected && <View style={styles.onlineDot} />}
-        </Pressable>
-      )}
-    </Animated.View>
-  )
-}
-
-function GlassAddTaskButton({ onPress }: { onPress: () => void }) {
-  const [reduceTransparency, setReduceTransparency] = useState(false)
-  const scaleAnim = useRef(new Animated.Value(1)).current
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return
-    let active = true
-    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
-      if (active) setReduceTransparency(val)
-    })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start()
-  }
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 6,
-    }).start()
-  }
-
-  const useGlass = GLASS_AVAILABLE && !reduceTransparency
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      {useGlass ? (
-        <GlassView isInteractive style={styles.glassAddBtn}>
-          <Pressable
-            onPress={() => {
-              triggerHaptic('medium')
-              onPress()
-            }}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Nueva tarea"
-            style={styles.glassAddBtnInner}
-          >
-            <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
-            <Text style={styles.headerAddBtnText}>Tarea</Text>
-          </Pressable>
-        </GlassView>
-      ) : (
-        <Pressable
-          onPress={() => {
-            triggerHaptic('medium')
-            onPress()
-          }}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Nueva tarea"
-          style={styles.headerAddBtn}
-        >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-          <Plus size={16} color="#FFFFFF" strokeWidth={2.4} />
-          <Text style={styles.headerAddBtnText}>Tarea</Text>
-        </Pressable>
-      )}
-    </Animated.View>
-  )
-}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -319,6 +63,32 @@ export default function TasksScreen() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all')
   const [isSearchActive, setIsSearchActive] = useState(false)
   const [showSubjectMenu, setShowSubjectMenu] = useState(false)
+  const searchInputRef = useRef<TextInput>(null)
+
+  // Transición de entrada/salida del buscador: el header enfocado entra con resorte
+  // y sale con un fade que se desliza hacia arriba antes de desmontarse.
+  const [searchMounted, setSearchMounted] = useState(false)
+  const searchRevealVal = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (isSearchActive) {
+      setSearchMounted(true)
+      Animated.spring(searchRevealVal, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 9,
+      }).start()
+    } else {
+      Animated.timing(searchRevealVal, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setSearchMounted(false)
+      })
+    }
+  }, [isSearchActive, searchRevealVal])
 
   // Confetti
   const [confettiBurstTrigger, setConfettiBurstTrigger] = useState(0)
@@ -326,7 +96,6 @@ export default function TasksScreen() {
   // Modal Unificado de Tareas
   const [taskModalMode, setTaskModalMode] = useState<TaskModalMode>('none')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
-  const [showClassAuthModal, setShowClassAuthModal] = useState(false)
 
   // Transiciones y Scroll
   const [isScrollEnabled, setIsScrollEnabled] = useState(true)
@@ -345,6 +114,15 @@ export default function TasksScreen() {
     }, 120)
     return () => clearTimeout(timer)
   }, [searchQuery])
+
+  // Enfoque automático al activar modo búsqueda
+  useEffect(() => {
+    if (isSearchActive) {
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 50)
+    }
+  }, [isSearchActive])
 
   // Cerrar búsqueda al ocultar teclado si está vacío
   useEffect(() => {
@@ -392,6 +170,7 @@ export default function TasksScreen() {
   }>()
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
+  
 
   useEffect(() => {
     if (params.filter === 'pending' || params.filter === 'completed' || params.filter === 'all') {
@@ -501,7 +280,7 @@ export default function TasksScreen() {
     []
   )
 
-  const { isConnected, isAdmin, deleteClassTask } = useClassAuth()
+  const { isAdmin, deleteClassTask } = useClassAuth()
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
@@ -685,98 +464,65 @@ export default function TasksScreen() {
 
   const keyExtractor = useCallback((item: Task) => item.id, [])
 
-  // Animación de Scroll para Colapso de Header Estilo Apple Notes
+  // Animación de Scroll para Colapso de Header Estilo Apple Notes / WhatsApp
+  // Sincronizado para anclarse en el momento exacto en que el buscador se oculta (scrollY: 35..75)
   const scrollY = useRef(new Animated.Value(0)).current
 
   const headerBgOpacity = scrollY.interpolate({
-    inputRange: [0, 25, 60],
-    outputRange: [0, 0.5, 1],
+    inputRange: [18, 38],
+    outputRange: [0, 1],
     extrapolate: 'clamp',
   })
 
   const compactTitleOpacity = scrollY.interpolate({
-    inputRange: [25, 60],
+    inputRange: [40, 60],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   })
 
   const compactTitleTranslateY = scrollY.interpolate({
-    inputRange: [25, 60],
+    inputRange: [40, 60],
     outputRange: [6, 0],
     extrapolate: 'clamp',
   })
 
+  // El título grande se esconde JUSTO cuando la barra fija toca su borde inferior:
+  // la barra (56px) alcanza el borde superior del título a los 4px de scroll y el
+  // inferior a los ~45px (título 41px + paddingTop 60 - barra 56).
   const largeTitleOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+    inputRange: [4, 45],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   })
 
-  const largeTitleTranslateY = scrollY.interpolate({
-    inputRange: [-80, 0, 50],
-    outputRange: [20, 0, -14],
-    extrapolate: 'clamp',
-  })
-
-  const largeTitleScale = scrollY.interpolate({
-    inputRange: [-100, 0],
-    outputRange: [1.08, 1],
-    extrapolateRight: 'clamp',
-  })
-
   const renderListHeader = useMemo(() => {
-    const pendingCount = tasks.filter((t) => t.status === 'pending').length
     return (
       <View style={styles.headerContainer}>
-        {/* Cabecera y Buscador */}
-        <TasksHeader
-          isSearchActive={isSearchActive}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onOpenSearch={() => setIsSearchActive(true)}
-          onCloseSearch={() => {
-            setIsSearchActive(false)
-            setSearchQuery('')
-          }}
-          selectedSubject={selectedSubject}
-          selectedSubjectId={selectedSubjectId}
-          onOpenSubjectMenu={() => setShowSubjectMenu(true)}
-          onResetSubjectFilter={() => setSelectedSubjectId('all')}
-          onOpenClassAuth={() => setShowClassAuthModal(true)}
-          onOpenNewTask={() => {
-            triggerHaptic('medium')
-            setActiveTask(null)
-            setTaskModalMode('create')
-          }}
-          isConnected={isConnected}
-          pendingCount={pendingCount}
-          cardEntranceAnim={cardEntranceAnims[0]}
-          largeTitleOpacity={largeTitleOpacity}
-          largeTitleTranslateY={largeTitleTranslateY}
-          largeTitleScale={largeTitleScale}
-          hideHeaderActions={true}
-        />
+        {/* Cabecera Principal (Oculta en modo búsqueda activa) */}
+        {!isSearchActive && (
+          <TasksHeader
+            cardEntranceAnim={cardEntranceAnims[0]}
+            largeTitleOpacity={largeTitleOpacity}
+          />
+        )}
 
-        {/* Segmented Control iOS */}
-        <TasksSegmentControl
-          statusFilter={statusFilter}
-          onStatusChange={handleStatusChange}
-          cardEntranceAnim={cardEntranceAnims[1]}
-        />
+        {/* Segmented Control iOS a ancho completo (fijo: el buscador nunca lo empuja) */}
+        <View>
+          <TasksSegmentControl
+            statusFilter={statusFilter}
+            onStatusChange={handleStatusChange}
+            cardEntranceAnim={isSearchActive ? undefined : cardEntranceAnims[1]}
+          />
+        </View>
       </View>
     )
   }, [
     isSearchActive,
-    searchQuery,
-    selectedSubject,
-    selectedSubjectId,
     statusFilter,
     tasks,
-    isConnected,
     cardEntranceAnims,
     largeTitleOpacity,
-    largeTitleTranslateY,
-    largeTitleScale,
+    handleStatusChange,
   ])
 
   const renderEmptyComponent = useMemo(() => {
@@ -808,66 +554,145 @@ export default function TasksScreen() {
     <View style={styles.screenWrapper}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Barra de Navegación Sticky Superior (Estilo Apple Notes de iOS) */}
-      <View
-        pointerEvents="box-none"
-        style={[
-          styles.stickyHeaderBar,
-          {
-            height: insets.top + 44,
-            paddingTop: insets.top,
-          },
-        ]}
-      >
-        {/* Fondo Translúcido con Transición en Scroll */}
+      {/* Barra Superior Enfocada de Búsqueda (entra con resorte, sale deslizándose arriba) */}
+      {searchMounted && (
         <Animated.View
           style={[
-            StyleSheet.absoluteFill,
-            { opacity: headerBgOpacity },
+            styles.focusedSearchHeader,
+            {
+              paddingTop: insets.top + 4,
+              height: insets.top + 52,
+              opacity: searchRevealVal,
+              transform: [
+                {
+                  translateY: searchRevealVal.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-28, 0],
+                  }),
+                },
+              ],
+            },
           ]}
-          pointerEvents="none"
         >
           <BlurView
             intensity={Platform.OS === 'ios' ? 75 : 90}
             tint="dark"
             style={StyleSheet.absoluteFill}
           />
+          <View style={styles.focusedSearchContent}>
+            {/* Botón Volver / Salir de Búsqueda */}
+            <Pressable
+              onPress={() => {
+                triggerHaptic('light')
+                setIsSearchActive(false)
+                setSearchQuery('')
+                Keyboard.dismiss()
+              }}
+              hitSlop={8}
+              style={styles.searchBackBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar búsqueda"
+            >
+              <ChevronLeft size={26} color="#FFFFFF" strokeWidth={2.5} />
+            </Pressable>
+
+            {/* Input de Búsqueda Estilo WhatsApp */}
+            <View style={styles.focusedSearchInputBox}>
+              <Search size={16} color="#71717A" />
+              <TextInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Buscar tarea o materia..."
+                placeholderTextColor="#71717A"
+                autoFocus
+                style={styles.focusedSearchInput}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <Pressable
+                  onPress={() => setSearchQuery('')}
+                  hitSlop={8}
+                  style={styles.searchClearBtn}
+                >
+                  <X size={14} color="#A1A1AA" />
+                </Pressable>
+              )}
+            </View>
+          </View>
           <View style={styles.stickyHeaderBorder} />
         </Animated.View>
+      )}
 
-        {/* Contenido de la Barra: Título Centrado y Acciones a la Derecha */}
-        <View style={styles.stickyHeaderContent} pointerEvents="box-none">
-          <View style={styles.stickyHeaderLeftSpacer} />
-
+      {/* Barra de Navegación Sticky Superior (Estilo WhatsApp / Apple Notes de iOS) */}
+      {!isSearchActive && (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.stickyHeaderBar,
+            {
+              height: insets.top + 56,
+              paddingTop: insets.top,
+            },
+          ]}
+        >
+          {/* Fondo Translúcido con Transición en Scroll */}
           <Animated.View
             style={[
-              styles.compactTitleWrapper,
-              {
-                opacity: compactTitleOpacity,
-                transform: [{ translateY: compactTitleTranslateY }],
-              },
+              StyleSheet.absoluteFill,
+              { opacity: headerBgOpacity },
             ]}
             pointerEvents="none"
           >
-            <Text style={styles.compactTitle}>Tareas</Text>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 75 : 90}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.stickyHeaderBorder} />
           </Animated.View>
 
-          <View style={styles.stickyHeaderRight}>
-            <GlassSearchButton onPress={() => setIsSearchActive(true)} />
-            <GlassClassButton
-              isConnected={isConnected}
-              onPress={() => setShowClassAuthModal(true)}
-            />
-            <GlassAddTaskButton
-              onPress={() => {
-                triggerHaptic('medium')
-                setActiveTask(null)
-                setTaskModalMode('create')
-              }}
-            />
+          {/* Contenido de la Barra: Materias + Lupa a la Izquierda, Título Centrado y [+] a la Derecha */}
+          <View style={styles.stickyHeaderContent} pointerEvents="box-none">
+            <View style={styles.stickyHeaderLeft}>
+              <GlassSubjectIconButton
+                selectedSubject={selectedSubject}
+                selectedSubjectId={selectedSubjectId}
+                onPress={() => setShowSubjectMenu(true)}
+              />
+              <GlassSearchButton
+                onPress={() => {
+                  triggerHaptic('light')
+                  setIsSearchActive(true)
+                }}
+              />
+            </View>
+
+            <Animated.View
+              style={[
+                styles.compactTitleWrapper,
+                {
+                  opacity: compactTitleOpacity,
+                  transform: [{ translateY: compactTitleTranslateY }],
+                },
+              ]}
+              pointerEvents="none"
+            >
+              <Text style={styles.compactTitle}>Tareas</Text>
+            </Animated.View>
+
+            <View style={styles.stickyHeaderRight}>
+              <GlassAddTaskButton
+                onPress={() => {
+                  triggerHaptic('medium')
+                  setActiveTask(null)
+                  setTaskModalMode('create')
+                }}
+              />
+            </View>
           </View>
         </View>
-      </View>
+      )}
 
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
@@ -888,7 +713,7 @@ export default function TasksScreen() {
           contentContainerStyle={[
             styles.content,
             {
-              paddingTop: insets.top + 10,
+              paddingTop: isSearchActive ? insets.top + 58 : insets.top + 60,
               paddingBottom: insets.bottom + 90,
             },
           ]}
@@ -930,13 +755,6 @@ export default function TasksScreen() {
         onDeleteTask={handleDeleteTask}
         onTaskSaved={handleTaskSaved}
       />
-
-      {/* Modal de Acceso / Estado de la Clase */}
-      <ClassAuthModal
-        visible={showClassAuthModal}
-        onClose={() => setShowClassAuthModal(false)}
-        onSuccess={loadData}
-      />
     </View>
   )
 }
@@ -964,7 +782,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   headerContainer: {
-    gap: 14,
+    gap: 6,
     marginBottom: 8,
   },
   emptyContainer: {
@@ -1005,15 +823,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
-  stickyHeaderLeftSpacer: {
-    width: 40,
+  stickyHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    justifyContent: 'flex-start',
   },
   compactTitleWrapper: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: 8,
   },
   compactTitle: {
     color: '#FFFFFF',
@@ -1023,81 +846,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   stickyHeaderRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  focusedSearchHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  focusedSearchContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  searchBackBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  focusedSearchInputBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  glassBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glassBtnInner: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glassBtnConnected: {
-    borderColor: 'rgba(52, 199, 89, 0.4)',
-  },
-  glassAddBtn: {
-    height: 40,
-    borderRadius: 20,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glassAddBtnInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 15,
-    height: 40,
-    borderRadius: 20,
-    borderCurve: 'continuous',
-  },
-  blurBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 38,
     overflow: 'hidden',
   },
-  iconActionBtnConnected: {
-    borderColor: 'rgba(52, 199, 89, 0.4)',
-  },
-  onlineDot: {
-    position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#34C759',
-  },
-  headerAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    paddingHorizontal: 15,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  headerAddBtnText: {
+  focusedSearchInput: {
+    flex: 1,
     color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  searchClearBtn: {
+    padding: 4,
   },
 })

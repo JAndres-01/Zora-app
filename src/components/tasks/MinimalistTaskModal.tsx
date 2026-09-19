@@ -1132,7 +1132,7 @@ const styles = StyleSheet.create({
   sheetHeader: {
     alignItems: 'center',
     paddingTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 4,
     backgroundColor: 'transparent',
     position: 'relative',
   },
@@ -1158,7 +1158,7 @@ const styles = StyleSheet.create({
   },
   sheetScroll: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 6,
   },
   sheetScrollContent: {
     paddingBottom: 24,

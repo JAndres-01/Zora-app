@@ -19,8 +19,8 @@ const SYMBOLS: Record<GlassIconName, SFSymbol> = {
 /**
  * Botón circular liquid glass NATIVO (SwiftUI buttonStyle `.glass` + borde circle)
  * — el mismo rendering que los botones de las apps de iOS 26.
- * `variant="prominent"` usa `.glassProminent`, el glass relleno más brillante
- * (para resaltar la acción principal).
+ * `variant="prominent"` añade un fondo blanco muy sutil para que el botón
+ * quede transparente pero un poco más claro que el default (sin tint azul).
  */
 export function NativeGlassIconButton({
   onPress,
@@ -41,14 +41,15 @@ export function NativeGlassIconButton({
         variant="outlined"
         onPress={onPress}
         disabled={disabled}
+        style={variant === 'prominent' ? { backgroundColor: 'rgba(255, 255, 255, 0.07)' } : undefined}
         modifiers={[
-          buttonStyle(variant === 'prominent' ? 'glassProminent' : 'glass'),
+          buttonStyle('glass'),
           buttonBorderShape('circle'),
-          frame({ width: 48, height: 48, alignment: 'center' }),
+          frame({ width: 58, height: 58, alignment: 'center' }),
           accessibilityLabel(label),
         ]}
       >
-        <Icon name={SYMBOLS[icon]} size={22} color="#FFFFFF" />
+        <Icon name={SYMBOLS[icon]} size={26} color="#FFFFFF" />
       </Button>
     </Host>
   )

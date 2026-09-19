@@ -20,7 +20,8 @@ const ICON_MAP: Record<
  * Fallback para Android/web: botón circular liquid glass aproximado
  * (BlurView + tinte translúcido + sheen). En iOS se usa la versión nativa
  * (`NativeGlassIconButton.ios.tsx`) con SwiftUI.
- * `variant="prominent"` aclara el fondo para resaltar la acción principal.
+ * `variant="prominent"` aclara apenas el fondo (transparente, un poco más
+ * claro que el default) para resaltar la acción principal.
  */
 export function NativeGlassIconButton({
   onPress,
@@ -64,9 +65,9 @@ export function NativeGlassIconButton({
         hitSlop={8}
         style={[styles.glassButton, prominent && styles.glassButtonProminent]}
       >
-        <BlurView intensity={prominent ? 34 : 26} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={prominent ? 30 : 26} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.glassSheen} />
-        <Icon size={22} color={disabled ? '#8E8E93' : '#FFFFFF'} />
+        <Icon size={26} color={disabled ? '#8E8E93' : '#FFFFFF'} />
       </Pressable>
     </Animated.View>
   )
@@ -74,9 +75,9 @@ export function NativeGlassIconButton({
 
 const styles = StyleSheet.create({
   glassButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -85,16 +86,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   glassButtonProminent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    borderColor: 'rgba(255, 255, 255, 0.32)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.26)',
   },
   glassSheen: {
     position: 'absolute',
-    top: 5,
-    left: 8,
-    width: 32,
-    height: 11,
-    borderRadius: 5,
+    top: 6,
+    left: 10,
+    width: 38,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     transform: [{ rotate: '16deg' }],
   },

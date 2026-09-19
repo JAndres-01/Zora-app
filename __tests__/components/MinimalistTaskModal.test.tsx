@@ -10,7 +10,7 @@ describe('MinimalistTaskModal Component', () => {
   ]
 
   test('en modo creación permite escribir el título y descripción', async () => {
-    const { getByPlaceholderText, getByDisplayValue, getByText } = await render(
+    const { getByPlaceholderText, getByDisplayValue, getByText, getByLabelText } = await render(
       <MinimalistTaskModal
         mode="create"
         task={null}
@@ -23,8 +23,8 @@ describe('MinimalistTaskModal Component', () => {
 
     const titleInput = getByPlaceholderText('¿Qué tienes que hacer?')
     expect(titleInput).toBeTruthy()
-    expect(getByText('Nueva Tarea')).toBeTruthy()
-    expect(getByText('Guardar')).toBeTruthy()
+    expect(getByLabelText('Cerrar')).toBeTruthy()
+    expect(getByLabelText('Guardar tarea')).toBeTruthy()
 
     await act(async () => {
       fireEvent.changeText(titleInput, 'Proyecto Final de Álgebra')

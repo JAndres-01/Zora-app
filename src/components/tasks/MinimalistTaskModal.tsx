@@ -20,15 +20,17 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Subject, TaskType, TaskAttachment, Schedule } from '@/types/personal'
 import {
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Calendar,
   Layers,
-  ArrowLeft,
   Globe,
   Paperclip,
+  X,
 } from 'lucide-react-native'
+import { BlurView } from 'expo-blur'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -163,7 +165,6 @@ export function MinimalistTaskModal({
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const panY = useRef(new Animated.Value(0)).current
-  const keyboardTranslateY = useRef(new Animated.Value(0)).current
   const [modalVisible, setModalVisible] = useState(false)
 
   // Push/pop de sub-página estilo Recordatorios (deslizamiento desde la derecha)
@@ -212,43 +213,6 @@ export function MinimalistTaskModal({
     }
   }, [modalVisible])
 
-  // Sincronización con el teclado de iOS
-  useEffect(() => {
-    if (!modalVisible) return
-
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
-
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      const kbHeight = e.endCoordinates.height
-      const duration = e.duration && e.duration > 0 ? e.duration : 220
-      const targetOffset = -Math.max(0, kbHeight - insets.bottom)
-
-      Animated.timing(keyboardTranslateY, {
-        toValue: targetOffset,
-        duration: duration,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }).start()
-    })
-
-    const hideSub = Keyboard.addListener(hideEvent, (e) => {
-      const duration = e.duration && e.duration > 0 ? e.duration : 200
-
-      Animated.timing(keyboardTranslateY, {
-        toValue: 0,
-        duration: duration,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }).start()
-    })
-
-    return () => {
-      showSub.remove()
-      hideSub.remove()
-    }
-  }, [modalVisible, insets.bottom, keyboardTranslateY])
-
   // Sincronizar visibilidad de inmediato durante render si mode !== 'none'
   if (mode !== 'none' && !modalVisible) {
     setModalVisible(true)
@@ -291,7 +255,6 @@ export function MinimalistTaskModal({
       fadeAnim.setValue(0)
       slideAnim.setValue(SCREEN_HEIGHT)
       panY.setValue(0)
-      keyboardTranslateY.setValue(0)
 
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -661,7 +624,7 @@ export function MinimalistTaskModal({
             {
               paddingBottom: Math.max(insets.bottom, 16) + 8,
               transform: [
-                { translateY: Animated.add(Animated.add(slideAnim, panY), keyboardTranslateY) },
+                { translateY: Animated.add(slideAnim, panY) },
               ],
             },
           ]}
@@ -682,39 +645,16 @@ export function MinimalistTaskModal({
               <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
                 <View style={styles.dragHandle} />
                 <View style={styles.headerRow}>
-                  {mode === 'detail' ? (
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('light')
-                        Keyboard.dismiss()
-                        setCurrentView('detail')
-                      }}
-                      hitSlop={12}
-                      style={styles.backTitleBtn}
-                    >
-                      <ArrowLeft size={18} color="#FFFFFF" />
-                      <Text style={styles.sheetTitle}>Editar Tarea</Text>
-                    </Pressable>
-                  ) : (
-                    <Text style={styles.sheetTitle}>
-                      {mode === 'edit' || (task && currentView === 'form')
-                        ? 'Editar Tarea'
-                        : 'Nueva Tarea'}
-                    </Text>
-                  )}
-
-                  <Pressable
-                    onPress={handleSave}
-                    disabled={saveLoading}
-                    hitSlop={12}
-                    style={styles.saveHeaderBtn}
-                  >
+                  <GlassButton onPress={handleSmoothClose} accessibilityLabel="Cerrar">
+                    <X size={17} color="#FFFFFF" />
+                  </GlassButton>
+                  <GlassButton onPress={handleSave} accessibilityLabel="Guardar tarea">
                     {saveLoading ? (
-                      <ActivityIndicator size="small" color="#000000" />
+                      <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.saveHeaderBtnText}>Guardar</Text>
+                      <Check size={18} color="#FFFFFF" strokeWidth={2.4} />
                     )}
-                  </Pressable>
+                  </GlassButton>
                 </View>
               </View>
 
@@ -1023,6 +963,50 @@ export function MinimalistTaskModal({
   )
 }
 
+/** Botón liquid glass estilo iOS 26 (blur + sheen especular + escala al presionar) */
+function GlassButton({
+  onPress,
+  children,
+  accessibilityLabel,
+}: {
+  onPress: () => void
+  children: ReactNode
+  accessibilityLabel?: string
+}) {
+  const scale = useRef(new Animated.Value(1)).current
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() =>
+          Animated.spring(scale, {
+            toValue: 0.88,
+            stiffness: 600,
+            damping: 18,
+            useNativeDriver: true,
+          }).start()
+        }
+        onPressOut={() =>
+          Animated.spring(scale, {
+            toValue: 1,
+            stiffness: 400,
+            damping: 20,
+            useNativeDriver: true,
+          }).start()
+        }
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        hitSlop={8}
+        style={styles.glassButton}
+      >
+        <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
+        <View pointerEvents="none" style={styles.glassSheen} />
+        {children}
+      </Pressable>
+    </Animated.View>
+  )
+}
+
 /** Card agrupada estilo iOS (Recordatorios/Settings) */
 function GroupCard({ children }: { children: ReactNode }) {
   return <View style={styles.groupCard}>{children}</View>
@@ -1153,27 +1137,26 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
   },
-  backTitleBtn: {
-    flexDirection: 'row',
+  glassButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden',
   },
-  sheetTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  saveHeaderBtn: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  saveHeaderBtnText: {
-    color: '#000000',
-    fontSize: 13,
-    fontWeight: '800',
+  glassSheen: {
+    position: 'absolute',
+    top: 3,
+    left: 5,
+    width: 26,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    transform: [{ rotate: '16deg' }],
   },
   sheetScroll: {
     paddingHorizontal: 20,

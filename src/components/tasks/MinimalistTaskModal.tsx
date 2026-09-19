@@ -8,7 +8,6 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Platform,
   Animated,
@@ -20,7 +19,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Subject, TaskType, TaskAttachment, Schedule } from '@/types/personal'
 import {
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -28,7 +26,6 @@ import {
   Layers,
   Globe,
   Paperclip,
-  X,
 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import * as ImagePicker from 'expo-image-picker'
@@ -55,6 +52,7 @@ import { TaskDatePicker } from './modal/TaskDatePicker'
 import { formatTaskTypeLabel } from './modal/TaskTypePicker'
 import { MenuView, type MenuAction } from '@react-native-menu/menu'
 import { TaskAttachmentSection } from './modal/TaskAttachmentSection'
+import { NativeGlassIconButton } from './NativeGlassIconButton'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { DEFAULT_CLASS_START_TIME } from '@/constants/defaults'
 import { logger } from '@/lib/logger'
@@ -582,6 +580,47 @@ export function MinimalistTaskModal({
   const selectedSubject = subjects.find((s) => s.id === selectedSubjectId)
   const isFormSubjWhite = isWhiteColor(selectedSubject?.color)
 
+  // Acciones del context menu nativo de Materia (cada materia con su color real)
+  const subjectMenuActions: MenuAction[] = [
+    {
+      id: 'none',
+      title: 'General (Sin materia)',
+      image: 'tray',
+      imageColor: '#8E8E93',
+      state: selectedSubjectId === null ? 'on' : 'off',
+    },
+    ...subjects.map((s) => ({
+      id: s.id,
+      title: s.name,
+      image: 'circle.fill',
+      imageColor: s.color || '#FFFFFF',
+      state: selectedSubjectId === s.id ? 'on' : 'off',
+    }) satisfies MenuAction),
+  ]
+
+  const subjectRowIcon = (
+    <View
+      style={[
+        styles.groupRowIcon,
+        {
+          backgroundColor: selectedSubject
+            ? isFormSubjWhite
+              ? 'rgba(255, 255, 255, 0.16)'
+              : `${selectedSubject.color || '#FFFFFF'}22`
+            : 'rgba(255, 255, 255, 0.08)',
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.dot,
+          { backgroundColor: selectedSubject?.color || '#A1A1AA' },
+          isFormSubjWhite && styles.whiteDotBorder,
+        ]}
+      />
+    </View>
+  )
+
   // Opciones de los context menus nativos (Tipo / Adjuntar)
   const isWeb = Platform.OS === 'web'
   const typeMenuActions: MenuAction[] = TASK_TYPE_OPTIONS.map((t) => ({
@@ -645,19 +684,20 @@ export function MinimalistTaskModal({
               <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
                 <View style={styles.dragHandle} />
                 <View style={styles.headerRow}>
-                  <GlassButton onPress={handleSmoothClose} accessibilityLabel="Cerrar">
-                    <X size={17} color="#FFFFFF" />
-                  </GlassButton>
+                  <NativeGlassIconButton
+                    onPress={handleSmoothClose}
+                    icon="xmark"
+                    accessibilityLabel="Cerrar"
+                  />
                   <Text style={styles.headerTitle}>
                     {mode === 'edit' ? 'Editar tarea' : 'Nueva tarea'}
                   </Text>
-                  <GlassButton onPress={handleSave} accessibilityLabel="Guardar tarea">
-                    {saveLoading ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Check size={18} color="#FFFFFF" strokeWidth={2.4} />
-                    )}
-                  </GlassButton>
+                  <NativeGlassIconButton
+                    onPress={handleSave}
+                    icon="checkmark"
+                    accessibilityLabel="Guardar tarea"
+                    disabled={saveLoading}
+                  />
                 </View>
               </View>
 
@@ -693,37 +733,41 @@ export function MinimalistTaskModal({
                 {/* Sección: Entrega (rows tipo Recordatorios) */}
                 <GroupSectionHeader>Entrega</GroupSectionHeader>
                 <GroupCard>
-                  {/* Materia → sub-página deslizante */}
-                  <GroupRow
-                    onPress={() => openSubPage('subject')}
-                    accessibilityLabel="Elegir materia"
-                    iconBox={
-                      <View
-                        style={[
-                          styles.groupRowIcon,
-                          {
-                            backgroundColor: selectedSubject
-                              ? isFormSubjWhite
-                                ? 'rgba(255, 255, 255, 0.16)'
-                                : `${selectedSubject.color || '#FFFFFF'}22`
-                              : 'rgba(255, 255, 255, 0.08)',
-                          },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.dot,
-                            { backgroundColor: selectedSubject?.color || '#A1A1AA' },
-                            isFormSubjWhite && styles.whiteDotBorder,
-                          ]}
+                  {/* Materia → context menu nativo con colores (web: sub-página existente) */}
+                  {isWeb ? (
+                    <GroupRow
+                      onPress={() => openSubPage('subject')}
+                      accessibilityLabel="Elegir materia"
+                      iconBox={subjectRowIcon}
+                      label="Materia"
+                      value={selectedSubject?.name || 'No asignada'}
+                      valueActive={Boolean(selectedSubject)}
+                      trailing={<ChevronRight size={14} color="#636366" />}
+                    />
+                  ) : (
+                    <MenuView
+                      title="Elegir materia"
+                      shouldOpenOnLongPress={false}
+                      themeVariant="dark"
+                      actions={subjectMenuActions}
+                      onPressAction={({ nativeEvent }) => {
+                        triggerHaptic('selection')
+                        setSelectedSubjectId(
+                          nativeEvent.event === 'none' ? null : nativeEvent.event
+                        )
+                      }}
+                    >
+                      <View style={styles.groupRow}>
+                        <GroupRowContent
+                          iconBox={subjectRowIcon}
+                          label="Materia"
+                          value={selectedSubject?.name || 'No asignada'}
+                          valueActive={Boolean(selectedSubject)}
+                          trailing={<ChevronDown size={13} color="#636366" />}
                         />
                       </View>
-                    }
-                    label="Materia"
-                    value={selectedSubject?.name || 'No asignada'}
-                    valueActive={Boolean(selectedSubject)}
-                    trailing={<ChevronRight size={14} color="#636366" />}
-                  />
+                    </MenuView>
+                  )}
 
                   <View style={styles.groupHairline} />
 
@@ -965,53 +1009,14 @@ export function MinimalistTaskModal({
   )
 }
 
-/** Botón liquid glass estilo iOS 26 (blur + sheen especular + escala al presionar) */
-function GlassButton({
-  onPress,
-  children,
-  accessibilityLabel,
-}: {
-  onPress: () => void
-  children: ReactNode
-  accessibilityLabel?: string
-}) {
-  const scale = useRef(new Animated.Value(1)).current
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={() =>
-          Animated.spring(scale, {
-            toValue: 0.88,
-            stiffness: 600,
-            damping: 18,
-            useNativeDriver: true,
-          }).start()
-        }
-        onPressOut={() =>
-          Animated.spring(scale, {
-            toValue: 1,
-            stiffness: 400,
-            damping: 20,
-            useNativeDriver: true,
-          }).start()
-        }
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        hitSlop={8}
-        style={styles.glassButton}
-      >
-        <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
-        <View pointerEvents="none" style={styles.glassSheen} />
-        {children}
-      </Pressable>
-    </Animated.View>
-  )
-}
-
-/** Card agrupada estilo iOS (Recordatorios/Settings) */
+/** Card agrupada estilo iOS — mismo color/tratamiento glass que la card de título y notas */
 function GroupCard({ children }: { children: ReactNode }) {
-  return <View style={styles.groupCard}>{children}</View>
+  return (
+    <View style={styles.groupCard}>
+      <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+      {children}
+    </View>
+  )
 }
 
 /** Encabezado de sección agrupada (gris, sentence case) */
@@ -1147,27 +1152,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  glassButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
-  },
-  glassSheen: {
-    position: 'absolute',
-    top: 3,
-    left: 5,
-    width: 26,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    transform: [{ rotate: '16deg' }],
-  },
   sheetScroll: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -1178,8 +1162,6 @@ const styles = StyleSheet.create({
   glassInputCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.07)',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
     paddingHorizontal: 16,
     overflow: 'hidden',
   },
@@ -1211,10 +1193,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   groupCard: {
-    backgroundColor: '#26262B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
     overflow: 'hidden',
   },
   groupRow: {
@@ -1259,7 +1239,7 @@ const styles = StyleSheet.create({
   },
   groupHairline: {
     height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     marginLeft: 54,
   },
   dot: {

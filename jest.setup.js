@@ -221,3 +221,34 @@ jest.mock('@react-native-menu/menu', () => {
   }
 })
 
+// Mock de @expo/ui (SwiftUI/Compose) — renderiza como Views para que los
+// componentes universales (Host/Button/Icon) sean probables en Jest.
+// Los modifiers swift-ui se simulan como configs planas {type, ...}.
+jest.mock('@expo/ui', () => {
+  const React = require('react')
+  const { View, Text } = require('react-native')
+  const Host = ({ children, ...rest }) => React.createElement(View, rest, children)
+  const findModifier = (modifiers, type) =>
+    (modifiers || []).find((m) => m && m.type === type)
+  const Button = ({ children, label, testID, modifiers, ...rest }) => {
+    const acc = findModifier(modifiers, 'accessibilityLabel')
+    return React.createElement(
+      View,
+      { testID, accessibilityLabel: acc ? acc.label : undefined, ...rest },
+      children != null ? children : label != null ? React.createElement(Text, null, label) : null
+    )
+  }
+  const Icon = (props) => React.createElement(View, props)
+  return { Host, Button, Icon }
+})
+
+jest.mock('@expo/ui/swift-ui/modifiers', () => {
+  const mod = (type, params = {}) => ({ type, ...params })
+  return {
+    buttonStyle: (style) => mod('buttonStyle', { style }),
+    buttonBorderShape: (shape, cornerRadius) => mod('buttonBorderShape', { shape, cornerRadius }),
+    frame: (params) => mod('frame', params),
+    accessibilityLabel: (label) => mod('accessibilityLabel', { label }),
+  }
+})
+

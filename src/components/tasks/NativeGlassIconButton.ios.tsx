@@ -29,13 +29,16 @@ export function NativeGlassIconButton({
   icon,
   accessibilityLabel: label,
   disabled,
+  size = 58,
 }: {
   onPress: () => void
   icon: GlassIconName
   accessibilityLabel: string
   disabled?: boolean
   variant?: GlassIconVariant
+  size?: number
 }) {
+  const iconSize = Math.round((size * 26) / 58)
   return (
     <Host matchContents>
       <Button
@@ -45,11 +48,11 @@ export function NativeGlassIconButton({
         modifiers={[
           buttonStyle('glass'),
           buttonBorderShape('circle'),
-          frame({ width: 58, height: 58, alignment: 'center' }),
+          frame({ width: size, height: size, alignment: 'center' }),
           accessibilityLabel(label),
         ]}
       >
-        <Icon name={SYMBOLS[icon]} size={26} color="#FFFFFF" />
+        <Icon name={SYMBOLS[icon]} size={iconSize} color="#FFFFFF" />
       </Button>
     </Host>
   )

@@ -947,6 +947,7 @@ export function MinimalistTaskModal({
                           onPress={closeSubPage}
                           icon="arrowleft"
                           accessibilityLabel="Volver"
+                          size={38}
                         />
                       </View>
                     </View>

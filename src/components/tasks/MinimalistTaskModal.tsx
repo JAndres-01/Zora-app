@@ -648,6 +648,9 @@ export function MinimalistTaskModal({
                   <GlassButton onPress={handleSmoothClose} accessibilityLabel="Cerrar">
                     <X size={17} color="#FFFFFF" />
                   </GlassButton>
+                  <Text style={styles.headerTitle}>
+                    {mode === 'edit' ? 'Editar tarea' : 'Nueva tarea'}
+                  </Text>
                   <GlassButton onPress={handleSave} accessibilityLabel="Guardar tarea">
                     {saveLoading ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
@@ -665,28 +668,27 @@ export function MinimalistTaskModal({
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
               >
-                {/* Input de Título */}
-                <TextInput
-                  ref={titleInputRef}
-                  placeholder="¿Qué tienes que hacer?"
-                  placeholderTextColor="#52525B"
-                  value={title}
-                  onChangeText={setTitle}
-                  style={styles.cleanTitleInput}
-                />
-
-                {/* Input de Descripción */}
-                <TextInput
-                  placeholder="Añadir notas, detalles o páginas..."
-                  placeholderTextColor="#52525B"
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline
-                  style={styles.cleanDescInput}
-                />
-
-                {/* Separador bajo los campos de texto */}
-                <View style={styles.formTitleHairline} />
+                {/* Campos de Título y Notas en tarjeta liquid glass */}
+                <View style={styles.glassInputCard}>
+                  <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+                  <TextInput
+                    ref={titleInputRef}
+                    placeholder="¿Qué tienes que hacer?"
+                    placeholderTextColor="#71717A"
+                    value={title}
+                    onChangeText={setTitle}
+                    style={styles.glassTitleInput}
+                  />
+                  <View style={styles.glassInputHairline} />
+                  <TextInput
+                    placeholder="Añadir notas, detalles o páginas..."
+                    placeholderTextColor="#71717A"
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                    style={styles.glassNotesInput}
+                  />
+                </View>
 
                 {/* Sección: Entrega (rows tipo Recordatorios) */}
                 <GroupSectionHeader>Entrega</GroupSectionHeader>
@@ -1045,7 +1047,7 @@ function GroupRowContent({
           {value}
         </Text>
       )}
-      {trailing}
+      {trailing && <View style={styles.groupRowTrailing}>{trailing}</View>}
     </>
   )
 }
@@ -1137,10 +1139,18 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
   },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
   glassButton: {
     width: 38,
     height: 38,
-    borderRadius: 13,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -1165,25 +1175,31 @@ const styles = StyleSheet.create({
   sheetScrollContent: {
     paddingBottom: 24,
   },
-  cleanTitleInput: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    paddingVertical: 8,
-    marginBottom: 4,
+  glassInputCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    paddingHorizontal: 16,
+    overflow: 'hidden',
   },
-  cleanDescInput: {
+  glassTitleInput: {
+    color: '#FFFFFF',
+    fontSize: 17.5,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    paddingVertical: 12,
+  },
+  glassInputHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  glassNotesInput: {
     color: '#D4D4D8',
     fontSize: 14.5,
     lineHeight: 20,
     minHeight: 48,
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  formTitleHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 6,
+    paddingVertical: 10,
   },
   groupSectionHeader: {
     color: '#8E8E93',
@@ -1237,6 +1253,9 @@ const styles = StyleSheet.create({
   groupRowValueActive: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  groupRowTrailing: {
+    marginLeft: 'auto',
   },
   groupHairline: {
     height: 0.5,

@@ -30,19 +30,18 @@ export function NativeGlassIconButton({
   accessibilityLabel,
   disabled,
   variant = 'default',
-  size = 58,
+  iconSize = 26,
 }: {
   onPress: () => void
   icon: GlassIconName
   accessibilityLabel: string
   disabled?: boolean
   variant?: GlassIconVariant
-  size?: number
+  iconSize?: number
 }) {
   const scale = useRef(new Animated.Value(1)).current
   const Icon = ICON_MAP[icon]
   const prominent = variant === 'prominent'
-  const iconSize = Math.round((size * 26) / 58)
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -67,11 +66,7 @@ export function NativeGlassIconButton({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         hitSlop={8}
-        style={[
-          styles.glassButton,
-          { width: size, height: size, borderRadius: size / 2 },
-          prominent && styles.glassButtonProminent,
-        ]}
+        style={[styles.glassButton, prominent && styles.glassButtonProminent]}
       >
         <BlurView intensity={prominent ? 30 : 26} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.glassSheen} />

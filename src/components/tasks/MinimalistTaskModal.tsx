@@ -945,7 +945,7 @@ export function MinimalistTaskModal({
                       <View style={styles.headerSide}>
                         <NativeGlassIconButton
                           onPress={closeSubPage}
-                          icon="arrowleft"
+                          icon="back"
                           accessibilityLabel="Volver"
                           iconSize={20}
                         />

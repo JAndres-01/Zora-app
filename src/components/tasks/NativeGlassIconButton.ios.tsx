@@ -7,14 +7,14 @@ import {
 } from '@expo/ui/swift-ui/modifiers'
 import type { SFSymbol } from 'sf-symbols-typescript'
 
-export type GlassIconName = 'xmark' | 'checkmark' | 'arrowleft'
+export type GlassIconName = 'xmark' | 'checkmark' | 'back'
 
 export type GlassIconVariant = 'default' | 'prominent'
 
 const SYMBOLS: Record<GlassIconName, SFSymbol> = {
   xmark: 'xmark',
   checkmark: 'checkmark',
-  arrowleft: 'arrow.left',
+  back: 'chevron.backward',
 }
 
 /**

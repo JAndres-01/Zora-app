@@ -2,9 +2,9 @@ import { useRef } from 'react'
 import type { ComponentType } from 'react'
 import { Animated, Pressable, StyleSheet, View } from 'react-native'
 import { BlurView } from 'expo-blur'
-import { ArrowLeft, Check, X } from 'lucide-react-native'
+import { Check, ChevronLeft, X } from 'lucide-react-native'
 
-export type GlassIconName = 'xmark' | 'checkmark' | 'arrowleft'
+export type GlassIconName = 'xmark' | 'checkmark' | 'back'
 
 export type GlassIconVariant = 'default' | 'prominent'
 
@@ -14,7 +14,7 @@ const ICON_MAP: Record<
 > = {
   xmark: X,
   checkmark: Check,
-  arrowleft: ArrowLeft,
+  back: ChevronLeft,
 }
 
 /**

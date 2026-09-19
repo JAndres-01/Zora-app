@@ -14,9 +14,8 @@ import {
   Animated,
   Keyboard,
   PanResponder,
+  Switch,
   useWindowDimensions,
-  type StyleProp,
-  type ViewStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Subject, TaskType, TaskAttachment, Schedule } from '@/types/personal'
@@ -620,18 +619,8 @@ export function MinimalistTaskModal({
   const selectedSubject = subjects.find((s) => s.id === selectedSubjectId)
   const isFormSubjWhite = isWhiteColor(selectedSubject?.color)
 
-  // Opciones y contenido de las pills con context menu nativo (Tipo / Adjuntar)
+  // Opciones de los context menus nativos (Tipo / Adjuntar)
   const isWeb = Platform.OS === 'web'
-  const typePillStyle = [styles.attrPill, taskType !== 'individual' && styles.attrPillActive]
-  const typePillContent = (
-    <>
-      <Layers size={13} color={taskType !== 'individual' ? '#FFFFFF' : '#71717A'} />
-      <Text style={[styles.attrPillText, taskType !== 'individual' && styles.attrPillTextActive]}>
-        {formatTaskTypeLabel(taskType)}
-      </Text>
-      <ChevronDown size={12} color="#71717A" />
-    </>
-  )
   const typeMenuActions: MenuAction[] = TASK_TYPE_OPTIONS.map((t) => ({
     id: t,
     title: formatTaskTypeLabel(t),
@@ -756,66 +745,78 @@ export function MinimalistTaskModal({
                   style={styles.cleanDescInput}
                 />
 
-                {/* Barra de Atributos Rápidos */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.attributeBar}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {/* Selector de Materia → sub-página */}
-                  <AttrPill
+                {/* Separador bajo los campos de texto */}
+                <View style={styles.formTitleHairline} />
+
+                {/* Sección: Entrega (rows tipo Recordatorios) */}
+                <GroupSectionHeader>Entrega</GroupSectionHeader>
+                <GroupCard>
+                  {/* Materia → sub-página deslizante */}
+                  <GroupRow
                     onPress={() => openSubPage('subject')}
-                    style={[
-                      styles.attrPill,
-                      selectedSubject && {
-                        backgroundColor: isFormSubjWhite
-                          ? 'rgba(255, 255, 255, 0.15)'
-                          : `${selectedSubject.color || '#FFFFFF'}22`,
-                        borderColor: isFormSubjWhite
-                          ? 'rgba(255, 255, 255, 0.4)'
-                          : `${selectedSubject.color || '#FFFFFF'}60`,
-                      },
-                    ]}
                     accessibilityLabel="Elegir materia"
-                  >
-                    <View
-                      style={[
-                        styles.dot,
-                        { backgroundColor: selectedSubject?.color || '#71717A' },
-                        isFormSubjWhite && styles.whiteDotBorder,
-                      ]}
-                    />
-                    <Text style={styles.attrPillText}>
-                      {selectedSubject ? selectedSubject.name : 'Materia'}
-                    </Text>
-                    <ChevronRight size={13} color="#71717A" />
-                  </AttrPill>
+                    iconBox={
+                      <View
+                        style={[
+                          styles.groupRowIcon,
+                          {
+                            backgroundColor: selectedSubject
+                              ? isFormSubjWhite
+                                ? 'rgba(255, 255, 255, 0.16)'
+                                : `${selectedSubject.color || '#FFFFFF'}22`
+                              : 'rgba(255, 255, 255, 0.08)',
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.dot,
+                            { backgroundColor: selectedSubject?.color || '#A1A1AA' },
+                            isFormSubjWhite && styles.whiteDotBorder,
+                          ]}
+                        />
+                      </View>
+                    }
+                    label="Materia"
+                    value={selectedSubject?.name || 'No asignada'}
+                    valueActive={Boolean(selectedSubject)}
+                    trailing={<ChevronRight size={14} color="#636366" />}
+                  />
 
-                  {/* Selector de Fecha → sub-página */}
-                  <AttrPill
+                  <View style={styles.groupHairline} />
+
+                  {/* Fecha → sub-página deslizante */}
+                  <GroupRow
                     onPress={() => openSubPage('date')}
-                    style={[
-                      styles.attrPill,
-                      Boolean(dueDate) && styles.attrPillActive,
-                    ]}
                     accessibilityLabel="Elegir fecha de entrega"
-                  >
-                    <Calendar size={13} color={dueDate ? '#FFFFFF' : '#71717A'} />
-                    <Text
-                      style={[
-                        styles.attrPillText,
-                        Boolean(dueDate) && styles.attrPillTextActive,
-                      ]}
-                    >
-                      {formatDueDateLabel(dueDate)}
-                    </Text>
-                    <ChevronRight size={13} color="#71717A" />
-                  </AttrPill>
+                    iconBox={
+                      <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
+                        <Calendar size={15} color="#8E8E93" />
+                      </View>
+                    }
+                    label="Fecha de entrega"
+                    value={formatDueDateLabel(dueDate)}
+                    valueActive={Boolean(dueDate)}
+                    trailing={<ChevronRight size={14} color="#636366" />}
+                  />
 
-                  {/* Selector de Tipo → context menu nativo iOS */}
+                  <View style={styles.groupHairline} />
+
+                  {/* Tipo de tarea → context menu nativo iOS */}
                   {isWeb ? (
-                    <View style={typePillStyle}>{typePillContent}</View>
+                    <View style={styles.groupRow}>
+                      <GroupRowContent
+                        iconBox={
+                          <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
+                            <Layers size={15} color="#8E8E93" />
+                          </View>
+                        }
+                        label="Tipo de tarea"
+                        value={formatTaskTypeLabel(taskType)}
+                        valueActive={taskType !== 'individual'}
+                        trailing={<ChevronDown size={13} color="#636366" />}
+                      />
+                    </View>
                   ) : (
                     <MenuView
                       title="Tipo de tarea"
@@ -828,40 +829,73 @@ export function MinimalistTaskModal({
                         setTaskType(type)
                       }}
                     >
-                      <View style={typePillStyle}>{typePillContent}</View>
+                      <View style={styles.groupRow}>
+                        <GroupRowContent
+                          iconBox={
+                            <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
+                              <Layers size={15} color="#8E8E93" />
+                            </View>
+                          }
+                          label="Tipo de tarea"
+                          value={formatTaskTypeLabel(taskType)}
+                          valueActive={taskType !== 'individual'}
+                          trailing={<ChevronDown size={13} color="#636366" />}
+                        />
+                      </View>
                     </MenuView>
                   )}
 
-                  {/* Selector de Destino: Clase / Personal (Solo visible para Admin en modo crear) */}
+                  {/* Destino: Clase / Personal (Solo visible para Admin en modo crear) */}
                   {isAdmin && mode === 'create' && (
-                    <AttrPill
-                      onPress={() => {
-                        triggerHaptic('selection')
-                        LAYOUT_EASE(130)
-                        setPublishToClass(!publishToClass)
-                      }}
-                      style={[
-                        styles.attrPill,
-                        publishToClass && styles.attrPillActive,
-                      ]}
-                      accessibilityLabel="Destino de la tarea"
-                    >
-                      <Globe size={13} color={publishToClass ? '#FFFFFF' : '#71717A'} />
-                      <Text
-                        style={[
-                          styles.attrPillText,
-                          publishToClass && styles.attrPillTextActive,
-                        ]}
-                      >
-                        {publishToClass ? 'Para la clase' : 'Personal'}
-                      </Text>
-                    </AttrPill>
+                    <>
+                      <View style={styles.groupHairline} />
+                      <GroupRow
+                        onPress={() => {
+                          triggerHaptic('selection')
+                          LAYOUT_EASE(130)
+                          setPublishToClass(!publishToClass)
+                        }}
+                        accessibilityLabel="Publicar en la clase"
+                        iconBox={
+                          <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
+                            <Globe size={15} color="#8E8E93" />
+                          </View>
+                        }
+                        label="Publicar en la clase"
+                        trailing={
+                          <Switch
+                            value={publishToClass}
+                            onValueChange={setPublishToClass}
+                            trackColor={{ true: '#30D158', false: '#3A3A3C' }}
+                            thumbColor="#FFFFFF"
+                            ios_backgroundColor="#3A3A3C"
+                          />
+                        }
+                      />
+                    </>
                   )}
+                </GroupCard>
 
+                {/* Sección: Archivos */}
+                <GroupSectionHeader>Archivos</GroupSectionHeader>
+                <GroupCard>
                   {/* Adjuntar archivo → context menu nativo iOS (foto / galería / documento) */}
                   {isWeb ? (
-                    <View style={styles.attrIconPill}>
-                      <Paperclip size={15} color="#A1A1AA" />
+                    <View style={styles.groupRow}>
+                      <GroupRowContent
+                        iconBox={
+                          <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
+                            <Paperclip size={15} color="#8E8E93" />
+                          </View>
+                        }
+                        label="Adjuntar archivo"
+                        value={
+                          attachments.length > 0
+                            ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
+                            : undefined
+                        }
+                        trailing={<ChevronDown size={13} color="#636366" />}
+                      />
                     </View>
                   ) : (
                     <MenuView
@@ -876,12 +910,25 @@ export function MinimalistTaskModal({
                         else handlePickDocument()
                       }}
                     >
-                      <View style={styles.attrIconPill}>
-                        <Paperclip size={15} color="#A1A1AA" />
+                      <View style={styles.groupRow}>
+                        <GroupRowContent
+                          iconBox={
+                            <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
+                              <Paperclip size={15} color="#8E8E93" />
+                            </View>
+                          }
+                          label="Adjuntar archivo"
+                          value={
+                            attachments.length > 0
+                              ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
+                              : undefined
+                          }
+                          trailing={<ChevronDown size={13} color="#636366" />}
+                        />
                       </View>
                     </MenuView>
                   )}
-                </ScrollView>
+                </GroupCard>
 
                 {/* Adjuntos del Formulario */}
                 <TaskAttachmentSection
@@ -976,47 +1023,85 @@ export function MinimalistTaskModal({
   )
 }
 
-/** Píldora con animación de presión (escala) estilo iOS */
-function AttrPill({
+/** Card agrupada estilo iOS (Recordatorios/Settings) */
+function GroupCard({ children }: { children: ReactNode }) {
+  return <View style={styles.groupCard}>{children}</View>
+}
+
+/** Encabezado de sección agrupada (gris, sentence case) */
+function GroupSectionHeader({ children }: { children: ReactNode }) {
+  return <Text style={styles.groupSectionHeader}>{children}</Text>
+}
+
+/** Contenido visual de una fila agrupada (icono + label + valor + accesorio) */
+function GroupRowContent({
+  iconBox,
+  label,
+  value,
+  valueActive,
+  trailing,
+}: {
+  iconBox: ReactNode
+  label: string
+  value?: string
+  valueActive?: boolean
+  trailing?: ReactNode
+}) {
+  return (
+    <>
+      {iconBox}
+      <Text style={styles.groupRowLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      {value !== undefined && (
+        <Text
+          style={[styles.groupRowValue, valueActive && styles.groupRowValueActive]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      )}
+      {trailing}
+    </>
+  )
+}
+
+/** Fila agrupada presionable (sub-páginas / toggles) */
+function GroupRow({
   onPress,
-  style,
-  children,
+  iconBox,
+  label,
+  value,
+  valueActive,
+  trailing,
   accessibilityLabel,
 }: {
-  onPress: () => void
-  style?: StyleProp<ViewStyle>
-  children: ReactNode
+  onPress?: () => void
+  iconBox: ReactNode
+  label: string
+  value?: string
+  valueActive?: boolean
+  trailing?: ReactNode
   accessibilityLabel?: string
 }) {
-  const scale = useRef(new Animated.Value(1)).current
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={() =>
-          Animated.spring(scale, {
-            toValue: 0.94,
-            stiffness: 700,
-            damping: 18,
-            useNativeDriver: true,
-          }).start()
-        }
-        onPressOut={() =>
-          Animated.spring(scale, {
-            toValue: 1,
-            stiffness: 500,
-            damping: 20,
-            useNativeDriver: true,
-          }).start()
-        }
-        hitSlop={4}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        style={style}
-      >
-        {children}
-      </Pressable>
-    </Animated.View>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [
+        styles.groupRow,
+        pressed && onPress && styles.groupRowPressed,
+      ]}
+    >
+      <GroupRowContent
+        iconBox={iconBox}
+        label={label}
+        value={value}
+        valueActive={valueActive}
+        trailing={trailing}
+      />
+    </Pressable>
   )
 }
 
@@ -1112,47 +1197,68 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginBottom: 8,
   },
-  attributeBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    marginTop: 10,
-    marginBottom: 8,
+  formTitleHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 6,
   },
-  attrPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 13,
-    paddingVertical: 8.5,
-    borderRadius: 13,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  attrPillActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  attrPillText: {
-    color: '#D4D4D8',
-    fontSize: 12.5,
+  groupSectionHeader: {
+    color: '#8E8E93',
+    fontSize: 13,
     fontWeight: '600',
+    letterSpacing: 0.2,
+    marginTop: 20,
+    marginBottom: 7,
+    paddingHorizontal: 2,
   },
-  attrPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  attrIconPill: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#2C2C2E',
+  groupCard: {
+    backgroundColor: '#26262B',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+    overflow: 'hidden',
+  },
+  groupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  groupRowPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  groupRowIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  groupRowIconDefault: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  groupRowLabel: {
+    color: '#F4F4F5',
+    fontSize: 15,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  groupRowValue: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#8E8E93',
+    fontSize: 14,
+  },
+  groupRowValueActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  groupHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginLeft: 54,
   },
   dot: {
     width: 8,

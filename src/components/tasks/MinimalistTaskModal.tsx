@@ -1234,8 +1234,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   groupRowValueActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: '#A1A1A6',
+    fontWeight: '500',
   },
   groupRowTrailing: {
     marginLeft: 'auto',

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 import {
   View,
   Text,
@@ -13,6 +14,9 @@ import {
   Animated,
   Keyboard,
   PanResponder,
+  useWindowDimensions,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Subject, TaskType, TaskAttachment, Schedule } from '@/types/personal'
@@ -20,11 +24,14 @@ import {
   Camera,
   Image as ImageIcon,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Calendar,
   Layers,
   ArrowLeft,
   FileText,
   Globe,
+  Paperclip,
 } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
@@ -144,10 +151,16 @@ export function MinimalistTaskModal({
 
   const titleInputRef = useRef<TextInput>(null)
 
-  // Menús desplegables en formulario con animación fluida
-  const [activePicker, setActivePicker] = useState<'subject' | 'type' | 'date' | null>(null)
+  // Navegación estilo Recordatorios (iOS): sub-páginas deslizantes (Materia/Fecha)
+  // y menús en flujo con animación (Tipo/Adjuntos)
+  const { width: SCREEN_W } = useWindowDimensions()
+  const [subPage, setSubPage] = useState<'subject' | 'date' | null>(null)
+  const [activePicker, setActivePicker] = useState<'type' | 'attach' | null>(null)
   const pickerFadeAnim = useRef(new Animated.Value(0)).current
   const pickerSlideAnim = useRef(new Animated.Value(-6)).current
+  const pageSlideX = useRef(new Animated.Value(SCREEN_W)).current
+  const subPageFade = useRef(new Animated.Value(1)).current
+  const subPageSlide = useRef(new Animated.Value(0)).current
 
   // Animaciones del Modal, Teclado y Gesto PanResponder
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -177,6 +190,35 @@ export function MinimalistTaskModal({
       ]).start()
     }
   }, [activePicker])
+
+  // Push/pop de sub-página estilo Recordatorios (deslizamiento desde la derecha)
+  const openSubPage = (page: 'subject' | 'date') => {
+    LAYOUT_EASE(130)
+    setActivePicker(null)
+    Keyboard.dismiss()
+    setSubPage(page)
+    pageSlideX.setValue(SCREEN_W)
+    Animated.spring(pageSlideX, {
+      toValue: 0,
+      stiffness: 380,
+      damping: 32,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start()
+  }
+
+  const closeSubPage = () => {
+    Keyboard.dismiss()
+    Animated.spring(pageSlideX, {
+      toValue: SCREEN_W,
+      stiffness: 420,
+      damping: 36,
+      mass: 0.9,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setSubPage(null)
+    })
+  }
 
   // Cargar horarios para el selector de clases (universal de clase o local)
   useEffect(() => {
@@ -255,6 +297,8 @@ export function MinimalistTaskModal({
         setDueDate('')
         setAttachments(initialAttachments ? [...initialAttachments] : [])
         setActivePicker(null)
+        setSubPage(null)
+        pageSlideX.setValue(SCREEN_W)
 
         focusTimer = setTimeout(() => {
           titleInputRef.current?.focus()
@@ -267,8 +311,10 @@ export function MinimalistTaskModal({
         setDueDate(task.due_date || '')
         setAttachments(Array.isArray(task.attachments) ? [...task.attachments] : [])
         setActivePicker(null)
+        setSubPage(null)
       } else if (mode === 'detail') {
         setActivePicker(null)
+        setSubPage(null)
       }
 
       fadeAnim.setValue(0)
@@ -307,6 +353,7 @@ export function MinimalistTaskModal({
       ]).start(() => {
         setModalVisible(false)
         setActivePicker(null)
+        setSubPage(null)
       })
     }
 
@@ -338,6 +385,7 @@ export function MinimalistTaskModal({
     ]).start(() => {
       setModalVisible(false)
       setActivePicker(null)
+      setSubPage(null)
       onClose()
     })
   }
@@ -503,7 +551,7 @@ export function MinimalistTaskModal({
     } else if (subj?.id) {
       setSelectedSubjectId(subj.id)
     }
-    setActivePicker(null)
+    closeSubPage()
   }
 
   const handlePickImage = async () => {
@@ -710,14 +758,9 @@ export function MinimalistTaskModal({
                   contentContainerStyle={styles.attributeBar}
                   keyboardShouldPersistTaps="handled"
                 >
-                  {/* Selector de Materia */}
-                  <Pressable
-                    onPress={() => {
-                      triggerHaptic('selection')
-                      Keyboard.dismiss()
-                      LAYOUT_EASE(130)
-                      setActivePicker(activePicker === 'subject' ? null : 'subject')
-                    }}
+                  {/* Selector de Materia → sub-página */}
+                  <AttrPill
+                    onPress={() => openSubPage('subject')}
                     style={[
                       styles.attrPill,
                       selectedSubject && {
@@ -729,6 +772,7 @@ export function MinimalistTaskModal({
                           : `${selectedSubject.color || '#FFFFFF'}60`,
                       },
                     ]}
+                    accessibilityLabel="Elegir materia"
                   >
                     <View
                       style={[
@@ -740,21 +784,17 @@ export function MinimalistTaskModal({
                     <Text style={styles.attrPillText}>
                       {selectedSubject ? selectedSubject.name : 'Materia'}
                     </Text>
-                    <ChevronDown size={12} color="#71717A" />
-                  </Pressable>
+                    <ChevronRight size={13} color="#71717A" />
+                  </AttrPill>
 
-                  {/* Selector de Fecha */}
-                  <Pressable
-                    onPress={() => {
-                      triggerHaptic('selection')
-                      Keyboard.dismiss()
-                      LAYOUT_EASE(130)
-                      setActivePicker(activePicker === 'date' ? null : 'date')
-                    }}
+                  {/* Selector de Fecha → sub-página */}
+                  <AttrPill
+                    onPress={() => openSubPage('date')}
                     style={[
                       styles.attrPill,
                       Boolean(dueDate) && styles.attrPillActive,
                     ]}
+                    accessibilityLabel="Elegir fecha de entrega"
                   >
                     <Calendar size={13} color={dueDate ? '#FFFFFF' : '#71717A'} />
                     <Text
@@ -765,11 +805,11 @@ export function MinimalistTaskModal({
                     >
                       {formatDueDateLabel(dueDate)}
                     </Text>
-                    <ChevronDown size={12} color="#71717A" />
-                  </Pressable>
+                    <ChevronRight size={13} color="#71717A" />
+                  </AttrPill>
 
-                  {/* Selector de Tipo */}
-                  <Pressable
+                  {/* Selector de Tipo → menú con opciones pre-establecidas */}
+                  <AttrPill
                     onPress={() => {
                       triggerHaptic('selection')
                       Keyboard.dismiss()
@@ -780,6 +820,7 @@ export function MinimalistTaskModal({
                       styles.attrPill,
                       taskType !== 'individual' && styles.attrPillActive,
                     ]}
+                    accessibilityLabel="Elegir tipo de tarea"
                   >
                     <Layers size={13} color={taskType !== 'individual' ? '#FFFFFF' : '#71717A'} />
                     <Text
@@ -791,11 +832,11 @@ export function MinimalistTaskModal({
                       {formatTaskTypeLabel(taskType)}
                     </Text>
                     <ChevronDown size={12} color="#71717A" />
-                  </Pressable>
+                  </AttrPill>
 
                   {/* Selector de Destino: Clase / Personal (Solo visible para Admin en modo crear) */}
                   {isAdmin && mode === 'create' && (
-                    <Pressable
+                    <AttrPill
                       onPress={() => {
                         triggerHaptic('selection')
                         LAYOUT_EASE(130)
@@ -805,6 +846,7 @@ export function MinimalistTaskModal({
                         styles.attrPill,
                         publishToClass && styles.attrPillActive,
                       ]}
+                      accessibilityLabel="Destino de la tarea"
                     >
                       <Globe size={13} color={publishToClass ? '#FFFFFF' : '#71717A'} />
                       <Text
@@ -815,58 +857,29 @@ export function MinimalistTaskModal({
                       >
                         {publishToClass ? 'Para la clase' : 'Personal'}
                       </Text>
-                    </Pressable>
+                    </AttrPill>
                   )}
 
-                  {/* Fotos / Galería / Documento */}
-                  <Pressable onPress={handleTakePhoto} style={styles.attrIconPill}>
-                    <Camera size={15} color="#A1A1AA" />
-                  </Pressable>
-
-                  <Pressable onPress={handlePickImage} style={styles.attrIconPill}>
-                    <ImageIcon size={15} color="#A1A1AA" />
-                  </Pressable>
-
-                  <Pressable onPress={handlePickDocument} style={styles.attrIconPill}>
-                    <FileText size={15} color="#A1A1AA" />
-                  </Pressable>
+                  {/* Adjuntar archivo: un único botón que despliega foto / galería / documento */}
+                  <AttrPill
+                    onPress={() => {
+                      triggerHaptic('selection')
+                      Keyboard.dismiss()
+                      LAYOUT_EASE(130)
+                      setActivePicker(activePicker === 'attach' ? null : 'attach')
+                    }}
+                    style={[
+                      styles.attrIconPill,
+                      activePicker === 'attach' && styles.attrIconPillActive,
+                    ]}
+                    accessibilityLabel="Adjuntar archivo"
+                  >
+                    <Paperclip size={15} color={activePicker === 'attach' ? '#FFFFFF' : '#A1A1AA'} />
+                  </AttrPill>
                 </ScrollView>
 
                 {/* Subcomponentes de Selección */}
                 <View style={styles.pickerSectionWrapper}>
-                  {activePicker === 'subject' && (
-                    <TaskSubjectPicker
-                      subjects={subjects}
-                      selectedSubjectId={selectedSubjectId}
-                      onSelectSubject={(id) => {
-                        LAYOUT_EASE(130)
-                        setSelectedSubjectId(id)
-                        setActivePicker(null)
-                      }}
-                      fadeAnim={pickerFadeAnim}
-                      slideAnim={pickerSlideAnim}
-                    />
-                  )}
-
-                  {activePicker === 'date' && (
-                    <TaskDatePicker
-                      dueDate={dueDate}
-                      onSelectDueDate={setDueDate}
-                      onSelectClass={(sched, subj) => {
-                        LAYOUT_EASE(130)
-                        handleSelectClass(sched, subj)
-                      }}
-                      schedules={schedules}
-                      subjects={subjects}
-                      fadeAnim={pickerFadeAnim}
-                      slideAnim={pickerSlideAnim}
-                      onClosePicker={() => {
-                        LAYOUT_EASE(130)
-                        setActivePicker(null)
-                      }}
-                    />
-                  )}
-
                   {activePicker === 'type' && (
                     <TaskTypePicker
                       taskType={taskType}
@@ -878,6 +891,44 @@ export function MinimalistTaskModal({
                       fadeAnim={pickerFadeAnim}
                       slideAnim={pickerSlideAnim}
                     />
+                  )}
+
+                  {activePicker === 'attach' && (
+                    <Animated.View style={{ opacity: pickerFadeAnim, transform: [{ translateY: pickerSlideAnim }] }}>
+                      <View style={styles.attachMenuCard}>
+                        <Text style={styles.attachMenuHeader}>Adjuntar archivo</Text>
+                        {[
+                          { key: 'camera', label: 'Tomar foto', icon: Camera },
+                          { key: 'gallery', label: 'Galería', icon: ImageIcon },
+                          { key: 'document', label: 'Documento', icon: FileText },
+                        ].map((opt, idx) => {
+                          const Icon = opt.icon
+                          return (
+                            <Pressable
+                              key={opt.key}
+                              onPress={() => {
+                                setActivePicker(null)
+                                if (opt.key === 'camera') handleTakePhoto()
+                                else if (opt.key === 'gallery') handlePickImage()
+                                else handlePickDocument()
+                              }}
+                              style={({ pressed }) => [
+                                styles.attachRow,
+                                idx < 2 && styles.attachRowBorder,
+                                pressed && styles.attachRowPressed,
+                              ]}
+                              accessibilityRole="button"
+                              accessibilityLabel={opt.label}
+                            >
+                              <View style={styles.attachRowIconBox}>
+                                <Icon size={15} color="#FFFFFF" />
+                              </View>
+                              <Text style={styles.attachRowText}>{opt.label}</Text>
+                            </Pressable>
+                          )
+                        })}
+                      </View>
+                    </Animated.View>
                   )}
                 </View>
 
@@ -891,6 +942,63 @@ export function MinimalistTaskModal({
                   onOpenPdf={setViewingPdf}
                 />
               </ScrollView>
+
+              {/* Sub-página deslizante estilo Recordatorios (Materia / Fecha) */}
+              {subPage != null && (
+                <Animated.View
+                  style={[
+                    styles.subPage,
+                    { transform: [{ translateX: pageSlideX }] },
+                  ]}
+                >
+                  <View style={styles.subPageBackRow}>
+                    <Pressable
+                      onPress={closeSubPage}
+                      hitSlop={10}
+                      style={styles.subPageBackBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Volver"
+                    >
+                      <ChevronLeft size={22} color="#0A84FF" strokeWidth={2.6} />
+                      <Text style={styles.subPageBackText}>Volver</Text>
+                    </Pressable>
+                  </View>
+                  <ScrollView
+                    contentContainerStyle={styles.subPageContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                  >
+                    {subPage === 'subject' ? (
+                      <TaskSubjectPicker
+                        subjects={subjects}
+                        selectedSubjectId={selectedSubjectId}
+                        onSelectSubject={(id) => {
+                          LAYOUT_EASE(130)
+                          setSelectedSubjectId(id)
+                          closeSubPage()
+                        }}
+                        fadeAnim={subPageFade}
+                        slideAnim={subPageSlide}
+                      />
+                    ) : (
+                      <TaskDatePicker
+                        dueDate={dueDate}
+                        onSelectDueDate={setDueDate}
+                        onSelectClass={(sched, subj) => {
+                          LAYOUT_EASE(130)
+                          handleSelectClass(sched, subj)
+                        }}
+                        schedules={schedules}
+                        subjects={subjects}
+                        fadeAnim={subPageFade}
+                        slideAnim={subPageSlide}
+                        onClosePicker={closeSubPage}
+                      />
+                    )}
+                  </ScrollView>
+                </Animated.View>
+              )}
             </>
           )}
         </Animated.View>
@@ -917,6 +1025,50 @@ export function MinimalistTaskModal({
   )
 }
 
+/** Píldora con animación de presión (escala) estilo iOS */
+function AttrPill({
+  onPress,
+  style,
+  children,
+  accessibilityLabel,
+}: {
+  onPress: () => void
+  style?: StyleProp<ViewStyle>
+  children: ReactNode
+  accessibilityLabel?: string
+}) {
+  const scale = useRef(new Animated.Value(1)).current
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() =>
+          Animated.spring(scale, {
+            toValue: 0.94,
+            stiffness: 700,
+            damping: 18,
+            useNativeDriver: true,
+          }).start()
+        }
+        onPressOut={() =>
+          Animated.spring(scale, {
+            toValue: 1,
+            stiffness: 500,
+            damping: 20,
+            useNativeDriver: true,
+          }).start()
+        }
+        hitSlop={4}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        style={style}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  )
+}
+
 const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
@@ -939,6 +1091,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     maxHeight: '92%',
     overflow: 'hidden',
+    borderCurve: 'continuous',
   },
   dragHandle: {
     width: 36,
@@ -1061,5 +1214,87 @@ const styles = StyleSheet.create({
   },
   pickerSectionWrapper: {
     overflow: 'hidden',
+  },
+  attrIconPillActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  attachMenuCard: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginTop: 6,
+    paddingTop: 12,
+    paddingBottom: 4,
+    overflow: 'hidden',
+  },
+  attachMenuHeader: {
+    color: '#71717A',
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    paddingHorizontal: 14,
+    marginBottom: 6,
+  },
+  attachRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 11.5,
+    paddingHorizontal: 14,
+  },
+  attachRowBorder: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  attachRowPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  attachRowIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  attachRowText: {
+    color: '#E4E4E7',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  subPage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#1C1C1E',
+    zIndex: 50,
+  },
+  subPageBackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 6,
+    paddingHorizontal: 20,
+  },
+  subPageBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 8,
+    paddingRight: 12,
+  },
+  subPageBackText: {
+    color: '#0A84FF',
+    fontSize: 15.5,
+    fontWeight: '500',
+  },
+  subPageContent: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 28,
   },
 })

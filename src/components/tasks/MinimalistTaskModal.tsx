@@ -690,9 +690,11 @@ export function MinimalistTaskModal({
                       accessibilityLabel="Cerrar"
                     />
                   </View>
-                  <Text style={styles.headerTitle}>
-                    {mode === 'edit' ? 'Editar tarea' : 'Nueva tarea'}
-                  </Text>
+                  <View style={styles.headerTitleWrap} pointerEvents="none">
+                    <Text style={styles.headerTitle}>
+                      {mode === 'edit' ? 'Editar tarea' : 'Nueva tarea'}
+                    </Text>
+                  </View>
                   <View style={styles.headerSide}>
                     <NativeGlassIconButton
                       onPress={handleSave}
@@ -1145,12 +1147,20 @@ const styles = StyleSheet.create({
   },
   headerSide: {
     width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    flex: 1,
-    textAlign: 'center',
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',

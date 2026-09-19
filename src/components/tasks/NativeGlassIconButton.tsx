@@ -60,7 +60,7 @@ export function NativeGlassIconButton({
       >
         <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.glassSheen} />
-        <Icon size={17} color={disabled ? '#8E8E93' : '#FFFFFF'} />
+        <Icon size={20} color={disabled ? '#8E8E93' : '#FFFFFF'} />
       </Pressable>
     </Animated.View>
   )
@@ -68,9 +68,9 @@ export function NativeGlassIconButton({
 
 const styles = StyleSheet.create({
   glassButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -80,10 +80,10 @@ const styles = StyleSheet.create({
   },
   glassSheen: {
     position: 'absolute',
-    top: 3,
-    left: 5,
-    width: 26,
-    height: 9,
+    top: 4,
+    left: 7,
+    width: 30,
+    height: 10,
     borderRadius: 5,
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     transform: [{ rotate: '16deg' }],

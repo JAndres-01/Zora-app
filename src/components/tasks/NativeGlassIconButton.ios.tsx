@@ -38,11 +38,11 @@ export function NativeGlassIconButton({
         modifiers={[
           buttonStyle('glass'),
           buttonBorderShape('circle'),
-          frame({ width: 38, height: 38 }),
+          frame({ width: 44, height: 44 }),
           accessibilityLabel(label),
         ]}
       >
-        <Icon name={SYMBOLS[icon]} size={17} color="#FFFFFF" />
+        <Icon name={SYMBOLS[icon]} size={20} color="#FFFFFF" />
       </Button>
     </Host>
   )

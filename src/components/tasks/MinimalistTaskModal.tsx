@@ -697,6 +697,7 @@ export function MinimalistTaskModal({
                     icon="checkmark"
                     accessibilityLabel="Guardar tarea"
                     disabled={saveLoading}
+                    variant="prominent"
                   />
                 </View>
               </View>
@@ -1112,10 +1113,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
@@ -1132,8 +1129,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
     paddingBottom: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     backgroundColor: 'transparent',
     position: 'relative',
   },

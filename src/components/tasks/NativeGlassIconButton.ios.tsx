@@ -9,6 +9,8 @@ import type { SFSymbol } from 'sf-symbols-typescript'
 
 export type GlassIconName = 'xmark' | 'checkmark'
 
+export type GlassIconVariant = 'default' | 'prominent'
+
 const SYMBOLS: Record<GlassIconName, SFSymbol> = {
   xmark: 'xmark',
   checkmark: 'checkmark',
@@ -17,17 +19,21 @@ const SYMBOLS: Record<GlassIconName, SFSymbol> = {
 /**
  * Botón circular liquid glass NATIVO (SwiftUI buttonStyle `.glass` + borde circle)
  * — el mismo rendering que los botones de las apps de iOS 26.
+ * `variant="prominent"` usa `.glassProminent`, el glass relleno más brillante
+ * (para resaltar la acción principal).
  */
 export function NativeGlassIconButton({
   onPress,
   icon,
   accessibilityLabel: label,
   disabled,
+  variant = 'default',
 }: {
   onPress: () => void
   icon: GlassIconName
   accessibilityLabel: string
   disabled?: boolean
+  variant?: GlassIconVariant
 }) {
   return (
     <Host matchContents>
@@ -36,13 +42,13 @@ export function NativeGlassIconButton({
         onPress={onPress}
         disabled={disabled}
         modifiers={[
-          buttonStyle('glass'),
+          buttonStyle(variant === 'prominent' ? 'glassProminent' : 'glass'),
           buttonBorderShape('circle'),
-          frame({ width: 44, height: 44 }),
+          frame({ width: 48, height: 48, alignment: 'center' }),
           accessibilityLabel(label),
         ]}
       >
-        <Icon name={SYMBOLS[icon]} size={20} color="#FFFFFF" />
+        <Icon name={SYMBOLS[icon]} size={22} color="#FFFFFF" />
       </Button>
     </Host>
   )

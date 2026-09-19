@@ -17,11 +17,12 @@ import {
 } from 'expo-glass-effect'
 import { SymbolView } from 'expo-symbols'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack, useFocusEffect } from 'expo-router'
+import { Stack, useFocusEffect, useRouter } from 'expo-router'
 import { Settings as SettingsIcon } from 'lucide-react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system/legacy'
 import { usePersonalAuth } from '@/context/PersonalAuthContext'
+import { useClassAuth } from '@/context/ClassAuthContext'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import { triggerHaptic, setGlobalHapticsEnabled } from '@/lib/personalHaptics'
 import {
@@ -33,6 +34,7 @@ import { MinimalistActivityHeatmap } from '@/components/stats/MinimalistActivity
 import { MinimalistSubjectBalance } from '@/components/stats/MinimalistSubjectBalance'
 import { DualBalanceWidget } from '@/components/widgets/DualBalanceWidget'
 import { MinimalistCredentialModal } from '@/components/profile/MinimalistCredentialModal'
+import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
 import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
@@ -134,13 +136,16 @@ function GlassSettingsButton({ onPress }: { onPress: () => void }) {
 }
 
 export default function ProfileScreen() {
+  const router = useRouter()
   const insets = useSafeAreaInsets()
   const { profile, updateCredential, clearData } = usePersonalAuth()
+  const { isConnected } = useClassAuth()
 
   // Modales
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showTimeModal, setShowTimeModal] = useState(false)
   const [showCredentialModal, setShowCredentialModal] = useState(false)
+  const [showClassAuthModal, setShowClassAuthModal] = useState(false)
 
   // Preferencias del Sistema
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
@@ -573,6 +578,14 @@ export default function ProfileScreen() {
         profile={profile}
         onOpenCredential={() => setShowCredentialModal(true)}
         onUploadCredential={handlePickCredential}
+        onOpenClassAuth={() => {
+          if (isConnected) {
+            setShowClassAuthModal(true)
+          } else {
+            router.push('/auth')
+          }
+        }}
+        isConnected={isConnected}
         advanceReminderEnabled={advanceReminderEnabled}
         onToggleAdvanceReminder={handleToggleAdvanceReminder}
         advanceReminderTime={advanceReminderTime}
@@ -611,6 +624,13 @@ export default function ProfileScreen() {
         onClose={() => setShowCredentialModal(false)}
         onChangeCredential={handlePickCredential}
         onDeleteCredential={handleDeleteCredential}
+      />
+
+      {/* Modal de Acceso / Estado de la Clase */}
+      <ClassAuthModal
+        visible={showClassAuthModal}
+        onClose={() => setShowClassAuthModal(false)}
+        onSuccess={loadData}
       />
     </View>
   )

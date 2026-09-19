@@ -28,6 +28,7 @@ import {
   Volume2,
   Trash2,
   Check,
+  Globe,
 } from 'lucide-react-native'
 import type { PersonalProfile } from '@/types/personal'
 import { APPLE_EASING } from '@/constants/animations'
@@ -46,6 +47,8 @@ export interface SystemSettingsModalProps {
   profile: PersonalProfile | null
   onOpenCredential: () => void
   onUploadCredential: () => void
+  onOpenClassAuth?: () => void
+  isConnected?: boolean
   advanceReminderEnabled: boolean
   onToggleAdvanceReminder: (val: boolean) => void
   advanceReminderTime: string
@@ -97,6 +100,8 @@ export function SystemSettingsModal({
   profile,
   onOpenCredential,
   onUploadCredential,
+  onOpenClassAuth,
+  isConnected = false,
   advanceReminderEnabled,
   onToggleAdvanceReminder,
   advanceReminderTime,
@@ -222,6 +227,37 @@ export function SystemSettingsModal({
                     <ChevronRight size={14} color="#71717A" />
                   </View>
                 </Pressable>
+
+                {/* Fila: Clase Compartida / Conexión a Clase */}
+                {onOpenClassAuth && (
+                  <>
+                    <View style={styles.rowDivider} />
+                    <Pressable
+                      onPress={() => {
+                        handleClose(() => {
+                          onOpenClassAuth()
+                        })
+                      }}
+                      style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
+                    >
+                      <View style={styles.iconBox}>
+                        <Globe size={16} color={isConnected ? '#34C759' : '#A1A1AA'} />
+                      </View>
+                      <View style={styles.rowMain}>
+                        <Text style={styles.rowTitle}>Clase compartida</Text>
+                        <Text style={styles.rowSubtitle}>
+                          {isConnected ? 'Sincronización activa con tu grupo' : 'Sin conectar a una clase'}
+                        </Text>
+                      </View>
+                      <View style={styles.trailingActionRow}>
+                        <Text style={[styles.trailingActionText, isConnected && { color: '#34C759', fontWeight: '600' }]}>
+                          {isConnected ? 'Conectado' : 'Conectar'}
+                        </Text>
+                        <ChevronRight size={14} color="#71717A" />
+                      </View>
+                    </Pressable>
+                  </>
+                )}
               </View>
             </View>
 

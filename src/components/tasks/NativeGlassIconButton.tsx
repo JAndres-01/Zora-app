@@ -6,8 +6,6 @@ import { Check, X } from 'lucide-react-native'
 
 export type GlassIconName = 'xmark' | 'checkmark'
 
-export type GlassIconVariant = 'default' | 'prominent'
-
 const ICON_MAP: Record<
   GlassIconName,
   ComponentType<{ size?: number; color?: string; strokeWidth?: number }>
@@ -20,25 +18,20 @@ const ICON_MAP: Record<
  * Fallback para Android/web: botón circular liquid glass aproximado
  * (BlurView + tinte translúcido + sheen). En iOS se usa la versión nativa
  * (`NativeGlassIconButton.ios.tsx`) con SwiftUI.
- * `variant="prominent"` aclara apenas el fondo (transparente, un poco más
- * claro que el default) para resaltar la acción principal.
  */
 export function NativeGlassIconButton({
   onPress,
   icon,
   accessibilityLabel,
   disabled,
-  variant = 'default',
 }: {
   onPress: () => void
   icon: GlassIconName
   accessibilityLabel: string
   disabled?: boolean
-  variant?: GlassIconVariant
 }) {
   const scale = useRef(new Animated.Value(1)).current
   const Icon = ICON_MAP[icon]
-  const prominent = variant === 'prominent'
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -63,9 +56,9 @@ export function NativeGlassIconButton({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         hitSlop={8}
-        style={[styles.glassButton, prominent && styles.glassButtonProminent]}
+        style={styles.glassButton}
       >
-        <BlurView intensity={prominent ? 30 : 26} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.glassSheen} />
         <Icon size={20} color={disabled ? '#8E8E93' : '#FFFFFF'} />
       </Pressable>
@@ -84,10 +77,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     overflow: 'hidden',
-  },
-  glassButtonProminent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderColor: 'rgba(255, 255, 255, 0.26)',
   },
   glassSheen: {
     position: 'absolute',

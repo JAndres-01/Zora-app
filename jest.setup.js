@@ -248,6 +248,7 @@ jest.mock('@expo/ui/swift-ui/modifiers', () => {
     buttonStyle: (style) => mod('buttonStyle', { style }),
     buttonBorderShape: (shape, cornerRadius) => mod('buttonBorderShape', { shape, cornerRadius }),
     frame: (params) => mod('frame', params),
+    padding: (params) => mod('padding', params),
     accessibilityLabel: (label) => mod('accessibilityLabel', { label }),
   }
 })

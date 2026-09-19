@@ -697,7 +697,6 @@ export function MinimalistTaskModal({
                     icon="checkmark"
                     accessibilityLabel="Guardar tarea"
                     disabled={saveLoading}
-                    variant="prominent"
                   />
                 </View>
               </View>
@@ -1137,7 +1136,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
   },
   headerTitle: {
     flex: 1,

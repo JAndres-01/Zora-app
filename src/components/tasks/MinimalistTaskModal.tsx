@@ -20,7 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Subject, TaskType, TaskAttachment, Schedule } from '@/types/personal'
 import {
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Calendar,
   Layers,
@@ -940,17 +939,17 @@ export function MinimalistTaskModal({
                     { transform: [{ translateX: pageSlideX }] },
                   ]}
                 >
-                  <View style={styles.subPageBackRow}>
-                    <Pressable
-                      onPress={closeSubPage}
-                      hitSlop={10}
-                      style={styles.subPageBackBtn}
-                      accessibilityRole="button"
-                      accessibilityLabel="Volver"
-                    >
-                      <ChevronLeft size={22} color="#0A84FF" strokeWidth={2.6} />
-                      <Text style={styles.subPageBackText}>Volver</Text>
-                    </Pressable>
+                  <View style={styles.subPageBack}>
+                    <View style={styles.dragHandle} />
+                    <View style={styles.headerRow}>
+                      <View style={styles.headerSide}>
+                        <NativeGlassIconButton
+                          onPress={closeSubPage}
+                          icon="arrowleft"
+                          accessibilityLabel="Volver"
+                        />
+                      </View>
+                    </View>
                   </View>
                   <ScrollView
                     contentContainerStyle={styles.subPageContent}
@@ -1264,23 +1263,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     zIndex: 50,
   },
-  subPageBackRow: {
-    flexDirection: 'row',
+  subPageBack: {
     alignItems: 'center',
-    paddingTop: 6,
-    paddingHorizontal: 20,
-  },
-  subPageBackBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingVertical: 8,
-    paddingRight: 12,
-  },
-  subPageBackText: {
-    color: '#0A84FF',
-    fontSize: 15.5,
-    fontWeight: '500',
+    paddingTop: 10,
   },
   subPageContent: {
     paddingHorizontal: 20,

@@ -21,15 +21,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Subject, TaskType, TaskAttachment, Schedule } from '@/types/personal'
 import {
-  Camera,
-  Image as ImageIcon,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Calendar,
   Layers,
   ArrowLeft,
-  FileText,
   Globe,
   Paperclip,
 } from 'lucide-react-native'
@@ -54,13 +51,17 @@ import { formatTime12h } from '@/lib/academicDateUtils'
 import { TaskDetailView } from './modal/TaskDetailView'
 import { TaskSubjectPicker } from './modal/TaskSubjectPicker'
 import { TaskDatePicker } from './modal/TaskDatePicker'
-import { TaskTypePicker, formatTaskTypeLabel } from './modal/TaskTypePicker'
+import { formatTaskTypeLabel } from './modal/TaskTypePicker'
+import { MenuView, type MenuAction } from '@react-native-menu/menu'
 import { TaskAttachmentSection } from './modal/TaskAttachmentSection'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { DEFAULT_CLASS_START_TIME } from '@/constants/defaults'
 import { logger } from '@/lib/logger'
 
 export type TaskModalMode = 'none' | 'detail' | 'create' | 'edit'
+
+/** Tipos de tarea pre-establecidos para el context menu nativo */
+const TASK_TYPE_OPTIONS: TaskType[] = ['individual', 'grupal', 'proyecto', 'examen']
 
 function getNextClassDate(dayOfWeek: number, timeStr: string = DEFAULT_CLASS_START_TIME): Date {
   const now = new Date()
@@ -151,13 +152,10 @@ export function MinimalistTaskModal({
 
   const titleInputRef = useRef<TextInput>(null)
 
-  // Navegación estilo Recordatorios (iOS): sub-páginas deslizantes (Materia/Fecha)
-  // y menús en flujo con animación (Tipo/Adjuntos)
+  // Navegación estilo Recordatorios (iOS): sub-páginas deslizantes (Materia/Fecha).
+  // Los menús de opciones (Tipo/Adjuntos) usan el context menu nativo de iOS.
   const { width: SCREEN_W } = useWindowDimensions()
   const [subPage, setSubPage] = useState<'subject' | 'date' | null>(null)
-  const [activePicker, setActivePicker] = useState<'type' | 'attach' | null>(null)
-  const pickerFadeAnim = useRef(new Animated.Value(0)).current
-  const pickerSlideAnim = useRef(new Animated.Value(-6)).current
   const pageSlideX = useRef(new Animated.Value(SCREEN_W)).current
   const subPageFade = useRef(new Animated.Value(1)).current
   const subPageSlide = useRef(new Animated.Value(0)).current
@@ -169,32 +167,9 @@ export function MinimalistTaskModal({
   const keyboardTranslateY = useRef(new Animated.Value(0)).current
   const [modalVisible, setModalVisible] = useState(false)
 
-  // Disparar animación de entrada suave al abrir o cambiar de picker
-  useEffect(() => {
-    if (activePicker) {
-      pickerFadeAnim.setValue(0)
-      pickerSlideAnim.setValue(-6)
-      Animated.parallel([
-        Animated.timing(pickerFadeAnim, {
-          toValue: 1,
-          duration: 110,
-          useNativeDriver: true,
-        }),
-        Animated.spring(pickerSlideAnim, {
-          toValue: 0,
-          stiffness: 850,
-          damping: 34,
-          mass: 0.35,
-          useNativeDriver: true,
-        }),
-      ]).start()
-    }
-  }, [activePicker])
-
   // Push/pop de sub-página estilo Recordatorios (deslizamiento desde la derecha)
   const openSubPage = (page: 'subject' | 'date') => {
     LAYOUT_EASE(130)
-    setActivePicker(null)
     Keyboard.dismiss()
     setSubPage(page)
     pageSlideX.setValue(SCREEN_W)
@@ -296,7 +271,6 @@ export function MinimalistTaskModal({
         setTaskType('individual')
         setDueDate('')
         setAttachments(initialAttachments ? [...initialAttachments] : [])
-        setActivePicker(null)
         setSubPage(null)
         pageSlideX.setValue(SCREEN_W)
 
@@ -310,10 +284,8 @@ export function MinimalistTaskModal({
         setTaskType(task.type || 'individual')
         setDueDate(task.due_date || '')
         setAttachments(Array.isArray(task.attachments) ? [...task.attachments] : [])
-        setActivePicker(null)
         setSubPage(null)
       } else if (mode === 'detail') {
-        setActivePicker(null)
         setSubPage(null)
       }
 
@@ -352,7 +324,6 @@ export function MinimalistTaskModal({
         }),
       ]).start(() => {
         setModalVisible(false)
-        setActivePicker(null)
         setSubPage(null)
       })
     }
@@ -384,7 +355,6 @@ export function MinimalistTaskModal({
       }),
     ]).start(() => {
       setModalVisible(false)
-      setActivePicker(null)
       setSubPage(null)
       onClose()
     })
@@ -650,6 +620,41 @@ export function MinimalistTaskModal({
   const selectedSubject = subjects.find((s) => s.id === selectedSubjectId)
   const isFormSubjWhite = isWhiteColor(selectedSubject?.color)
 
+  // Opciones y contenido de las pills con context menu nativo (Tipo / Adjuntar)
+  const isWeb = Platform.OS === 'web'
+  const typePillStyle = [styles.attrPill, taskType !== 'individual' && styles.attrPillActive]
+  const typePillContent = (
+    <>
+      <Layers size={13} color={taskType !== 'individual' ? '#FFFFFF' : '#71717A'} />
+      <Text style={[styles.attrPillText, taskType !== 'individual' && styles.attrPillTextActive]}>
+        {formatTaskTypeLabel(taskType)}
+      </Text>
+      <ChevronDown size={12} color="#71717A" />
+    </>
+  )
+  const typeMenuActions: MenuAction[] = TASK_TYPE_OPTIONS.map((t) => ({
+    id: t,
+    title: formatTaskTypeLabel(t),
+    state: taskType === t ? 'on' : 'off',
+  }))
+  const attachMenuActions: MenuAction[] = [
+    {
+      id: 'camera',
+      title: 'Tomar foto',
+      image: Platform.OS === 'ios' ? 'camera' : undefined,
+    },
+    {
+      id: 'gallery',
+      title: 'Galería',
+      image: Platform.OS === 'ios' ? 'photo.on.rectangle' : undefined,
+    },
+    {
+      id: 'document',
+      title: 'Documento',
+      image: Platform.OS === 'ios' ? 'doc' : undefined,
+    },
+  ]
+
   if (!modalVisible) return null
 
   return (
@@ -808,31 +813,24 @@ export function MinimalistTaskModal({
                     <ChevronRight size={13} color="#71717A" />
                   </AttrPill>
 
-                  {/* Selector de Tipo → menú con opciones pre-establecidas */}
-                  <AttrPill
-                    onPress={() => {
-                      triggerHaptic('selection')
-                      Keyboard.dismiss()
-                      LAYOUT_EASE(130)
-                      setActivePicker(activePicker === 'type' ? null : 'type')
-                    }}
-                    style={[
-                      styles.attrPill,
-                      taskType !== 'individual' && styles.attrPillActive,
-                    ]}
-                    accessibilityLabel="Elegir tipo de tarea"
-                  >
-                    <Layers size={13} color={taskType !== 'individual' ? '#FFFFFF' : '#71717A'} />
-                    <Text
-                      style={[
-                        styles.attrPillText,
-                        taskType !== 'individual' && styles.attrPillTextActive,
-                      ]}
+                  {/* Selector de Tipo → context menu nativo iOS */}
+                  {isWeb ? (
+                    <View style={typePillStyle}>{typePillContent}</View>
+                  ) : (
+                    <MenuView
+                      title="Tipo de tarea"
+                      shouldOpenOnLongPress={false}
+                      themeVariant="dark"
+                      actions={typeMenuActions}
+                      onPressAction={({ nativeEvent }) => {
+                        const type = nativeEvent.event as TaskType
+                        triggerHaptic('selection')
+                        setTaskType(type)
+                      }}
                     >
-                      {formatTaskTypeLabel(taskType)}
-                    </Text>
-                    <ChevronDown size={12} color="#71717A" />
-                  </AttrPill>
+                      <View style={typePillStyle}>{typePillContent}</View>
+                    </MenuView>
+                  )}
 
                   {/* Selector de Destino: Clase / Personal (Solo visible para Admin en modo crear) */}
                   {isAdmin && mode === 'create' && (
@@ -860,77 +858,30 @@ export function MinimalistTaskModal({
                     </AttrPill>
                   )}
 
-                  {/* Adjuntar archivo: un único botón que despliega foto / galería / documento */}
-                  <AttrPill
-                    onPress={() => {
-                      triggerHaptic('selection')
-                      Keyboard.dismiss()
-                      LAYOUT_EASE(130)
-                      setActivePicker(activePicker === 'attach' ? null : 'attach')
-                    }}
-                    style={[
-                      styles.attrIconPill,
-                      activePicker === 'attach' && styles.attrIconPillActive,
-                    ]}
-                    accessibilityLabel="Adjuntar archivo"
-                  >
-                    <Paperclip size={15} color={activePicker === 'attach' ? '#FFFFFF' : '#A1A1AA'} />
-                  </AttrPill>
-                </ScrollView>
-
-                {/* Subcomponentes de Selección */}
-                <View style={styles.pickerSectionWrapper}>
-                  {activePicker === 'type' && (
-                    <TaskTypePicker
-                      taskType={taskType}
-                      onSelectType={(t) => {
-                        LAYOUT_EASE(130)
-                        setTaskType(t)
-                        setActivePicker(null)
+                  {/* Adjuntar archivo → context menu nativo iOS (foto / galería / documento) */}
+                  {isWeb ? (
+                    <View style={styles.attrIconPill}>
+                      <Paperclip size={15} color="#A1A1AA" />
+                    </View>
+                  ) : (
+                    <MenuView
+                      title="Adjuntar archivo"
+                      shouldOpenOnLongPress={false}
+                      themeVariant="dark"
+                      actions={attachMenuActions}
+                      onPressAction={({ nativeEvent }) => {
+                        const opt = nativeEvent.event
+                        if (opt === 'camera') handleTakePhoto()
+                        else if (opt === 'gallery') handlePickImage()
+                        else handlePickDocument()
                       }}
-                      fadeAnim={pickerFadeAnim}
-                      slideAnim={pickerSlideAnim}
-                    />
-                  )}
-
-                  {activePicker === 'attach' && (
-                    <Animated.View style={{ opacity: pickerFadeAnim, transform: [{ translateY: pickerSlideAnim }] }}>
-                      <View style={styles.attachMenuCard}>
-                        <Text style={styles.attachMenuHeader}>Adjuntar archivo</Text>
-                        {[
-                          { key: 'camera', label: 'Tomar foto', icon: Camera },
-                          { key: 'gallery', label: 'Galería', icon: ImageIcon },
-                          { key: 'document', label: 'Documento', icon: FileText },
-                        ].map((opt, idx) => {
-                          const Icon = opt.icon
-                          return (
-                            <Pressable
-                              key={opt.key}
-                              onPress={() => {
-                                setActivePicker(null)
-                                if (opt.key === 'camera') handleTakePhoto()
-                                else if (opt.key === 'gallery') handlePickImage()
-                                else handlePickDocument()
-                              }}
-                              style={({ pressed }) => [
-                                styles.attachRow,
-                                idx < 2 && styles.attachRowBorder,
-                                pressed && styles.attachRowPressed,
-                              ]}
-                              accessibilityRole="button"
-                              accessibilityLabel={opt.label}
-                            >
-                              <View style={styles.attachRowIconBox}>
-                                <Icon size={15} color="#FFFFFF" />
-                              </View>
-                              <Text style={styles.attachRowText}>{opt.label}</Text>
-                            </Pressable>
-                          )
-                        })}
+                    >
+                      <View style={styles.attrIconPill}>
+                        <Paperclip size={15} color="#A1A1AA" />
                       </View>
-                    </Animated.View>
+                    </MenuView>
                   )}
-                </View>
+                </ScrollView>
 
                 {/* Adjuntos del Formulario */}
                 <TaskAttachmentSection
@@ -1211,59 +1162,6 @@ const styles = StyleSheet.create({
   whiteDotBorder: {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  pickerSectionWrapper: {
-    overflow: 'hidden',
-  },
-  attrIconPillActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  attachMenuCard: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    marginTop: 6,
-    paddingTop: 12,
-    paddingBottom: 4,
-    overflow: 'hidden',
-  },
-  attachMenuHeader: {
-    color: '#71717A',
-    fontSize: 10.5,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    paddingHorizontal: 14,
-    marginBottom: 6,
-  },
-  attachRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 11.5,
-    paddingHorizontal: 14,
-  },
-  attachRowBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  attachRowPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  attachRowIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  attachRowText: {
-    color: '#E4E4E7',
-    fontSize: 14,
-    fontWeight: '600',
   },
   subPage: {
     position: 'absolute',

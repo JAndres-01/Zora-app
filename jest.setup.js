@@ -211,3 +211,13 @@ jest.mock('expo-audio', () => {
   }
 })
 
+// Mock context menus nativos (iOS UIMenu / Android PopupMenu)
+jest.mock('@react-native-menu/menu', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+  return {
+    MenuView: ({ children, actions, onPressAction, title, ...rest }) =>
+      React.createElement(View, rest, children),
+  }
+})
+

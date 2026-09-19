@@ -684,20 +684,25 @@ export function MinimalistTaskModal({
               <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
                 <View style={styles.dragHandle} />
                 <View style={styles.headerRow}>
-                  <NativeGlassIconButton
-                    onPress={handleSmoothClose}
-                    icon="xmark"
-                    accessibilityLabel="Cerrar"
-                  />
+                  <View style={styles.headerSide}>
+                    <NativeGlassIconButton
+                      onPress={handleSmoothClose}
+                      icon="xmark"
+                      accessibilityLabel="Cerrar"
+                    />
+                  </View>
                   <Text style={styles.headerTitle}>
                     {mode === 'edit' ? 'Editar tarea' : 'Nueva tarea'}
                   </Text>
-                  <NativeGlassIconButton
-                    onPress={handleSave}
-                    icon="checkmark"
-                    accessibilityLabel="Guardar tarea"
-                    disabled={saveLoading}
-                  />
+                  <View style={styles.headerSide}>
+                    <NativeGlassIconButton
+                      onPress={handleSave}
+                      icon="checkmark"
+                      accessibilityLabel="Guardar tarea"
+                      disabled={saveLoading}
+                      variant="prominent"
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -1136,7 +1141,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
+  },
+  headerSide: {
+    width: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     flex: 1,

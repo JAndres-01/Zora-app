@@ -1,4 +1,3 @@
-import { StyleSheet, View } from 'react-native'
 import { Host, Button, Icon } from '@expo/ui'
 import {
   accessibilityLabel,
@@ -20,16 +19,15 @@ const SYMBOLS: Record<GlassIconName, SFSymbol> = {
 /**
  * Botón circular liquid glass NATIVO (SwiftUI buttonStyle `.glass` + borde circle)
  * — el mismo rendering que los botones de las apps de iOS 26.
- * `variant="prominent"` añade una capa circular RN sutil DETRÁS del botón para
- * que la palomita quede transparente pero un poco más clara que la X
- * (el fondo del propio Button nativo NO se usa: crearía un relleno cuadrado).
+ * `variant` se acepta por compatibilidad de tipos con el fallback, pero en iOS
+ * ambos botones usan exactamente el mismo glass transparente (sin capas extra:
+ * cualquier capa de color detrás del material se percibe como un círculo).
  */
 export function NativeGlassIconButton({
   onPress,
   icon,
   accessibilityLabel: label,
   disabled,
-  variant = 'default',
 }: {
   onPress: () => void
   icon: GlassIconName
@@ -37,7 +35,7 @@ export function NativeGlassIconButton({
   disabled?: boolean
   variant?: GlassIconVariant
 }) {
-  const button = (
+  return (
     <Host matchContents>
       <Button
         variant="outlined"
@@ -54,20 +52,4 @@ export function NativeGlassIconButton({
       </Button>
     </Host>
   )
-
-  if (variant === 'prominent') {
-    return <View style={styles.prominentHalo}>{button}</View>
-  }
-  return button
 }
-
-const styles = StyleSheet.create({
-  prominentHalo: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-  },
-})

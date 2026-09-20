@@ -282,7 +282,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   taskItemRowPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     transform: [{ scale: 0.99 }],
   },
   taskItemContent: {

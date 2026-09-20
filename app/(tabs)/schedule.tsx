@@ -26,12 +26,7 @@ import { MinimalistDayTasksModal } from '@/components/schedule/MinimalistDayTask
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LayoutGrid, CalendarDays, BookOpen } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
-import { playConfettiSound, playTaskUndoSound } from '@/lib/personalAudio'
 import { getActiveAcademicWeek } from '@/lib/academicDateUtils'
-import {
-  cancelTaskReminder,
-  scheduleTaskReminder,
-} from '@/lib/personalNotifications'
 import { Stack, useRouter, useFocusEffect } from 'expo-router'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
@@ -293,47 +288,6 @@ export default function ScheduleScreen() {
     })
   }, [])
 
-  const handleToggleTaskStatus = useCallback(async (taskId: string, currentStatus: string) => {
-    const newStatus: 'pending' | 'completed' = currentStatus === 'completed' ? 'pending' : 'completed'
-    const isCompleted = newStatus === 'completed'
-    const nowIso = new Date().toISOString()
-
-    if (isCompleted) {
-      cancelTaskReminder(taskId)
-      personalStorage.getPreferences().then((prefs) => {
-        if (prefs.confetti_enabled) {
-          playConfettiSound()
-        }
-      })
-    } else {
-      playTaskUndoSound()
-      const taskObj = tasks.find((t) => t.id === taskId)
-      if (taskObj) {
-        const prefs = await personalStorage.getPreferences()
-        scheduleTaskReminder({ ...taskObj, status: 'pending' }, prefs)
-      }
-    }
-
-    const updatedTasks = tasks.map((t) =>
-      t.id === taskId
-        ? {
-            ...t,
-            status: newStatus,
-            completed_at: isCompleted ? nowIso : null,
-            updated_at: nowIso,
-          }
-        : t
-    )
-    setTasks(updatedTasks)
-
-    if (taskId.startsWith('class_')) {
-      const classTaskId = taskId.replace('class_', '')
-      await personalStorage.setClassTaskStatus(classTaskId, newStatus)
-    } else {
-      await personalStorage.setTasks(updatedTasks)
-    }
-  }, [tasks])
-
   const handleOpenTaskDetailFromModal = useCallback((task: Task) => {
     triggerHaptic('light')
     setDayTasksModalData((prev) => ({ ...prev, visible: false }))
@@ -533,7 +487,6 @@ export default function ScheduleScreen() {
         schedules={activeSchedules}
         tasks={tasks}
         onClose={() => setDayTasksModalData((prev) => ({ ...prev, visible: false, subjectId: null }))}
-        onToggleTaskStatus={handleToggleTaskStatus}
         onOpenTaskDetail={handleOpenTaskDetailFromModal}
       />
 

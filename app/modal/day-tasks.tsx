@@ -28,13 +28,6 @@ export default function DayTasksModalScreen() {
     }
   }
 
-  const handleToggleTask = async (taskId: string, currentStatus: string) => {
-    const nextStatus: 'pending' | 'completed' = currentStatus === 'completed' ? 'pending' : 'completed'
-    const updated: Task[] = tasks.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
-    setTasks(updated)
-    await personalStorage.setTasks(updated)
-  }
-
   const handleOpenDetail = (t: Task) => {
     router.navigate({
       pathname: '/(tabs)/tasks',
@@ -50,7 +43,6 @@ export default function DayTasksModalScreen() {
       schedules={schedules}
       tasks={tasks}
       onClose={handleClose}
-      onToggleTaskStatus={handleToggleTask}
       onOpenTaskDetail={handleOpenDetail}
     />
   )

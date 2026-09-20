@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Schedule } from '@/types/personal'
-import { Check, Clock, Paperclip, ChevronRight, CheckCircle2 } from 'lucide-react-native'
+import { Clock, Paperclip, ChevronRight, CheckCircle2 } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { getActiveAcademicWeek, isTaskForAcademicDay, formatTime12h } from '@/lib/academicDateUtils'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
@@ -28,7 +28,6 @@ interface MinimalistDayTasksModalProps {
   schedules: Schedule[]
   tasks: Task[]
   onClose: () => void
-  onToggleTaskStatus: (taskId: string, currentStatus: string) => void
   onOpenTaskDetail: (task: Task) => void
 }
 
@@ -47,7 +46,6 @@ export function MinimalistDayTasksModal({
   schedules = [],
   tasks = [],
   onClose,
-  onToggleTaskStatus,
   onOpenTaskDetail,
 }: MinimalistDayTasksModalProps) {
   const insets = useSafeAreaInsets()
@@ -127,7 +125,6 @@ export function MinimalistDayTasksModal({
             {sortedDayTasks.length > 0 ? (
               <View style={styles.tasksList}>
                 {sortedDayTasks.map((t, idx) => {
-                  const isDone = t.status === 'completed'
                   const isWhite = isWhiteColor(t.subject?.color)
                   const attachCount = Array.isArray(t.attachments) ? t.attachments.length : 0
                   const timeLabel = formatTaskTime(t.due_date)
@@ -140,28 +137,15 @@ export function MinimalistDayTasksModal({
                         triggerHaptic('light')
                         onOpenTaskDetail(t)
                       }}
-                      style={[styles.taskItemRow, !isLast && styles.taskItemRowBorder]}
+                      style={({ pressed }) => [
+                        styles.taskItemRow,
+                        !isLast && styles.taskItemRowBorder,
+                        pressed && styles.taskItemRowPressed,
+                      ]}
                     >
-                      {/* Checkbox Circular */}
-                      <Pressable
-                        onPress={() => {
-                          triggerHaptic(isDone ? 'selection' : 'success')
-                          onToggleTaskStatus(t.id, t.status)
-                        }}
-                        hitSlop={10}
-                        style={styles.checkboxArea}
-                      >
-                        <View style={[styles.checkbox, isDone && styles.checkboxDone]}>
-                          {isDone && <Check size={10} color="#000000" strokeWidth={3.5} />}
-                        </View>
-                      </Pressable>
-
                       {/* Contenido */}
                       <View style={styles.taskItemContent}>
-                        <Text
-                          style={[styles.taskItemTitle, isDone && styles.taskItemTitleDone]}
-                          numberOfLines={1}
-                        >
+                        <Text style={styles.taskItemTitle} numberOfLines={1}>
                           {t.title}
                         </Text>
 
@@ -244,8 +228,8 @@ const styles = StyleSheet.create({
   },
   sheetHeader: {
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingTop: 14,
+    paddingBottom: 22,
     backgroundColor: 'transparent',
   },
   dragHandle: {
@@ -254,7 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   titleWithBadgeRow: {
     flexDirection: 'row',
@@ -297,22 +281,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
-  checkboxArea: {
-    padding: 2,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#3F3F46',
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxDone: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+  taskItemRowPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    transform: [{ scale: 0.99 }],
   },
   taskItemContent: {
     flex: 1,
@@ -323,10 +294,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.2,
-  },
-  taskItemTitleDone: {
-    color: '#71717A',
-    textDecorationLine: 'line-through',
   },
   taskItemMetaRow: {
     flexDirection: 'row',

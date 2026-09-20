@@ -175,10 +175,11 @@ export function MinimalistAssignSlotModal({
                       key={s.id}
                       onPress={() => handleSelectSubject(s.id)}
                       disabled={loading}
-                      style={[
+                      style={({ pressed }) => [
                         styles.subjectRow,
                         !isLast && styles.subjectRowBorder,
                         isSelected && styles.subjectRowSelected,
+                        pressed && styles.subjectRowPressed,
                       ]}
                     >
                       <View style={styles.subjectLeft}>
@@ -263,8 +264,8 @@ const styles = StyleSheet.create({
   },
   sheetHeader: {
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingTop: 14,
+    paddingBottom: 22,
     backgroundColor: 'transparent',
   },
   dragHandle: {
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -303,6 +304,9 @@ const styles = StyleSheet.create({
   },
   subjectRowSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  subjectRowPressed: {
+    transform: [{ scale: 0.99 }],
   },
   subjectLeft: {
     flexDirection: 'row',

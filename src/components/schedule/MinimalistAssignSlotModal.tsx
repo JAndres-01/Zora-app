@@ -11,17 +11,14 @@ import {
 } from 'react-native'
 import type { Subject, Schedule } from '@/types/personal'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
-import { SCHEDULE_DAYS } from '@/constants/dates'
 import { Check, Trash2 } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { playSaveSound, playTrashSound, playWarningSound } from '@/lib/personalAudio'
 import { personalStorage } from '@/lib/personalStorage'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { generateId } from '@/lib/idGenerator'
-import { SCREEN_HEIGHT } from '@/constants/layout'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { BlurView } from 'expo-blur'
-import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { logger } from '@/lib/logger'
 
 interface MinimalistAssignSlotModalProps {
@@ -138,11 +135,7 @@ export function MinimalistAssignSlotModal({
 
   if (!modalVisible) return null
 
-  const dayName = SCHEDULE_DAYS.find((d) => d.num === initialDay)?.name || 'Día'
   const blockDef = PERSONAL_SCHEDULE_BLOCKS.find((b) => b.block === initialBlock)
-  const slotSubtitle = blockDef
-    ? `${dayName} · Bloque ${initialBlock} (${blockDef.startTime} - ${blockDef.endTime})`
-    : dayName
 
   const safeSubjects = Array.isArray(subjects) ? subjects.filter(Boolean) : []
 
@@ -161,26 +154,12 @@ export function MinimalistAssignSlotModal({
             { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
           ]}
         >
-          {/* Header (patrón canónico: X glass + título centrado + hairline) */}
+          {/* Header: drag handle + título centrado (sin X glass, sin hairline, sin subtítulo) */}
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
-            <View style={styles.headerRow}>
-              <View style={styles.headerSide}>
-                <NativeGlassIconButton
-                  onPress={handleSmoothClose}
-                  icon="xmark"
-                  accessibilityLabel="Cerrar"
-                />
-              </View>
-              <View style={styles.headerTitleWrap} pointerEvents="none">
-                <Text style={styles.headerTitle}>
-                  {existingSchedule ? 'Editar Clase' : 'Asignar Materia'}
-                </Text>
-                <Text style={styles.headerSubtitle}>{slotSubtitle}</Text>
-              </View>
-              <View style={styles.headerSide} />
-            </View>
-            <View style={styles.headerHairline} />
+            <Text style={styles.headerTitle}>
+              {existingSchedule ? 'Editar Clase' : 'Asignar Materia'}
+            </Text>
           </View>
 
           <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
@@ -278,16 +257,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: '85%',
+    maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
   sheetHeader: {
     alignItems: 'center',
     paddingTop: 10,
-    paddingBottom: 4,
+    paddingBottom: 12,
     backgroundColor: 'transparent',
-    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -297,44 +275,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 12,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 16,
-  },
-  headerSide: {
-    width: 58,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitleWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
-  },
-  headerSubtitle: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  headerHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    width: '100%',
   },
   sheetScroll: {
     paddingHorizontal: 16,
@@ -375,8 +320,8 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   subjectName: {
-    color: '#D4D4D8',
-    fontSize: 13.5,
+    color: '#F4F4F5',
+    fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
@@ -385,8 +330,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   subjectTeacher: {
-    color: '#71717A',
-    fontSize: 11,
+    color: '#8E8E93',
+    fontSize: 12,
     fontWeight: '500',
   },
   checkBadge: {
@@ -421,7 +366,7 @@ const styles = StyleSheet.create({
   },
   clearSlotText: {
     color: '#EF4444',
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '600',
   },
   emptySubjsNotice: {

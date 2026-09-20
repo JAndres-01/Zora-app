@@ -17,11 +17,9 @@ import { getActiveAcademicWeek, isTaskForAcademicDay, formatTime12h } from '@/li
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { APPLE_EASING } from '@/constants/animations'
 import { sortTasksByDueDate } from '@/lib/taskSort'
-import { SCREEN_HEIGHT } from '@/constants/layout'
 import { DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { BlurView } from 'expo-blur'
-import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 
 interface MinimalistDayTasksModalProps {
   visible: boolean
@@ -105,37 +103,19 @@ export function MinimalistDayTasksModal({
             },
           ]}
         >
-          {/* Header (patrón canónico: X glass + título centrado + hairline) */}
+          {/* Header: drag handle + título centrado (sin X glass, sin hairline, sin subtítulo) */}
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
-            <View style={styles.headerRow}>
-              <View style={styles.headerSide}>
-                <NativeGlassIconButton
-                  onPress={handleSmoothClose}
-                  icon="xmark"
-                  accessibilityLabel="Cerrar"
-                />
-              </View>
-              <View style={styles.headerTitleWrap} pointerEvents="none">
-                <View style={styles.titleWithBadgeRow}>
-                  <Text style={styles.headerTitle}>
-                    {targetSubject ? `Tareas de ${targetSubject.name}` : `Tareas del ${dayName}`}
-                  </Text>
-                  {sortedDayTasks.length > 0 && (
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countBadgeText}>{sortedDayTasks.length}</Text>
-                    </View>
-                  )}
+            <View style={styles.titleWithBadgeRow} pointerEvents="none">
+              <Text style={styles.headerTitle}>
+                {targetSubject ? `Tareas de ${targetSubject.name}` : `Tareas del ${dayName}`}
+              </Text>
+              {sortedDayTasks.length > 0 && (
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{sortedDayTasks.length}</Text>
                 </View>
-                <Text style={styles.headerSubtitle}>
-                  {sortedDayTasks.length === 0
-                    ? `Sin entregas programadas para el ${dayName}`
-                    : `${sortedDayTasks.length} pendiente${sortedDayTasks.length === 1 ? '' : 's'} para este día`}
-                </Text>
-              </View>
-              <View style={styles.headerSide} />
+              )}
             </View>
-            <View style={styles.headerHairline} />
           </View>
 
           {/* Lista Abierta de Tareas */}
@@ -258,16 +238,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: SCREEN_HEIGHT * 0.75,
+    maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
   sheetHeader: {
     alignItems: 'center',
     paddingTop: 10,
-    paddingBottom: 4,
+    paddingBottom: 12,
     backgroundColor: 'transparent',
-    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -276,28 +255,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
     marginBottom: 12,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 16,
-  },
-  headerSide: {
-    width: 58,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitleWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   titleWithBadgeRow: {
     flexDirection: 'row',
@@ -320,17 +277,6 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 11,
     fontWeight: '800',
-  },
-  headerSubtitle: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  headerHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    width: '100%',
   },
   sheetScroll: {
     paddingHorizontal: 20,
@@ -374,7 +320,7 @@ const styles = StyleSheet.create({
   },
   taskItemTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
@@ -400,12 +346,12 @@ const styles = StyleSheet.create({
   whiteDotBorder: WHITE_DOT_BORDER,
   taskSubjName: {
     color: '#71717A',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   metaDot: {
     color: '#3F3F46',
-    fontSize: 10,
+    fontSize: 11,
   },
   metaDueTag: {
     flexDirection: 'row',
@@ -414,7 +360,7 @@ const styles = StyleSheet.create({
   },
   metaDueText: {
     color: '#71717A',
-    fontSize: 10.5,
+    fontSize: 11.5,
     fontWeight: '500',
   },
   emptyState: {
@@ -425,7 +371,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: '#E4E4E7',
-    fontSize: 14.5,
+    fontSize: 15,
     fontWeight: '600',
   },
   emptyText: {

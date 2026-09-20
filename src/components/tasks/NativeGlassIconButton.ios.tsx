@@ -22,7 +22,7 @@ const SYMBOLS: Record<GlassIconName, SFSymbol> = {
 const DEFAULT_ICON_SIZE: Record<GlassIconName, number> = {
   xmark: 26,
   checkmark: 26,
-  back: 38,
+  back: 32,
 }
 
 /**

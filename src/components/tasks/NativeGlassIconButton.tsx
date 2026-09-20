@@ -13,7 +13,7 @@ const DEFAULT_ICON_SIZE: Record<GlassIconName, number> = {
   checkmark: 26,
   // ChevronLeft es ópticamente más angosto que Check/X; se escala un poco
   // más para que el botón "atrás" se perciba del mismo tamaño que la palomita.
-  back: 38,
+  back: 32,
 }
 
 const ICON_MAP: Record<

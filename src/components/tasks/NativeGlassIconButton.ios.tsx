@@ -17,6 +17,14 @@ const SYMBOLS: Record<GlassIconName, SFSymbol> = {
   back: 'chevron.backward',
 }
 
+// SF Symbols: chevron.backward es ópticamente más angosto que checkmark;
+// se escala un poco más para que "atrás" se perciba del mismo tamaño que la palomita.
+const DEFAULT_ICON_SIZE: Record<GlassIconName, number> = {
+  xmark: 26,
+  checkmark: 26,
+  back: 38,
+}
+
 /**
  * Botón circular liquid glass NATIVO (SwiftUI buttonStyle `.glass` + borde circle)
  * — el mismo rendering que los botones de las apps de iOS 26.
@@ -29,7 +37,7 @@ export function NativeGlassIconButton({
   icon,
   accessibilityLabel: label,
   disabled,
-  iconSize = 26,
+  iconSize,
 }: {
   onPress: () => void
   icon: GlassIconName
@@ -38,6 +46,7 @@ export function NativeGlassIconButton({
   variant?: GlassIconVariant
   iconSize?: number
 }) {
+  const effectiveSize = iconSize ?? DEFAULT_ICON_SIZE[icon]
   return (
     <Host matchContents>
       <Button
@@ -51,7 +60,7 @@ export function NativeGlassIconButton({
           accessibilityLabel(label),
         ]}
       >
-        <Icon name={SYMBOLS[icon]} size={iconSize} color="#FFFFFF" />
+        <Icon name={SYMBOLS[icon]} size={effectiveSize} color="#FFFFFF" />
       </Button>
     </Host>
   )

@@ -8,6 +8,14 @@ export type GlassIconName = 'xmark' | 'checkmark' | 'back'
 
 export type GlassIconVariant = 'default' | 'prominent'
 
+const DEFAULT_ICON_SIZE: Record<GlassIconName, number> = {
+  xmark: 26,
+  checkmark: 26,
+  // ChevronLeft es ópticamente más angosto que Check/X; se escala un poco
+  // más para que el botón "atrás" se perciba del mismo tamaño que la palomita.
+  back: 38,
+}
+
 const ICON_MAP: Record<
   GlassIconName,
   ComponentType<{ size?: number; color?: string; strokeWidth?: number }>
@@ -30,7 +38,7 @@ export function NativeGlassIconButton({
   accessibilityLabel,
   disabled,
   variant = 'default',
-  iconSize = 26,
+  iconSize,
 }: {
   onPress: () => void
   icon: GlassIconName
@@ -42,6 +50,7 @@ export function NativeGlassIconButton({
   const scale = useRef(new Animated.Value(1)).current
   const Icon = ICON_MAP[icon]
   const prominent = variant === 'prominent'
+  const effectiveSize = iconSize ?? DEFAULT_ICON_SIZE[icon]
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -70,7 +79,7 @@ export function NativeGlassIconButton({
       >
         <BlurView intensity={prominent ? 30 : 26} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.glassSheen} />
-        <Icon size={iconSize} color={disabled ? '#8E8E93' : '#FFFFFF'} />
+        <Icon size={effectiveSize} color={disabled ? '#8E8E93' : '#FFFFFF'} />
       </Pressable>
     </Animated.View>
   )

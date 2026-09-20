@@ -34,6 +34,5 @@ describe('MinimalistSubjectModal Component', () => {
     )
 
     expect(getByText('Gestionar Materias')).toBeTruthy()
-    expect(getByText('0')).toBeTruthy()
   })
 })

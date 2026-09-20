@@ -260,32 +260,19 @@ export function MinimalistSubjectModal({
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
               <View style={styles.headerSide}>
-                {editingSubject ? (
+                {editingSubject && (
                   <NativeGlassIconButton
                     onPress={handleCancelEdit}
                     icon="back"
                     accessibilityLabel="Volver a la lista de materias"
                   />
-                ) : (
-                  <NativeGlassIconButton
-                    onPress={handleSmoothClose}
-                    icon="xmark"
-                    accessibilityLabel="Cerrar"
-                  />
                 )}
               </View>
 
               <View style={styles.headerTitleWrap}>
-                <View style={styles.titleWithBadgeRow}>
-                  <Text style={styles.sheetTitle}>
-                    {editingSubject ? 'Editar Materia' : 'Gestionar Materias'}
-                  </Text>
-                  {!editingSubject && (
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countBadgeText}>{safeSubjects.length}</Text>
-                    </View>
-                  )}
-                </View>
+                <Text style={styles.sheetTitle}>
+                  {editingSubject ? 'Editar Materia' : 'Gestionar Materias'}
+                </Text>
               </View>
 
               <View style={styles.headerSide}>
@@ -324,35 +311,39 @@ export function MinimalistSubjectModal({
             </View>
 
             {/* Paleta de Colores Sutil */}
-            <View style={styles.colorPaletteRow}>
-              {DISTINCT_PALETTE.map((color) => {
-                const isSelected = selectedColor === color
-                const isWhite = color === '#FFFFFF'
-                return (
-                  <Pressable
-                    key={color}
-                    onPress={() => {
-                      playChipSnapSound()
-                      triggerHaptic('selection')
-                      setSelectedColor(color)
-                    }}
-                    style={[
-                      styles.colorCircle,
-                      { backgroundColor: color },
-                      isWhite && styles.whiteColorBorder,
-                      isSelected && styles.colorCircleSelected,
-                    ]}
-                  >
-                    {isSelected && (
-                      <Check
-                        size={11}
-                        color={isWhite ? '#000000' : '#FFFFFF'}
-                        strokeWidth={3}
-                      />
-                    )}
-                  </Pressable>
-                )
-              })}
+            <View style={styles.paletteSection}>
+              <Text style={styles.sectionHeader}>Color</Text>
+              <View style={styles.paletteCard}>
+                {DISTINCT_PALETTE.map((color) => {
+                  const isSelected = selectedColor === color
+                  const isWhite = color === '#FFFFFF'
+                  return (
+                    <Pressable
+                      key={color}
+                      onPress={() => {
+                        playChipSnapSound()
+                        triggerHaptic('selection')
+                        setSelectedColor(color)
+                      }}
+                      style={({ pressed }) => [
+                        styles.colorCircle,
+                        { backgroundColor: color },
+                        isWhite && styles.whiteColorBorder,
+                        isSelected && styles.colorCircleSelected,
+                        pressed && styles.colorCirclePressed,
+                      ]}
+                    >
+                      {isSelected && (
+                        <Check
+                          size={13}
+                          color={isWhite ? '#000000' : '#FFFFFF'}
+                          strokeWidth={3}
+                        />
+                      )}
+                    </Pressable>
+                  )
+                })}
+              </View>
             </View>
 
             {/* Lista de Materias Registradas */}
@@ -362,56 +353,46 @@ export function MinimalistSubjectModal({
                   Registradas ({safeSubjects.length})
                 </Text>
 
-                <View style={styles.subjectsCard}>
-                  {safeSubjects.map((s, idx) => {
+                <View style={styles.chipsWrap}>
+                  {safeSubjects.map((s) => {
                     const isEditing = editingSubject?.id === s.id
                     const isWhite = isWhiteColor(s.color)
-                    const isLast = idx === safeSubjects.length - 1
 
                     return (
                       <Pressable
                         key={s.id}
                         onPress={() => handleStartEdit(s)}
                         style={({ pressed }) => [
-                          styles.subjectRow,
-                          !isLast && styles.subjectRowBorder,
-                          isEditing && styles.subjectRowEditing,
-                          pressed && styles.subjectRowPressed,
+                          styles.subjectChip,
+                          isEditing && styles.subjectChipEditing,
+                          pressed && styles.subjectChipPressed,
                         ]}
                       >
-                        <View style={styles.subjectLeft}>
-                          <View
-                            style={[
-                              styles.subjDot,
-                              { backgroundColor: s.color || '#FFFFFF' },
-                              isWhite && styles.whiteDotBorder,
-                            ]}
-                          />
-                          <View style={styles.subjectInfo}>
-                            <Text style={[styles.subjectName, isEditing && styles.subjectNameEditing]} numberOfLines={1}>
-                              {s.name}
-                            </Text>
-                            {Boolean(s.teacher_name) && (
-                              <Text style={styles.subjectTeacher} numberOfLines={1}>
-                                {s.teacher_name}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-
-                        <Pressable
-                          onPress={(e) => {
-                            e.stopPropagation()
-                            handleDeleteSubject(s.id, s.name)
-                          }}
-                          hitSlop={12}
-                          style={({ pressed }) => [
-                            styles.actionIconBtn,
-                            pressed && styles.actionIconBtnPressed,
+                        <View
+                          style={[
+                            styles.chipDot,
+                            { backgroundColor: s.color || '#FFFFFF' },
+                            isWhite && styles.whiteDotBorder,
                           ]}
-                        >
-                          <Trash2 size={14} color="#71717A" />
-                        </Pressable>
+                        />
+                        <Text style={styles.chipName} numberOfLines={1}>
+                          {s.name}
+                        </Text>
+                        {isEditing && (
+                          <Pressable
+                            onPress={(e) => {
+                              e.stopPropagation()
+                              handleDeleteSubject(s.id, s.name)
+                            }}
+                            hitSlop={10}
+                            style={({ pressed }) => [
+                              styles.chipTrashBtn,
+                              pressed && styles.chipTrashPressed,
+                            ]}
+                          >
+                            <Trash2 size={13} color="#A1A1A6" />
+                          </Pressable>
+                        )}
                       </Pressable>
                     )
                   })}
@@ -476,27 +457,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  titleWithBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   sheetTitle: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
-  },
-  countBadge: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    borderRadius: 10,
-  },
-  countBadgeText: {
-    color: '#000000',
-    fontSize: 11,
-    fontWeight: '800',
   },
   sheetScroll: {
     paddingHorizontal: 20,
@@ -525,31 +490,40 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingVertical: 10,
   },
-  colorPaletteRow: {
+  paletteSection: {
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  paletteCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
-    paddingBottom: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
   },
   colorCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   whiteColorBorder: {
     borderWidth: 1,
-    borderColor: '#71717A',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   colorCircleSelected: {
-    transform: [{ scale: 1.15 }],
+    transform: [{ scale: 1.1 }],
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  colorCirclePressed: {
+    transform: [{ scale: 0.94 }],
   },
   listSection: {
     marginTop: 20,
@@ -563,62 +537,42 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     paddingHorizontal: 2,
   },
-  subjectsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  subjectRow: {
+  chipsWrap: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  subjectRowBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  subjectRowEditing: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  subjectRowPressed: {
-    transform: [{ scale: 0.99 }],
-  },
-  subjectLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
-    flex: 1,
   },
-  subjDot: {
-    width: 7.5,
-    height: 7.5,
+  subjectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  subjectChipEditing: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  subjectChipPressed: {
+    transform: [{ scale: 0.97 }],
+  },
+  chipDot: {
+    width: 8,
+    height: 8,
     borderRadius: 4,
   },
-  subjectInfo: {
-    flex: 1,
-    gap: 1,
-  },
-  subjectName: {
-    color: '#F4F4F5',
-    fontSize: 15,
+  chipName: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
-  subjectNameEditing: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  chipTrashBtn: {
+    padding: 3,
+    marginLeft: 1,
   },
-  subjectTeacher: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  actionIconBtn: {
-    padding: 6,
-  },
-  actionIconBtnPressed: {
+  chipTrashPressed: {
     opacity: 0.5,
   },
   whiteDotBorder: WHITE_DOT_BORDER,

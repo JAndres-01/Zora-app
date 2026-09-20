@@ -15,17 +15,13 @@ import { WebView } from 'react-native-webview'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import {
-  IdCard,
-  Share2,
-  RefreshCw,
-  Trash2,
-  FileText,
-} from 'lucide-react-native'
+import { IdCard, Share2, RefreshCw, Trash2 } from 'lucide-react-native'
+import { BlurView } from 'expo-blur'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { DEFAULT_STUDENT_NAME } from '@/constants/defaults'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { logger } from '@/lib/logger'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 
 interface MinimalistCredentialModalProps {
   visible: boolean
@@ -286,9 +282,11 @@ export function MinimalistCredentialModal({
       statusBarTranslucent={true}
     >
       <View style={styles.modalRoot}>
-        {/* Backdrop */}
+        {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropDim} />
+          <Pressable style={styles.backdropTouch} onPress={handleClose} />
         </Animated.View>
 
         {/* Hoja Deslizante de Pantalla Completa */}
@@ -302,28 +300,35 @@ export function MinimalistCredentialModal({
             },
           ]}
         >
-          {/* Header con PanResponder Handle */}
+          {/* Header (patrón canónico: X glass + título centrado + hairline) */}
           <View style={styles.headerSection} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
 
-            <View style={styles.headerTopRow}>
-              <View style={styles.headerLeft}>
-                <View style={styles.credentialIconBadge}>
-                  <IdCard size={18} color="#FFFFFF" strokeWidth={2.2} />
-                </View>
-                <View style={styles.headerTitleCol}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.headerTitle}>Credencial Digital</Text>
-                    <View style={styles.pdfPill}>
-                      <Text style={styles.pdfPillText}>{isImage ? 'IMG' : 'PDF'}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.headerSubtitle} numberOfLines={1}>
-                    {studentName} • {credentialName || (isImage ? 'Imagen escolar' : 'Archivo escolar')}
-                  </Text>
-                </View>
+            <View style={styles.headerRow}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
               </View>
+
+              <View style={styles.headerTitleWrap} pointerEvents="none">
+                <View style={styles.titleRow}>
+                  <Text style={styles.headerTitle}>Credencial Digital</Text>
+                  <View style={styles.pdfPill}>
+                    <Text style={styles.pdfPillText}>{isImage ? 'IMG' : 'PDF'}</Text>
+                  </View>
+                </View>
+                <Text style={styles.headerSubtitle} numberOfLines={1}>
+                  {studentName} • {credentialName || (isImage ? 'Imagen escolar' : 'Archivo escolar')}
+                </Text>
+              </View>
+
+              <View style={styles.headerSide} />
             </View>
+
+            <View style={styles.headerHairline} />
           </View>
 
           {/* Visor de Credencial Directo In-App */}
@@ -441,26 +446,29 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+  },
+  backdropTouch: {
+    flex: 1,
   },
   sheetContainer: {
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     height: '94%',
     paddingHorizontal: 16,
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.7,
-    shadowRadius: 24,
-    elevation: 24,
+    borderCurve: 'continuous',
   },
   headerSection: {
-    paddingBottom: 10,
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 4,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -470,30 +478,28 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 12,
   },
-  headerTopRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 16,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  credentialIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+  headerSide: {
+    width: 58,
+    height: 58,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitleCol: {
-    flex: 1,
-    gap: 2,
+  headerTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 72,
   },
   titleRow: {
     flexDirection: 'row',
@@ -502,14 +508,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 16.5,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   pdfPill: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 6,
@@ -520,19 +524,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   headerSubtitle: {
-    color: '#A1A1AA',
+    color: '#8E8E93',
     fontSize: 12,
     fontWeight: '500',
+    marginTop: 2,
   },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: '100%',
   },
   viewerWrapper: {
     flex: 1,
@@ -596,13 +596,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 12,
   },
   changeBtn: {
     flex: 1,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
   },
   changeBtnText: {
     color: '#FFFFFF',
@@ -621,10 +619,10 @@ const styles = StyleSheet.create({
   deleteBtn: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    borderColor: 'rgba(239, 68, 68, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -20,6 +20,8 @@ import { sortTasksByDueDate } from '@/lib/taskSort'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
+import { BlurView } from 'expo-blur'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 
 interface MinimalistDayTasksModalProps {
   visible: boolean
@@ -89,6 +91,8 @@ export function MinimalistDayTasksModal({
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
       <View style={styles.modalRoot}>
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
 
@@ -101,13 +105,20 @@ export function MinimalistDayTasksModal({
             },
           ]}
         >
-          {/* Header */}
+          {/* Header (patrón canónico: X glass + título centrado + hairline) */}
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
-              <View>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleSmoothClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
+              </View>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
                 <View style={styles.titleWithBadgeRow}>
-                  <Text style={styles.sheetTitle}>
+                  <Text style={styles.headerTitle}>
                     {targetSubject ? `Tareas de ${targetSubject.name}` : `Tareas del ${dayName}`}
                   </Text>
                   {sortedDayTasks.length > 0 && (
@@ -116,13 +127,15 @@ export function MinimalistDayTasksModal({
                     </View>
                   )}
                 </View>
-                <Text style={styles.sheetSubtitle}>
+                <Text style={styles.headerSubtitle}>
                   {sortedDayTasks.length === 0
                     ? `Sin entregas programadas para el ${dayName}`
                     : `${sortedDayTasks.length} pendiente${sortedDayTasks.length === 1 ? '' : 's'} para este día`}
                 </Text>
               </View>
+              <View style={styles.headerSide} />
             </View>
+            <View style={styles.headerHairline} />
           </View>
 
           {/* Lista Abierta de Tareas */}
@@ -233,7 +246,10 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
@@ -247,10 +263,11 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   sheetHeader: {
-    paddingTop: 12,
-    paddingBottom: 14,
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 4,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -264,13 +281,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  headerSide: {
+    width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleWithBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  sheetTitle: {
+  headerTitle: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
@@ -287,14 +321,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  sheetSubtitle: {
-    color: '#71717A',
-    fontSize: 11.5,
+  headerSubtitle: {
+    color: '#8E8E93',
+    fontSize: 12,
     fontWeight: '500',
     marginTop: 2,
   },
-  closeBtn: {
-    padding: 4,
+  headerHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: '100%',
   },
   sheetScroll: {
     paddingHorizontal: 20,

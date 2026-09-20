@@ -20,6 +20,8 @@ import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { generateId } from '@/lib/idGenerator'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
+import { BlurView } from 'expo-blur'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { logger } from '@/lib/logger'
 
 interface MinimalistAssignSlotModalProps {
@@ -148,6 +150,8 @@ export function MinimalistAssignSlotModal({
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
       <View style={styles.modalRoot}>
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
 
@@ -157,17 +161,26 @@ export function MinimalistAssignSlotModal({
             { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
           ]}
         >
-          {/* Header */}
+          {/* Header (patrón canónico: X glass + título centrado + hairline) */}
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sheetTitle}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleSmoothClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
+              </View>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
+                <Text style={styles.headerTitle}>
                   {existingSchedule ? 'Editar Clase' : 'Asignar Materia'}
                 </Text>
-                <Text style={styles.sheetSubtitle}>{slotSubtitle}</Text>
+                <Text style={styles.headerSubtitle}>{slotSubtitle}</Text>
               </View>
+              <View style={styles.headerSide} />
             </View>
+            <View style={styles.headerHairline} />
           </View>
 
           <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
@@ -253,7 +266,10 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
@@ -267,10 +283,11 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   sheetHeader: {
+    alignItems: 'center',
     paddingTop: 10,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingBottom: 4,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -284,18 +301,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 16,
   },
-  sheetTitle: {
+  headerSide: {
+    width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  sheetSubtitle: {
-    color: '#71717A',
-    fontSize: 11.5,
+  headerSubtitle: {
+    color: '#8E8E93',
+    fontSize: 12,
     fontWeight: '500',
-    marginTop: 1,
+    marginTop: 2,
+  },
+  headerHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: '100%',
   },
   sheetScroll: {
     paddingHorizontal: 16,

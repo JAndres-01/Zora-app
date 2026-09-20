@@ -650,8 +650,10 @@ export function MinimalistTaskModal({
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={() => handleSmoothClose()}>
       <View style={styles.modalRoot}>
-        {/* Backdrop Estático con Fade */}
+        {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={() => handleSmoothClose()} />
         </Animated.View>
 
@@ -1109,7 +1111,10 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,

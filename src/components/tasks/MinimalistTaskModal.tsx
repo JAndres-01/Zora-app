@@ -256,13 +256,15 @@ export function MinimalistTaskModal({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 200,
+          duration: 240,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
-        Animated.spring(slideAnim, {
+        Animated.timing(slideAnim, {
           toValue: 0,
-          ...SPRING_PANEL_CONFIG,
+          duration: 460,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
         }),
       ]).start()
     } else if (modalVisible) {
@@ -292,23 +294,48 @@ export function MinimalistTaskModal({
     }
   }, [mode, modalVisible, task, initialTitle, initialDescription, initialAttachments])
 
-  const handleSmoothClose = (options?: { silent?: boolean }) => {
+  const handleSmoothClose = (options?: { velocity?: number; silent?: boolean }) => {
     if (!options?.silent) {
       playModalCloseSound()
     }
     triggerHaptic('light')
     Keyboard.dismiss()
 
+    // Salida por arrastre: la hoja "vuela" hacia abajo con la inercia del dedo (decay),
+    // como hace iOS — sin reiniciar un timing fijo que la frene bruscamente.
+    if (options?.velocity && options.velocity > 0) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        // PanResponder vy viene en px/ms; decay espera px/s.
+        Animated.decay(panY, {
+          velocity: options.velocity * 1000,
+          deceleration: 0.995,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false)
+        setSubPage(null)
+        onClose()
+      })
+      return
+    }
+
+    // Salida por tap (X/atrás): slide limpio un poco más largo, backdrop con fade parejo.
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 220,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 300,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
@@ -344,7 +371,7 @@ export function MinimalistTaskModal({
       onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > 50 || gestureState.vy > 0.3) {
-          handleSmoothClose()
+          handleSmoothClose({ silent: true, velocity: gestureState.vy })
         } else {
           Animated.spring(panY, {
             toValue: 0,

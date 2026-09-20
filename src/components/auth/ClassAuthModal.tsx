@@ -11,10 +11,12 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LogOut } from 'lucide-react-native'
+import { BlurView } from 'expo-blur'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { useClassAuth } from '@/context/ClassAuthContext'
 import { usePersonalAuth } from '@/context/PersonalAuthContext'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 
 export interface ClassAuthModalProps {
   visible: boolean
@@ -85,33 +87,45 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
 
   return (
     <Modal visible={modalVisible} transparent animationType="none" onRequestClose={handleClose}>
-      <View style={styles.modalBackdrop}>
-        <Animated.View style={[styles.backdropTouch, { opacity: fadeAnim }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+      <View style={styles.modalRoot}>
+        {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropDim} />
+          <Pressable style={styles.backdropTouch} onPress={handleClose} />
         </Animated.View>
 
+        {/* Hoja Inferior Deslizante con PanResponder */}
         <Animated.View
           style={[
             styles.sheetContainer,
             {
-              paddingBottom: Math.max(insets.bottom, 20) + 16,
-              transform: [
-                { translateY: Animated.add(slideAnim, panY) },
-              ],
+              paddingBottom: Math.max(insets.bottom, 16) + 8,
+              transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
         >
-          <View style={styles.headerPanArea} collapsable={false} {...panResponder.panHandlers}>
+          {/* Header (patrón canónico: X glass + título centrado + hairline) */}
+          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
-
-            {/* Cabecera Minimalista */}
-            <View style={styles.sheetHeader}>
-              <Text style={styles.modalTitle}>Feed de Clase</Text>
+            <View style={styles.headerRow}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
+              </View>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
+                <Text style={styles.headerTitle}>Feed de Clase</Text>
+              </View>
+              <View style={styles.headerSide} />
             </View>
+            <View style={styles.headerHairline} />
           </View>
 
           {/* Información del Usuario y Sesión */}
-          <View style={styles.connectedContainer}>
+          <View style={styles.content}>
             <View style={styles.fieldList}>
               <View style={styles.fieldItem}>
                 <Text style={styles.fieldLabel}>USUARIO</Text>
@@ -161,29 +175,32 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
 }
 
 const styles = StyleSheet.create({
-  modalBackdrop: {
+  modalRoot: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'transparent',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFill,
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    flex: 1,
   },
   sheetContainer: {
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: 22,
-    paddingTop: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     overflow: 'hidden',
+    borderCurve: 'continuous',
   },
-  headerPanArea: {
-    paddingTop: 4,
-    paddingBottom: 2,
+  sheetHeader: {
+    alignItems: 'center',
+    paddingTop: 10,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -193,29 +210,59 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 12,
   },
-  sheetHeader: {
-    marginBottom: 20,
-    paddingTop: 2,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 16,
   },
-  modalTitle: {
+  headerSide: {
+    width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  connectedContainer: {
-    gap: 22,
+  headerHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: '100%',
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+    gap: 18,
   },
   fieldList: {
-    gap: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    overflow: 'hidden',
   },
   fieldItem: {
-    gap: 4,
+    gap: 3,
+    paddingVertical: 12,
   },
   fieldLabel: {
-    color: '#71717A',
-    fontSize: 10,
-    fontWeight: '700',
+    color: '#8E8E93',
+    fontSize: 11,
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   fieldValuePrimary: {
@@ -224,35 +271,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   fieldValueSecondary: {
-    color: '#D4D4D8',
-    fontSize: 14.5,
+    color: '#A1A1A6',
+    fontSize: 14,
     fontWeight: '500',
   },
   fieldPermissionsText: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '400',
+    color: '#8E8E93',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
   },
   fieldDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginLeft: 14,
   },
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2C2C2E',
-    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
     paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginTop: 4,
   },
   signOutBtnText: {
     color: '#EF4444',
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '600',
   },
 })

@@ -155,13 +155,17 @@ export function SystemSettingsModal({
   }
 
   // Sub-página de Clase: push desde la derecha (patrón Recordatorios) + crossfade X↔atrás
+  // isClassPage controla el header (botones + título) y cambia de inmediato;
+  // classPageMounted mantiene la sub-página renderizada hasta que termina el pop.
   const [isClassPage, setIsClassPage] = useState(false)
+  const [classPageMounted, setClassPageMounted] = useState(false)
   const pageSlideX = useRef(new Animated.Value(SCREEN_W)).current
   const xBtnAnim = useRef(new Animated.Value(1)).current
   const backBtnAnim = useRef(new Animated.Value(0)).current
 
   const openClassPage = () => {
     setIsClassPage(true)
+    setClassPageMounted(true)
     pageSlideX.setValue(SCREEN_W)
     Animated.spring(pageSlideX, {
       toValue: 0,
@@ -187,6 +191,8 @@ export function SystemSettingsModal({
   }
 
   const closeClassPage = () => {
+    // La X vuelve a ser tocable al instante: no espera al fin de la animación de pop
+    setIsClassPage(false)
     Animated.spring(pageSlideX, {
       toValue: SCREEN_W,
       stiffness: 420,
@@ -194,7 +200,7 @@ export function SystemSettingsModal({
       mass: 0.9,
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) setIsClassPage(false)
+      if (finished) setClassPageMounted(false)
     })
     Animated.parallel([
       Animated.timing(xBtnAnim, {
@@ -217,6 +223,7 @@ export function SystemSettingsModal({
     if (visible) {
       setActiveDatePicker(null)
       setIsClassPage(false)
+      setClassPageMounted(false)
       pageSlideX.setValue(SCREEN_W)
       xBtnAnim.setValue(1)
       backBtnAnim.setValue(0)
@@ -620,7 +627,7 @@ export function SystemSettingsModal({
           </ScrollView>
 
           {/* Sub-página de Clase: mismo tamaño que la hoja, push desde la derecha */}
-          {isClassPage && (
+          {classPageMounted && (
             <Animated.View
               style={[styles.subPage, { transform: [{ translateX: pageSlideX }] }]}
             >

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, memo } from 'react'
+import { useRef, useMemo, memo } from 'react'
 import {
   View,
   Text,
@@ -135,19 +135,6 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
   const currentDay = new Date().getDay()
   const academicWeek = useMemo(() => getActiveAcademicWeek(), [])
 
-  // Página inicial = hoy (o lunes si hoy no es día académico)
-  const initialIndex = useMemo(
-    () => Math.max(0, DAYS.findIndex((d) => d.num === currentDay)),
-    [currentDay]
-  )
-
-  // Pager: ancho medido del contenedor, índice visible y scroll horizontal
-  const [pageWidth, setPageWidth] = useState(0)
-  const [pageIndex, setPageIndex] = useState(initialIndex)
-  const scrollX = useRef(new Animated.Value(0)).current
-  const pagerRef = useRef<ScrollView>(null)
-  const didInitScroll = useRef(false)
-
   // Mapa optimizado O(1) para contar tareas pendientes por día y materia
   const pendingTaskCountMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -183,162 +170,93 @@ export const MinimalistWeeklyMatrix = memo(function MinimalistWeeklyMatrix({
     return map
   }, [schedules])
 
-  // Al medir el ancho por primera vez, posiciona el pager en el día actual
-  useEffect(() => {
-    if (pageWidth > 0 && !didInitScroll.current) {
-      didInitScroll.current = true
-      if (initialIndex > 0) {
-        pagerRef.current?.scrollTo({ x: initialIndex * pageWidth, animated: false })
-      }
-    }
-  }, [pageWidth, initialIndex])
-
-  // Parallax estilo “coverflow-lite”: las páginas laterales se escalan y atenúan
-  const getPageStyle = (index: number) => {
-    if (pageWidth <= 0) return {}
-    const input = [(index - 1) * pageWidth, index * pageWidth, (index + 1) * pageWidth]
-    return {
-      transform: [
-        {
-          scale: scrollX.interpolate({
-            inputRange: input,
-            outputRange: [0.9, 1, 0.9],
-            extrapolate: 'clamp',
-          }),
-        },
-      ],
-      opacity: scrollX.interpolate({
-        inputRange: input,
-        outputRange: [0.4, 1, 0.4],
-        extrapolate: 'clamp',
-      }),
-    }
-  }
-
-  const scrollToDay = (index: number) => {
-    if (pageWidth <= 0) return
-    triggerHaptic('light')
-    setPageIndex(index)
-    pagerRef.current?.scrollTo({ x: index * pageWidth, animated: true })
-  }
-
   return (
-    <View style={styles.container} onLayout={(e) => setPageWidth(e.nativeEvent.layout.width)}>
-      {pageWidth > 0 && (
-        <Animated.ScrollView
-          ref={pagerRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: true }
-          )}
-          onMomentumScrollEnd={(e) => {
-            setPageIndex(Math.round(e.nativeEvent.contentOffset.x / pageWidth))
-          }}
-        >
-          {DAYS.map((d, index) => {
-            const columnDate = academicWeek.getDayDate(d.num)
-            const isToday = academicWeek.isCurrentWeek && currentDay === d.num
-            const isDisabled = academicWeek.isDayDisabled(d.num)
-            const daySchedules = schedulesByDay.get(d.num) || []
+    <View style={styles.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.matrixGrid}>
+          {/* Fila de Encabezados de Días */}
+          <View style={styles.headerRow}>
+            {DAYS.map((d) => {
+              const columnDate = academicWeek.getDayDate(d.num)
+              const isToday = academicWeek.isCurrentWeek && currentDay === d.num
+              const isDisabled = academicWeek.isDayDisabled(d.num)
 
-            return (
-              <Animated.View
-                key={d.num}
-                style={[{ width: pageWidth }, getPageStyle(index)]}
-              >
-                <View style={styles.pageInner}>
-                  {/* Encabezado del día (a ancho completo) */}
-                  <View
+              return (
+                <View
+                  key={d.num}
+                  style={[
+                    styles.dayHeaderCell,
+                    isToday && styles.dayHeaderCellToday,
+                    isDisabled && { opacity: 0.45 },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.dayHeaderCell,
-                      isToday && styles.dayHeaderCellToday,
-                      isDisabled && { opacity: 0.45 },
+                      styles.dayHeaderText,
+                      isToday && styles.dayHeaderTextToday,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.dayHeaderText,
-                        isToday && styles.dayHeaderTextToday,
-                      ]}
-                    >
-                      {d.name} {columnDate.getDate()}
-                    </Text>
-                    <View style={styles.dayHeaderRight}>
-                      {isToday && (
-                        <View style={styles.todayIndicator}>
-                          <Text style={styles.todayIndicatorText}>HOY</Text>
-                        </View>
-                      )}
-                      {isDisabled && (
-                        <Text style={styles.disabledLabel}>LIBRE</Text>
-                      )}
+                    {d.short} {columnDate.getDate()}
+                  </Text>
+                  {isToday && (
+                    <View style={styles.todayIndicator}>
+                      <Text style={styles.todayIndicatorText}>HOY</Text>
                     </View>
-                  </View>
+                  )}
+                </View>
+              )
+            })}
+          </View>
 
-                  {/* Bloques del día en grilla 2×2 (sin efecto estirado) */}
-                  <View style={styles.daySlotsGrid}>
+          {/* Cuerpo de la Matriz (4 Bloques por Día) */}
+          <View style={styles.bodyRow}>
+            {DAYS.map((d) => {
+              const daySchedules = schedulesByDay.get(d.num) || []
+              const isToday = currentDay === d.num
+
+              return (
+                <View
+                  key={d.num}
+                  style={[
+                    styles.dayColumn,
+                    isToday && styles.dayColumnToday,
+                  ]}
+                >
+                  <View style={styles.daySlotsColumn}>
                     {PERSONAL_SCHEDULE_BLOCKS.map((blockDef) => {
-                      const item = daySchedules.find(
-                        (s) => s.block_number === blockDef.block
-                      )
+                      const item = daySchedules.find((s) => s.block_number === blockDef.block)
                       const pendingTaskCount = item?.subject_id
-                        ? pendingTaskCountMap.get(`${d.num}_${item.subject_id}`) || 0
+                        ? (pendingTaskCountMap.get(`${d.num}_${item.subject_id}`) || 0)
                         : 0
 
                       return (
-                        <View
+                        <MatrixSlotCard
                           key={blockDef.block}
-                          style={{ width: (pageWidth - 16) / 2 }}
-                        >
-                          <MatrixSlotCard
-                            blockNum={blockDef.block}
-                            schedule={item}
-                            pendingTaskCount={pendingTaskCount}
-                            canAssign={Boolean(onAssignSlot)}
-                            onPress={() => {
-                              if (onAssignSlot) {
-                                onAssignSlot(d.num, blockDef.block, item)
-                              } else if (item?.subject && onOpenDayTasks) {
-                                onOpenDayTasks(d.num, item.subject_id)
-                              }
-                            }}
-                          />
-                        </View>
+                          blockNum={blockDef.block}
+                          schedule={item}
+                          pendingTaskCount={pendingTaskCount}
+                          canAssign={Boolean(onAssignSlot)}
+                          onPress={() => {
+                            if (onAssignSlot) {
+                              onAssignSlot(d.num, blockDef.block, item)
+                            } else if (item?.subject && onOpenDayTasks) {
+                              onOpenDayTasks(d.num, item.subject_id)
+                            }
+                          }}
+                        />
                       )
                     })}
                   </View>
                 </View>
-              </Animated.View>
-            )
-          })}
-        </Animated.ScrollView>
-      )}
-
-      {/* Navegación rápida: píldoras Lun..Vie (tap = ir al día) */}
-      <View style={styles.daysRow}>
-        {DAYS.map((d, index) => {
-          const isActive = index === pageIndex
-          return (
-            <Pressable
-              key={d.num}
-              onPress={() => scrollToDay(index)}
-              style={[styles.dayPill, isActive && styles.dayPillActive]}
-              accessibilityRole="button"
-              accessibilityLabel={d.name}
-              accessibilityState={{ selected: isActive }}
-            >
-              <Text style={[styles.dayPillText, isActive && styles.dayPillTextActive]}>
-                {d.short}
-              </Text>
-            </Pressable>
-          )
-        })}
-      </View>
+              )
+            })}
+          </View>
+        </View>
+      </ScrollView>
     </View>
   )
 })
@@ -347,86 +265,67 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 4,
   },
-  pageInner: {
-    paddingHorizontal: 4,
-    gap: 10,
+  scrollContent: {
+    paddingHorizontal: 2,
+    paddingBottom: 8,
+  },
+  matrixGrid: {
+    gap: 8,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
   dayHeaderCell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 14,
+    width: 120,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
   dayHeaderCellToday: {
     backgroundColor: '#FFFFFF',
     borderColor: '#FFFFFF',
   },
-  dayHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   dayHeaderText: {
-    color: '#A1A1AA',
-    fontSize: 15,
+    color: '#71717A',
+    fontSize: 11.5,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: 0.6,
   },
   dayHeaderTextToday: {
     color: '#000000',
     fontWeight: '800',
   },
-  disabledLabel: {
-    color: '#71717A',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
   todayIndicator: {
     backgroundColor: '#000000',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
     borderRadius: 5,
   },
   todayIndicatorText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800',
   },
-  daySlotsGrid: {
+  bodyRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
+  dayColumn: {
+    width: 120,
   },
-  dayPill: {
-    minWidth: 36,
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 9,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  dayColumnToday: {
+    borderRadius: 14,
   },
-  dayPillActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  dayPillText: {
-    color: '#A1A1AA',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  dayPillTextActive: {
-    color: '#000000',
+  daySlotsColumn: {
+    gap: 8,
   },
   slotCardOuter: {
     height: 90,

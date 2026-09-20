@@ -35,12 +35,12 @@ describe('Smoke and Regression Tests for All Main Screens', () => {
   })
 
   test('ScheduleScreen renderiza la vista de horario sin fallos', async () => {
-    const { getByText } = await render(
+    const { getAllByText } = await render(
       <PersonalAuthProvider>
         <ScheduleScreen />
       </PersonalAuthProvider>
     )
-    expect(getByText('Horario')).toBeTruthy()
+    expect(getAllByText('Horario').length).toBeGreaterThanOrEqual(1)
   })
 
   test('SettingsScreen renderiza las preferencias de la aplicación sin fallos', async () => {

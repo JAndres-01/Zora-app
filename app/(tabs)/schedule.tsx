@@ -2,13 +2,12 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   StyleSheet,
   Animated,
   LayoutChangeEvent,
   Platform,
-  LayoutAnimation,
+  Keyboard,
   AccessibilityInfo,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
@@ -84,43 +83,45 @@ function GlassSubjectButton({ onPress }: { onPress: () => void }) {
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       {useGlass ? (
-        <GlassView isInteractive style={styles.glassAddBtn}>
+        <GlassView
+          isInteractive
+          colorScheme="light"
+          style={[styles.glassBtn, styles.glassBtnWhite]}
+        >
           <Pressable
             onPress={() => {
-              triggerHaptic('light')
+              triggerHaptic('medium')
               onPress()
             }}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Materias"
-            style={styles.glassAddBtnInner}
+            accessibilityLabel="Gestionar materias"
+            style={styles.glassBtnInner}
           >
-            <BookOpen size={16} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={styles.headerAddBtnText}>Materias</Text>
+            <BookOpen size={20} color="#18181B" strokeWidth={2.2} />
           </Pressable>
         </GlassView>
       ) : (
         <Pressable
           onPress={() => {
-            triggerHaptic('light')
+            triggerHaptic('medium')
             onPress()
           }}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Materias"
-          style={styles.headerAddBtn}
+          accessibilityLabel="Gestionar materias"
+          style={[styles.blurBtn, styles.blurBtnWhite]}
         >
           <BlurView
             intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="dark"
+            tint="light"
             style={StyleSheet.absoluteFill}
           />
-          <BookOpen size={16} color="#FFFFFF" strokeWidth={2.2} />
-          <Text style={styles.headerAddBtnText}>Materias</Text>
+          <BookOpen size={20} color="#18181B" strokeWidth={2.2} />
         </Pressable>
       )}
     </Animated.View>
@@ -189,7 +190,47 @@ export default function ScheduleScreen() {
   })
 
   // Animaciones de Entrada Escalonada
-  const cardEntranceAnims = useCardEntrance(2, 'schedule')
+  const cardEntranceAnims = useCardEntrance(3, 'schedule')
+
+  // Colapso del header estilo Apple Notes / WhatsApp (sincronizado con el scroll).
+  // El título grande se esconde justo cuando la barra fija toca su borde inferior.
+  const scrollY = useRef(new Animated.Value(0)).current
+
+  const headerBgOpacity = scrollY.interpolate({
+    inputRange: [18, 38],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  })
+
+  const compactTitleOpacity = scrollY.interpolate({
+    inputRange: [40, 60],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  })
+
+  const compactTitleTranslateY = scrollY.interpolate({
+    inputRange: [40, 60],
+    outputRange: [6, 0],
+    extrapolate: 'clamp',
+  })
+
+  const largeTitleOpacity = scrollY.interpolate({
+    inputRange: [4, 45],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  })
+
+  const titleCollapseY = largeTitleOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-24, 0],
+    extrapolate: 'clamp',
+  })
+
+  const titleCollapseScale = largeTitleOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.92, 1],
+    extrapolate: 'clamp',
+  })
 
   // Dimensiones estáticas para evitar saltos y re-renderizados innecesarios por onLayout
   const SEGMENT_CONTAINER_WIDTH = SCREEN_WIDTH - 32
@@ -311,28 +352,48 @@ export default function ScheduleScreen() {
     <View style={styles.screenWrapper}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={[
-          styles.content,
+      {/* Barra de Navegación Sticky Superior (estilo Apple Notes / WhatsApp) */}
+      <View
+        pointerEvents="box-none"
+        style={[
+          styles.stickyHeaderBar,
           {
-            paddingTop: Math.max(insets.top, 16) + 4,
-            paddingBottom: insets.bottom + 90,
+            height: insets.top + 56,
+            paddingTop: insets.top,
           },
         ]}
-        showsVerticalScrollIndicator={false}
       >
-        {/* Cabecera iOS con Large Title y Botón Materias */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.titleColumn}>
-              <Text style={styles.title}>Horario</Text>
-              <Text style={styles.subtitle}>
-                {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
-              </Text>
-            </View>
+        {/* Fondo Translúcido con Transición en Scroll */}
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { opacity: headerBgOpacity }]}
+          pointerEvents="none"
+        >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 75 : 90}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.stickyHeaderBorder} />
+        </Animated.View>
 
+        {/* Contenido: título compacto centrado + botón Materias a la derecha */}
+        <View style={styles.stickyHeaderContent} pointerEvents="box-none">
+          <View style={styles.stickyHeaderLeft} />
+
+          <Animated.View
+            style={[
+              styles.compactTitleWrapper,
+              {
+                opacity: compactTitleOpacity,
+                transform: [{ translateY: compactTitleTranslateY }],
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={styles.compactTitle}>Horario</Text>
+          </Animated.View>
+
+          <View style={styles.stickyHeaderRight}>
             {canEdit && (
               <GlassSubjectButton
                 onPress={() => {
@@ -343,12 +404,55 @@ export default function ScheduleScreen() {
             )}
           </View>
         </View>
+      </View>
 
-        {/* Card 0: Segmented Control iOS Minimalista y Ultrarrápido */}
+      <Animated.ScrollView
+        style={styles.container}
+        contentInsetAdjustmentBehavior="never"
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + 60,
+            paddingBottom: insets.bottom + 90,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces
+        alwaysBounceVertical
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+      >
+        {/* Cabecera iOS: Large Title colapsable + semana académica */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
+          <Animated.View
+            style={[
+              styles.titleCoverBlock,
+              {
+                opacity: largeTitleOpacity,
+                transform: [
+                  { translateY: titleCollapseY },
+                  { scale: titleCollapseScale },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.title}>Horario</Text>
+            <Text style={styles.subtitle}>
+              {isConnected && !isAdmin ? `Clase • ${academicWeek.fullLabel}` : academicWeek.fullLabel}
+            </Text>
+          </Animated.View>
+        </Animated.View>
+
+        {/* Card 1: Segmented Control iOS Minimalista y Ultrarrápido */}
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
           <View style={styles.segmentedContainer}>
             <BlurView
-              intensity={Platform.OS === 'ios' ? 50 : 85}
+              intensity={Platform.OS === 'ios' ? 55 : 90}
               tint="dark"
               style={StyleSheet.absoluteFill}
             />
@@ -400,8 +504,8 @@ export default function ScheduleScreen() {
           </View>
         </Animated.View>
 
-        {/* Card 1: Vista Seleccionada (Diaria / Semanal) */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
+        {/* Card 2: Vista Seleccionada (Diaria / Semanal) */}
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
           {viewMode === 'day' ? (
             <MinimalistDayView
               schedules={activeSchedules}
@@ -420,7 +524,7 @@ export default function ScheduleScreen() {
             />
           )}
         </Animated.View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Modal de Tareas del Día */}
       <MinimalistDayTasksModal
@@ -472,21 +576,62 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 16,
   },
-  header: {
-    paddingHorizontal: 2,
-    marginBottom: 4,
+  // ─── Barra sticky superior ───
+  stickyHeaderBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   },
-  headerTop: {
+  stickyHeaderBorder: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  stickyHeaderContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
   },
-  titleColumn: {
-    gap: 3,
+  stickyHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactTitleWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+  },
+  compactTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    textAlign: 'center',
+  },
+  stickyHeaderRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  // ─── Cabecera Large Title colapsable ───
+  titleCoverBlock: {
+    backgroundColor: '#000000',
+    zIndex: 20,
+    paddingHorizontal: 2,
+    marginBottom: 2,
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '800',
     letterSpacing: -0.8,
   },
@@ -495,45 +640,50 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '600',
     letterSpacing: -0.2,
+    marginTop: 3,
   },
-  glassAddBtn: {
-    height: 40,
-    borderRadius: 20,
+  // ─── Botón circular glass (variante blanca, acción principal) ───
+  glassBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    padding: 6,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glassAddBtnInner: {
-    flexDirection: 'row',
+  glassBtnInner: {
+    width: 44,
+    height: 44,
+    padding: 4,
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 15,
-    height: 40,
-    borderRadius: 20,
-    borderCurve: 'continuous',
+    justifyContent: 'center',
   },
-  headerAddBtn: {
-    flexDirection: 'row',
+  glassBtnWhite: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderColor: 'rgba(255, 255, 255, 1)',
+  },
+  blurBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    padding: 4,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
-    paddingHorizontal: 15,
-    height: 40,
-    borderRadius: 20,
     overflow: 'hidden',
   },
-  headerAddBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '700',
+  blurBtnWhite: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderColor: 'rgba(255, 255, 255, 0.7)',
   },
   segmentedContainer: {
     flexDirection: 'row',
     backgroundColor: '#000000',
     padding: 3,
-    borderRadius: 15,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     position: 'relative',
@@ -546,13 +696,13 @@ const styles = StyleSheet.create({
     left: 3,
     top: 3,
     bottom: 3,
-    borderRadius: 12,
+    borderRadius: 11,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   segmentButton: {
     flex: 1,
@@ -567,6 +717,7 @@ const styles = StyleSheet.create({
     color: '#71717A',
     fontSize: 12.5,
     fontWeight: '600',
+    letterSpacing: -0.1,
   },
   segmentButtonTextActive: {
     color: '#000000',

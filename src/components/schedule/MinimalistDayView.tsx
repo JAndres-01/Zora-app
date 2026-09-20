@@ -229,7 +229,11 @@ export function MinimalistDayView({
   return (
     <View style={styles.container}>
       {/* Selector de Días Horizontal Minimalista y Rápido */}
-      <View style={styles.daySelectorContainer}>
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 55 : 90}
+        tint="dark"
+        style={styles.daySelectorContainer}
+      >
         {/* Indicador deslizante de día seleccionado */}
         <Animated.View
           style={[
@@ -274,7 +278,7 @@ export function MinimalistDayView({
             </Pressable>
           )
         })}
-      </View>
+      </BlurView>
 
       {/* Lista Abierta y Continua de 4 Bloques Diarios */}
       <View style={styles.blocksList}>
@@ -307,7 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#000000',
     padding: 3,
-    borderRadius: 15,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     position: 'relative',
@@ -319,12 +323,12 @@ const styles = StyleSheet.create({
     bottom: 3,
     left: 3,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 11,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   dayPill: {
     flex: 1,
@@ -435,7 +439,7 @@ const styles = StyleSheet.create({
   subjectTitle: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: -0.2,
     flex: 1,
   },

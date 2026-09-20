@@ -172,7 +172,7 @@ export function MinimalistAssignSlotModal({
 
           <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
             {safeSubjects.length > 0 ? (
-              <View style={styles.subjectsList}>
+              <View style={styles.subjectsCard}>
                 {safeSubjects.map((s, idx) => {
                   const isSelected = selectedSubjectId === s.id
                   const isWhite = isWhiteColor(s.color)
@@ -262,12 +262,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     maxHeight: '85%',
     overflow: 'hidden',
+    borderCurve: 'continuous',
   },
   sheetHeader: {
     paddingTop: 10,
@@ -290,7 +287,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
@@ -304,20 +301,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  subjectsList: {
-    paddingVertical: 2,
+  subjectsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   subjectRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
-    paddingHorizontal: 6,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   subjectRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
   },
   subjectRowSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -363,8 +361,6 @@ const styles = StyleSheet.create({
   clearSlotContainer: {
     backgroundColor: '#2C2C2E',
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     marginTop: 12,
     marginBottom: 6,

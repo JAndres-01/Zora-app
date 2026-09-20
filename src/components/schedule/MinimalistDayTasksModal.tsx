@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Schedule } from '@/types/personal'
-import { Check, Clock, Paperclip, ChevronRight } from 'lucide-react-native'
+import { Check, Clock, Paperclip, ChevronRight, CheckCircle2 } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { getActiveAcademicWeek, isTaskForAcademicDay, formatTime12h } from '@/lib/academicDateUtils'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
@@ -212,6 +212,7 @@ export function MinimalistDayTasksModal({
               </View>
             ) : (
               <View style={styles.emptyState}>
+                <CheckCircle2 size={36} color="#27272A" />
                 <Text style={styles.emptyTitle}>¡Todo al día!</Text>
                 <Text style={styles.emptyText}>
                   No tienes entregas pendientes para {targetSubject ? targetSubject.name : `el ${dayName}`}.
@@ -241,12 +242,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     maxHeight: SCREEN_HEIGHT * 0.75,
     overflow: 'hidden',
+    borderCurve: 'continuous',
   },
   sheetHeader: {
     paddingTop: 12,
@@ -275,7 +273,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   countBadge: {
@@ -386,13 +384,13 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 36,
-    gap: 6,
+    paddingVertical: 40,
+    gap: 10,
   },
   emptyTitle: {
-    color: '#FFFFFF',
+    color: '#E4E4E7',
     fontSize: 14.5,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   emptyText: {
     color: '#71717A',

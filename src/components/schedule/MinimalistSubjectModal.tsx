@@ -7,13 +7,14 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Animated,
   Platform,
 } from 'react-native'
 import type { Subject } from '@/types/personal'
-import { Trash2, Check, ArrowLeft } from 'lucide-react-native'
+import { Trash2, Check } from 'lucide-react-native'
+import { BlurView } from 'expo-blur'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import {
   playSaveSound,
@@ -256,63 +257,67 @@ export function MinimalistSubjectModal({
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
-              {editingSubject ? (
-                <Pressable
-                  onPress={handleCancelEdit}
-                  hitSlop={12}
-                  style={styles.backTitleBtn}
-                >
-                  <ArrowLeft size={17} color="#FFFFFF" />
-                  <Text style={styles.sheetTitle}>Editar Materia</Text>
-                </Pressable>
-              ) : (
-                <View>
-                  <Text style={styles.sheetTitle}>Gestionar Materias</Text>
+              <View style={styles.headerSide}>
+                {editingSubject ? (
+                  <NativeGlassIconButton
+                    onPress={handleCancelEdit}
+                    icon="back"
+                    accessibilityLabel="Volver a la lista de materias"
+                  />
+                ) : (
+                  <NativeGlassIconButton
+                    onPress={handleSmoothClose}
+                    icon="xmark"
+                    accessibilityLabel="Cerrar"
+                  />
+                )}
+              </View>
+
+              <View style={styles.headerTitleWrap}>
+                <Text style={styles.sheetTitle}>
+                  {editingSubject ? 'Editar Materia' : 'Gestionar Materias'}
+                </Text>
+                {!editingSubject && (
                   <Text style={styles.sheetSubtitle}>
                     {safeSubjects.length === 1 ? '1 registrada' : `${safeSubjects.length} registradas`}
                   </Text>
-                </View>
-              )}
+                )}
+              </View>
 
-              {hasInput && (
-                <View style={styles.headerRightActions}>
-                  <Pressable
+              <View style={styles.headerSide}>
+                {hasInput && (
+                  <NativeGlassIconButton
                     onPress={handleSaveSubject}
+                    icon="checkmark"
+                    accessibilityLabel={editingSubject ? 'Guardar materia' : 'Añadir materia'}
                     disabled={loading}
-                    hitSlop={12}
-                    style={styles.saveHeaderBtn}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#000000" />
-                    ) : (
-                      <Text style={styles.saveHeaderBtnText}>
-                        {editingSubject ? 'Guardar' : 'Añadir'}
-                      </Text>
-                    )}
-                  </Pressable>
-                </View>
-              )}
+                    variant="prominent"
+                  />
+                )}
+              </View>
             </View>
           </View>
 
           <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Input Limpio de Nombre */}
-            <TextInput
-              placeholder="Ej. Cálculo Multivariable, Física..."
-              placeholderTextColor="#52525B"
-              value={name}
-              onChangeText={setName}
-              style={styles.cleanNameInput}
-            />
-
-            {/* Input Limpio de Profesor / Detalles */}
-            <TextInput
-              placeholder="Profesor (opcional)..."
-              placeholderTextColor="#52525B"
-              value={teacher}
-              onChangeText={setTeacher}
-              style={styles.cleanTeacherInput}
-            />
+            {/* Tarjeta glass de Nombre + Profesor (mismo tratamiento que el modal de tarea) */}
+            <View style={styles.glassInputCard}>
+              <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+              <TextInput
+                placeholder="Ej. Cálculo Multivariable, Física..."
+                placeholderTextColor="#71717A"
+                value={name}
+                onChangeText={setName}
+                style={styles.glassNameInput}
+              />
+              <View style={styles.glassInputHairline} />
+              <TextInput
+                placeholder="Profesor (opcional)..."
+                placeholderTextColor="#71717A"
+                value={teacher}
+                onChangeText={setTeacher}
+                style={styles.glassTeacherInput}
+              />
+            </View>
 
             {/* Paleta de Colores Sutil */}
             <View style={styles.colorPaletteRow}>
@@ -350,10 +355,10 @@ export function MinimalistSubjectModal({
             {safeSubjects.length > 0 && (
               <View style={styles.listSection}>
                 <Text style={styles.sectionHeader}>
-                  REGISTRADAS ({safeSubjects.length})
+                  Registradas ({safeSubjects.length})
                 </Text>
 
-                <View style={styles.subjectsList}>
+                <View style={styles.subjectsCard}>
                   {safeSubjects.map((s, idx) => {
                     const isEditing = editingSubject?.id === s.id
                     const isWhite = isWhiteColor(s.color)
@@ -428,12 +433,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     maxHeight: '88%',
     overflow: 'hidden',
+    borderCurve: 'continuous',
   },
   sheetHeader: {
     paddingTop: 10,
@@ -454,14 +456,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backTitleBtn: {
-    flexDirection: 'row',
+  headerSide: {
+    width: 58,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
   },
   sheetTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
@@ -471,42 +477,32 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 1,
   },
-  headerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  saveHeaderBtn: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 13,
-    paddingVertical: 5.5,
-    borderRadius: 9,
-  },
-  saveHeaderBtnText: {
-    color: '#000000',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  closeBtn: {
-    padding: 4,
-  },
   sheetScroll: {
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  cleanNameInput: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    paddingVertical: 6,
-    marginBottom: 2,
+  glassInputCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    overflow: 'hidden',
   },
-  cleanTeacherInput: {
+  glassNameInput: {
+    color: '#FFFFFF',
+    fontSize: 17.5,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    paddingVertical: 12,
+  },
+  glassInputHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  glassTeacherInput: {
     color: '#D4D4D8',
-    fontSize: 13.5,
-    lineHeight: 18,
-    paddingVertical: 4,
-    marginBottom: 10,
+    fontSize: 14.5,
+    lineHeight: 20,
+    paddingVertical: 10,
   },
   colorPaletteRow: {
     flexDirection: 'row',
@@ -535,37 +531,35 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   listSection: {
-    marginTop: 4,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    gap: 6,
+    marginTop: 20,
     marginBottom: 16,
   },
   sectionHeader: {
-    color: '#71717A',
-    fontSize: 9.5,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    color: '#8E8E93',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    marginBottom: 7,
+    paddingHorizontal: 2,
   },
-  subjectsList: {
-    paddingHorizontal: 0,
+  subjectsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   subjectRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   subjectRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
   },
   subjectRowEditing: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 8,
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   subjectLeft: {
     flexDirection: 'row',

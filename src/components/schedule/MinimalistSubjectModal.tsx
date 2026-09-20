@@ -275,6 +275,10 @@ export function MinimalistSubjectModal({
                 <Animated.View
                   pointerEvents={editingSubject ? 'auto' : 'none'}
                   style={{
+                    width: 58,
+                    height: 58,
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     opacity: backBtnAnim,
                     transform: [
                       {
@@ -401,21 +405,24 @@ export function MinimalistSubjectModal({
                         <Text style={styles.chipName} numberOfLines={1}>
                           {s.name}
                         </Text>
-                        {isEditing && (
-                          <Pressable
-                            onPress={(e) => {
-                              e.stopPropagation()
-                              handleDeleteSubject(s.id, s.name)
-                            }}
-                            hitSlop={10}
-                            style={({ pressed }) => [
-                              styles.chipTrashBtn,
-                              pressed && styles.chipTrashPressed,
-                            ]}
-                          >
-                            <Trash2 size={13} color="#A1A1A6" />
-                          </Pressable>
-                        )}
+                        {/* Slot de ancho fijo: la papelera aparece sin cambiar el
+                            ancho del chip, evitando el re-wrap de las materias */}
+                        <View style={styles.chipTrashSlot}>
+                          {isEditing && (
+                            <Pressable
+                              onPress={(e) => {
+                                e.stopPropagation()
+                                handleDeleteSubject(s.id, s.name)
+                              }}
+                              hitSlop={10}
+                              style={({ pressed }) =>
+                                pressed && styles.chipTrashPressed
+                              }
+                            >
+                              <Trash2 size={13} color="#A1A1A6" />
+                            </Pressable>
+                          )}
+                        </View>
                       </Pressable>
                     )
                   })}
@@ -470,9 +477,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
   },
   headerSide: {
     width: 58,
+    height: 58,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -591,9 +600,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.2,
   },
-  chipTrashBtn: {
-    padding: 3,
-    marginLeft: 1,
+  chipTrashSlot: {
+    width: 16,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipTrashPressed: {
     opacity: 0.5,

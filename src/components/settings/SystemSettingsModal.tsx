@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -32,11 +32,12 @@ import type { PersonalProfile } from '@/types/personal'
 import { APPLE_EASING } from '@/constants/animations'
 import { MONTHS_SHORT } from '@/constants/dates'
 import { triggerHaptic } from '@/lib/personalHaptics'
-import { playModalOpenSound, playModalCloseSound } from '@/lib/personalAudio'
 import { formatTime12h } from '@/lib/academicDateUtils'
+import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { SemesterConfigCard, type SemesterPickerType } from './SemesterConfigCard'
 import { DEFAULT_STUDENT_NAME, DEFAULT_ADVANCE_REMINDER_TIME } from '@/constants/defaults'
 import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
+import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { getInitials } from './ProfileHeroCard'
 
 const REMINDER_TIME_OPTIONS = [
@@ -53,6 +54,7 @@ export interface SystemSettingsModalProps {
   profile: PersonalProfile | null
   onOpenClassAuth?: () => void
   isConnected?: boolean
+  onClassAuthSuccess?: () => void
   advanceReminderEnabled: boolean
   onToggleAdvanceReminder: (val: boolean) => void
   advanceReminderTime: string
@@ -109,6 +111,7 @@ export function SystemSettingsModal({
   profile,
   onOpenClassAuth,
   isConnected = false,
+  onClassAuthSuccess,
   advanceReminderEnabled,
   onToggleAdvanceReminder,
   advanceReminderTime,
@@ -136,76 +139,89 @@ export function SystemSettingsModal({
   const isWeb = Platform.OS === 'web'
   const [activeDatePicker, setActiveDatePicker] = useState<SemesterPickerType | null>(null)
 
-  // Animación slide-from-right (translateX + fade únicamente, por rendimiento)
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideX = useRef(new Animated.Value(SCREEN_W)).current
-  const [modalVisible, setModalVisible] = useState(visible)
-  const closingRef = useRef(false)
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  // Hoja inferior canónica: entrada/salida con APPLE_EASING, drag dismiss, sonidos y haptics
+  const {
+    modalVisible,
+    fadeAnim,
+    slideAnim,
+    panY,
+    panResponder,
+    handleSmoothClose: dismissSheet,
+  } = useModalAnimation({ visible, onClose })
 
-  // Sincronizar visibilidad de inmediato durante render
-  if (visible && !modalVisible && !closingRef.current) {
-    setModalVisible(true)
+  const handleSmoothClose = (callback?: () => void) => {
+    setActiveDatePicker(null)
+    dismissSheet(callback)
   }
 
-  const closeModal = useCallback(
-    (callback?: () => void) => {
-      if (closingRef.current) return
-      closingRef.current = true
-      playModalCloseSound()
-      triggerHaptic('light')
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 180,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideX, {
-          toValue: SCREEN_W,
-          duration: 240,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setModalVisible(false)
-        setActiveDatePicker(null)
-        closingRef.current = false
-        onCloseRef.current()
-        if (callback) setTimeout(callback, 50)
-      })
-    },
-    [fadeAnim, slideX, SCREEN_W]
-  )
+  // Sub-página de Clase: push desde la derecha (patrón Recordatorios) + crossfade X↔atrás
+  const [isClassPage, setIsClassPage] = useState(false)
+  const pageSlideX = useRef(new Animated.Value(SCREEN_W)).current
+  const xBtnAnim = useRef(new Animated.Value(1)).current
+  const backBtnAnim = useRef(new Animated.Value(0)).current
 
-  // Apertura/cierre controlados por la prop `visible`
+  const openClassPage = () => {
+    setIsClassPage(true)
+    pageSlideX.setValue(SCREEN_W)
+    Animated.spring(pageSlideX, {
+      toValue: 0,
+      stiffness: 380,
+      damping: 32,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start()
+    Animated.parallel([
+      Animated.timing(xBtnAnim, {
+        toValue: 0,
+        duration: 180,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backBtnAnim, {
+        toValue: 1,
+        duration: 200,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }
+
+  const closeClassPage = () => {
+    Animated.spring(pageSlideX, {
+      toValue: SCREEN_W,
+      stiffness: 420,
+      damping: 36,
+      mass: 0.9,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setIsClassPage(false)
+    })
+    Animated.parallel([
+      Animated.timing(xBtnAnim, {
+        toValue: 1,
+        duration: 180,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backBtnAnim, {
+        toValue: 0,
+        duration: 160,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }
+
+  // Al reabrir la hoja: reset sub-página y selector de fechas
   useEffect(() => {
     if (visible) {
-      closingRef.current = false
-      playModalOpenSound()
-      fadeAnim.setValue(0)
-      slideX.setValue(SCREEN_W)
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 240,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideX, {
-          toValue: 0,
-          duration: 400,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-      ]).start()
-    } else if (modalVisible) {
-      // Cierre reactivo desde el padre
-      closeModal()
+      setActiveDatePicker(null)
+      setIsClassPage(false)
+      pageSlideX.setValue(SCREEN_W)
+      xBtnAnim.setValue(1)
+      backBtnAnim.setValue(0)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible])
+  }, [visible, pageSlideX, xBtnAnim, backBtnAnim])
 
   const reminderTimeMenuActions = REMINDER_TIME_OPTIONS.map((opt) => ({
     id: opt.time,
@@ -231,39 +247,93 @@ export function SystemSettingsModal({
   if (!modalVisible) return null
 
   return (
-    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={() => closeModal()}>
+    <Modal
+      visible={modalVisible}
+      transparent
+      animationType="none"
+      onRequestClose={() => handleSmoothClose()}
+    >
       <View style={styles.modalRoot}>
         {/* Backdrop Frosted con Fade (tokens canónicos §0) */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
           <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.backdropDim} />
-          <Pressable style={styles.backdropTouch} onPress={() => closeModal()} />
+          <Pressable style={styles.backdropTouch} onPress={() => handleSmoothClose()} />
         </Animated.View>
 
-        {/* Panel Fullscreen deslizante desde la derecha */}
-        <Animated.View style={[styles.panel, { transform: [{ translateX: slideX }] }]}>
-          {/* Header canónico: X glass + título centrado + hairline */}
-          <View style={[styles.sheetHeader, { paddingTop: insets.top + 6 }]}>
+        {/* Hoja inferior canónica (92%) con drag dismiss */}
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+            {
+              paddingBottom: Math.max(insets.bottom, 16) + 8,
+              transform: [{ translateY: Animated.add(slideAnim, panY) }],
+            },
+          ]}
+        >
+          {/* Header canónico: drag handle + X↔atrás (crossfade) + título centrado */}
+          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
+            <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
               <View style={styles.headerSide}>
-                <NativeGlassIconButton
-                  onPress={() => closeModal()}
-                  icon="xmark"
-                  accessibilityLabel="Cerrar"
-                />
+                <Animated.View
+                  pointerEvents={isClassPage ? 'none' : 'auto'}
+                  style={[
+                    styles.headerSideBtn,
+                    {
+                      opacity: xBtnAnim,
+                      transform: [
+                        {
+                          scale: xBtnAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.85, 1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <NativeGlassIconButton
+                    onPress={() => handleSmoothClose()}
+                    icon="xmark"
+                    accessibilityLabel="Cerrar"
+                  />
+                </Animated.View>
+                <Animated.View
+                  pointerEvents={isClassPage ? 'auto' : 'none'}
+                  style={[
+                    styles.headerSideBtn,
+                    {
+                      opacity: backBtnAnim,
+                      transform: [
+                        {
+                          scale: backBtnAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.85, 1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <NativeGlassIconButton
+                    onPress={closeClassPage}
+                    icon="back"
+                    accessibilityLabel="Volver"
+                  />
+                </Animated.View>
               </View>
               <View style={styles.headerTitleWrap} pointerEvents="none">
-                <Text style={styles.headerTitle}>Ajustes del Sistema</Text>
-                <Text style={styles.headerSubtitle}>Preferencias de la aplicación</Text>
+                <Text style={styles.headerTitle}>
+                  {isClassPage ? 'Feed de Clase' : 'Ajustes del Sistema'}
+                </Text>
               </View>
               <View style={styles.headerSide} />
             </View>
-            <View style={styles.headerHairline} />
           </View>
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            style={styles.settingsScroll}
             contentContainerStyle={styles.scrollContent}
           >
             {/* Perfil: foto circular glass + nombre arriba (§3.2) */}
@@ -284,7 +354,11 @@ export function SystemSettingsModal({
                 <View style={styles.groupedList}>
                   <Pressable
                     onPress={() => {
-                      closeModal(() => onOpenClassAuth())
+                      if (isConnected) {
+                        openClassPage()
+                      } else {
+                        handleSmoothClose(() => onOpenClassAuth?.())
+                      }
                     }}
                     style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
                   >
@@ -507,8 +581,7 @@ export function SystemSettingsModal({
                 {/* Pantalla de Bienvenida (Onboarding) */}
                 <Pressable
                   onPress={() => {
-                    onClose()
-                    router.push('/welcome')
+                    handleSmoothClose(() => router.push('/welcome'))
                   }}
                   style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
                   accessibilityRole="button"
@@ -545,6 +618,26 @@ export function SystemSettingsModal({
 
             <Text style={styles.versionText}>Zora v2.0</Text>
           </ScrollView>
+
+          {/* Sub-página de Clase: mismo tamaño que la hoja, push desde la derecha */}
+          {isClassPage && (
+            <Animated.View
+              style={[styles.subPage, { transform: [{ translateX: pageSlideX }] }]}
+            >
+              <ScrollView
+                style={styles.subPageScroll}
+                contentContainerStyle={styles.classPageScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <ClassAuthModal
+                  embedded
+                  visible
+                  onClose={closeClassPage}
+                  onSuccess={onClassAuthSuccess}
+                />
+              </ScrollView>
+            </Animated.View>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -555,6 +648,7 @@ const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
     backgroundColor: 'transparent',
+    justifyContent: 'flex-end',
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
@@ -566,16 +660,29 @@ const styles = StyleSheet.create({
   backdropTouch: {
     flex: 1,
   },
-  panel: {
-    flex: 1,
+  sheetContainer: {
     backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     overflow: 'hidden',
+    borderCurve: 'continuous',
+    maxHeight: '92%',
   },
   sheetHeader: {
     alignItems: 'center',
+    paddingTop: 10,
     paddingBottom: 4,
     backgroundColor: 'transparent',
     position: 'relative',
+    zIndex: 60,
+  },
+  dragHandle: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignSelf: 'center',
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -587,6 +694,11 @@ const styles = StyleSheet.create({
   headerSide: {
     width: 58,
     height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSideBtn: {
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -605,24 +717,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  headerSubtitle: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  headerHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    width: '100%',
-  },
-  settingsScroll: {
-    flex: 1,
-  },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 32,
     gap: 4,
+  },
+  subPage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#1C1C1E',
+    zIndex: 50,
+  },
+  subPageScroll: {
+    flex: 1,
+  },
+  classPageScrollContent: {
+    paddingTop: 90,
+    paddingBottom: 28,
   },
   profileSection: {
     alignItems: 'center',

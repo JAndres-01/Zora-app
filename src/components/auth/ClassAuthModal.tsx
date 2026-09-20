@@ -22,9 +22,10 @@ export interface ClassAuthModalProps {
   visible: boolean
   onClose: () => void
   onSuccess?: () => void
+  embedded?: boolean
 }
 
-export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalProps) {
+export function ClassAuthModal({ visible, onClose, onSuccess, embedded }: ClassAuthModalProps) {
   const insets = useSafeAreaInsets()
   const { isConnected, user, isAdmin, signOut } = useClassAuth()
   const { profile } = usePersonalAuth()
@@ -38,7 +39,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
     panResponder,
     handleSmoothClose: handleClose,
   } = useModalAnimation({
-    visible: visible && isConnected && !isSigningOut,
+    visible: visible && isConnected && !isSigningOut && !embedded,
     onClose,
   })
 
@@ -52,7 +53,11 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
       if (confirmed) {
         triggerHaptic('medium')
         setIsSigningOut(true)
-        handleClose()
+        if (embedded) {
+          onClose()
+        } else {
+          handleClose()
+        }
         signOut().then(() => {
           onSuccess?.()
         })
@@ -71,7 +76,11 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
           onPress: async () => {
             triggerHaptic('medium')
             setIsSigningOut(true)
-            handleClose()
+            if (embedded) {
+              onClose()
+            } else {
+              handleClose()
+            }
             await signOut()
             onSuccess?.()
           },
@@ -80,9 +89,61 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
     )
   }
 
+  // Contenido compartido entre la hoja standalone y la sub-página embebida de ajustes
+  const panel = (
+    <>
+      <View style={styles.fieldList}>
+        <View style={styles.fieldItem}>
+          <Text style={styles.fieldLabel}>USUARIO</Text>
+          <Text style={styles.fieldValuePrimary}>
+            {profile?.full_name || user?.user_metadata?.full_name || 'Estudiante'}
+          </Text>
+        </View>
+
+        <View style={styles.fieldDivider} />
+
+        <View style={styles.fieldItem}>
+          <Text style={styles.fieldLabel}>CORREO ELECTRÓNICO</Text>
+          <Text style={styles.fieldValueSecondary}>{user?.email || '-'}</Text>
+        </View>
+
+        <View style={styles.fieldDivider} />
+
+        <View style={styles.fieldItem}>
+          <Text style={styles.fieldLabel}>ROL</Text>
+          <Text style={styles.fieldValueSecondary}>
+            {isAdmin ? 'Administrador' : 'Estudiante'}
+          </Text>
+        </View>
+
+        <View style={styles.fieldDivider} />
+
+        <View style={styles.fieldItem}>
+          <Text style={styles.fieldLabel}>PERMISOS</Text>
+          <Text style={styles.fieldPermissionsText}>
+            {isAdmin
+              ? 'Crear, editar y organizar materias, horarios y tareas de la clase.'
+              : 'Visualizar horarios, recibir tareas grupales y marcar entregas completadas.'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Botón Cerrar Sesión */}
+      <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
+        <LogOut size={15} color="#EF4444" />
+        <Text style={styles.signOutBtnText}>Cerrar Sesión</Text>
+      </Pressable>
+    </>
+  )
+
   // Si no está conectado o está cerrando sesión, no renderizar nada para evitar cualquier destello
   if (!isConnected && !isSigningOut) {
     return null
+  }
+
+  // Modo embebido: el padre (SystemSettingsModal) provee hoja, header y backdrop
+  if (embedded) {
+    return <View style={styles.content}>{panel}</View>
   }
 
   return (
@@ -125,49 +186,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess }: ClassAuthModalPr
           </View>
 
           {/* Información del Usuario y Sesión */}
-          <View style={styles.content}>
-            <View style={styles.fieldList}>
-              <View style={styles.fieldItem}>
-                <Text style={styles.fieldLabel}>USUARIO</Text>
-                <Text style={styles.fieldValuePrimary}>
-                  {profile?.full_name || user?.user_metadata?.full_name || 'Estudiante'}
-                </Text>
-              </View>
-
-              <View style={styles.fieldDivider} />
-
-              <View style={styles.fieldItem}>
-                <Text style={styles.fieldLabel}>CORREO ELECTRÓNICO</Text>
-                <Text style={styles.fieldValueSecondary}>{user?.email || '-'}</Text>
-              </View>
-
-              <View style={styles.fieldDivider} />
-
-              <View style={styles.fieldItem}>
-                <Text style={styles.fieldLabel}>ROL</Text>
-                <Text style={styles.fieldValueSecondary}>
-                  {isAdmin ? 'Administrador' : 'Estudiante'}
-                </Text>
-              </View>
-
-              <View style={styles.fieldDivider} />
-
-              <View style={styles.fieldItem}>
-                <Text style={styles.fieldLabel}>PERMISOS</Text>
-                <Text style={styles.fieldPermissionsText}>
-                  {isAdmin
-                    ? 'Crear, editar y organizar materias, horarios y tareas de la clase.'
-                    : 'Visualizar horarios, recibir tareas grupales y marcar entregas completadas.'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Botón Cerrar Sesión */}
-            <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
-              <LogOut size={15} color="#EF4444" />
-              <Text style={styles.signOutBtnText}>Cerrar Sesión</Text>
-            </Pressable>
-          </View>
+          <View style={styles.content}>{panel}</View>
         </Animated.View>
       </View>
     </Modal>

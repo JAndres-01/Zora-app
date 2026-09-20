@@ -34,7 +34,6 @@ import { MinimalistActivityHeatmap } from '@/components/stats/MinimalistActivity
 import { MinimalistSubjectBalance } from '@/components/stats/MinimalistSubjectBalance'
 import { DualBalanceWidget } from '@/components/widgets/DualBalanceWidget'
 import { MinimalistCredentialModal } from '@/components/profile/MinimalistCredentialModal'
-import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
@@ -143,7 +142,6 @@ export default function ProfileScreen() {
   // Modales
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showCredentialModal, setShowCredentialModal] = useState(false)
-  const [showClassAuthModal, setShowClassAuthModal] = useState(false)
 
   // Preferencias del Sistema
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
@@ -574,14 +572,9 @@ export default function ProfileScreen() {
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         profile={profile}
-        onOpenClassAuth={() => {
-          if (isConnected) {
-            setShowClassAuthModal(true)
-          } else {
-            router.push('/auth')
-          }
-        }}
+        onOpenClassAuth={() => router.push('/auth')}
         isConnected={isConnected}
+        onClassAuthSuccess={loadData}
         advanceReminderEnabled={advanceReminderEnabled}
         onToggleAdvanceReminder={handleToggleAdvanceReminder}
         advanceReminderTime={advanceReminderTime}
@@ -612,13 +605,6 @@ export default function ProfileScreen() {
         onClose={() => setShowCredentialModal(false)}
         onChangeCredential={handlePickCredential}
         onDeleteCredential={handleDeleteCredential}
-      />
-
-      {/* Modal de Acceso / Estado de la Clase */}
-      <ClassAuthModal
-        visible={showClassAuthModal}
-        onClose={() => setShowClassAuthModal(false)}
-        onSuccess={loadData}
       />
     </View>
   )

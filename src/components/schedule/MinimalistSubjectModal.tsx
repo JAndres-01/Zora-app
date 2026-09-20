@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { personalStorage } from '@/lib/personalStorage'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { generateId } from '@/lib/idGenerator'
 import { SCREEN_HEIGHT } from '@/constants/layout'
+import { APPLE_EASING } from '@/constants/animations'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { logger } from '@/lib/logger'
 
@@ -91,6 +92,18 @@ export function MinimalistSubjectModal({
     onClose,
     onClosed: resetForm,
   })
+
+  // Aparición/desaparición animada del botón "atrás" al entrar/salir de edición
+  const backBtnAnim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.timing(backBtnAnim, {
+      toValue: editingSubject ? 1 : 0,
+      duration: 240,
+      easing: APPLE_EASING,
+      useNativeDriver: true,
+    }).start()
+  }, [editingSubject, backBtnAnim])
 
   const handleStartEdit = (subject: Subject) => {
     triggerHaptic('selection')
@@ -238,7 +251,6 @@ export function MinimalistSubjectModal({
   if (!modalVisible) return null
 
   const safeSubjects = Array.isArray(localSubjects) ? localSubjects.filter(Boolean) : []
-  const hasInput = name.trim().length > 0 || Boolean(editingSubject)
 
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
@@ -260,13 +272,26 @@ export function MinimalistSubjectModal({
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
               <View style={styles.headerSide}>
-                {editingSubject && (
+                <Animated.View
+                  pointerEvents={editingSubject ? 'auto' : 'none'}
+                  style={{
+                    opacity: backBtnAnim,
+                    transform: [
+                      {
+                        scale: backBtnAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.6, 1],
+                        }),
+                      },
+                    ],
+                  }}
+                >
                   <NativeGlassIconButton
                     onPress={handleCancelEdit}
                     icon="back"
                     accessibilityLabel="Volver a la lista de materias"
                   />
-                )}
+                </Animated.View>
               </View>
 
               <View style={styles.headerTitleWrap}>
@@ -276,15 +301,13 @@ export function MinimalistSubjectModal({
               </View>
 
               <View style={styles.headerSide}>
-                {hasInput && (
-                  <NativeGlassIconButton
-                    onPress={handleSaveSubject}
-                    icon="checkmark"
-                    accessibilityLabel={editingSubject ? 'Guardar materia' : 'Añadir materia'}
-                    disabled={loading}
-                    variant="prominent"
-                  />
-                )}
+                <NativeGlassIconButton
+                  onPress={handleSaveSubject}
+                  icon="checkmark"
+                  accessibilityLabel={editingSubject ? 'Guardar materia' : 'Añadir materia'}
+                  disabled={loading}
+                  variant="prominent"
+                />
               </View>
             </View>
           </View>

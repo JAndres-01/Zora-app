@@ -246,7 +246,6 @@ export default function ScheduleScreen() {
 
   const handleViewModeChange = (mode: 'day' | 'week') => {
     if (mode === viewMode) return
-    triggerHaptic('selection')
     setViewMode(mode)
   }
 

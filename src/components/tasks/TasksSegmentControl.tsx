@@ -39,7 +39,6 @@ export function TasksSegmentControl({
 
   const handlePress = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
-    triggerHaptic('selection')
     onStatusChange(newStatus)
   }
 
@@ -48,16 +47,16 @@ export function TasksSegmentControl({
   return (
     <Animated.View style={card1Style}>
       <BlurView
-      intensity={Platform.OS === 'ios' ? 55 : 90}
-      tint="dark"
-      style={styles.segmentedContainer}
-      onLayout={(e: LayoutChangeEvent) => {
-        const w = e.nativeEvent.layout.width
-        if (w > 0 && Math.abs(w - containerWidth) > 1) {
-          setContainerWidth(w)
-        }
-      }}
-    >
+        intensity={Platform.OS === 'ios' ? 55 : 90}
+        tint="dark"
+        style={styles.segmentedContainer}
+        onLayout={(e: LayoutChangeEvent) => {
+          const w = e.nativeEvent.layout.width
+          if (w > 0 && Math.abs(w - containerWidth) > 1) {
+            setContainerWidth(w)
+          }
+        }}
+      >
         {/* Indicador Deslizante Suave */}
         <Animated.View
           style={[

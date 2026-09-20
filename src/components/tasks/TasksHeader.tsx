@@ -15,7 +15,8 @@ import {
   isGlassEffectAPIAvailable,
 } from 'expo-glass-effect'
 import { SlidersHorizontal, Plus, Search } from 'lucide-react-native'
-import type { Subject } from '@/types/personal'
+import { MenuView, type MenuAction } from '@react-native-menu/menu'
+import type { Subject, Task } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
 
@@ -109,14 +110,20 @@ export function GlassAddTaskButton({ onPress }: { onPress: () => void }) {
   )
 }
 
-export function GlassSubjectIconButton({
+export function GlassFilterSearchPill({
   selectedSubject,
   selectedSubjectId,
-  onPress,
+  subjects,
+  tasks,
+  onSelectSubject,
+  onOpenSearch,
 }: {
   selectedSubject: Subject | null
   selectedSubjectId: string
-  onPress: () => void
+  subjects: Subject[]
+  tasks: Task[]
+  onSelectSubject: (id: string) => void
+  onOpenSearch: () => void
 }) {
   const [reduceTransparency, setReduceTransparency] = useState(false)
   const scaleAnim = useRef(new Animated.Value(1)).current
@@ -133,9 +140,10 @@ export function GlassSubjectIconButton({
     }
   }, [])
 
+  // La píldora entera escala al presionar; cada icono conserva su propia acción.
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
-      toValue: 0.9,
+      toValue: 0.94,
       useNativeDriver: true,
       speed: 40,
       bounciness: 4,
@@ -154,153 +162,113 @@ export function GlassSubjectIconButton({
   const useGlass = GLASS_AVAILABLE && !reduceTransparency
   const hasFilter = selectedSubjectId !== 'all'
 
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      {useGlass ? (
-        <GlassView isInteractive style={[styles.glassBtn, hasFilter && styles.glassBtnActive]}>
-          <Pressable
-            onPress={() => {
-              triggerHaptic('selection')
-              onPress()
-            }}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Filtrar materias"
-            style={styles.glassBtnInner}
-          >
-            <SlidersHorizontal size={19} color="#FFFFFF" strokeWidth={2.2} />
-            {hasFilter && selectedSubject && (
-              <View
-                style={[
-                  styles.filterActiveDot,
-                  { backgroundColor: selectedSubject.color || '#FFFFFF' },
-                  isSelectedWhite && styles.whiteDotBorder,
-                ]}
-              />
-            )}
-          </Pressable>
-        </GlassView>
-      ) : (
-        <Pressable
-          onPress={() => {
-            triggerHaptic('selection')
-            onPress()
-          }}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          hitSlop={8}
+  // Acciones del menú nativo: "Todas las materias" + cada materia con su color.
+  // imageColor (SF Symbol coloreado) permite ver el color real de cada materia.
+  const subjectFilterActions: MenuAction[] = [
+    {
+      id: 'all',
+      title: 'Todas las materias',
+      image: 'square.grid.2x2',
+      imageColor: '#FFFFFF',
+      state: selectedSubjectId === 'all' ? 'on' : 'off',
+    },
+    ...subjects.map((subj) => {
+      const count = tasks.filter(
+        (t) =>
+          t.subject_id === subj.id ||
+          t.subject?.id === subj.id ||
+          (t.subject?.name &&
+            t.subject.name.trim().toLowerCase() === subj.name.trim().toLowerCase())
+      ).length
+      return {
+        id: subj.id,
+        title: subj.name,
+        subtitle: count > 0 ? `${count} tarea${count !== 1 ? 's' : ''}` : undefined,
+        image: 'circle.fill',
+        imageColor: subj.color || '#FFFFFF',
+        state: selectedSubjectId === subj.id ? 'on' : 'off',
+      } satisfies MenuAction
+    }),
+  ]
+
+  const filterIcon = (
+    <>
+      <SlidersHorizontal size={19} color="#FFFFFF" strokeWidth={2.2} />
+      {hasFilter && selectedSubject && (
+        <View
+          style={[
+            styles.filterActiveDot,
+            { backgroundColor: selectedSubject.color || '#FFFFFF' },
+            isSelectedWhite && styles.whiteDotBorder,
+          ]}
+        />
+      )}
+    </>
+  )
+
+  // iOS: context menu nativo; web: el menú nativo no existe, se muestra el icono inerte.
+  const filterZone =
+    Platform.OS === 'web' ? (
+      <View style={styles.pillZone}>{filterIcon}</View>
+    ) : (
+      <MenuView
+        title="Filtrar por Materia"
+        shouldOpenOnLongPress={false}
+        themeVariant="dark"
+        actions={subjectFilterActions}
+        onPressAction={({ nativeEvent }) => {
+          triggerHaptic('selection')
+          onSelectSubject(nativeEvent.event)
+        }}
+      >
+        <View
+          style={styles.pillZone}
           accessibilityRole="button"
           accessibilityLabel="Filtrar materias"
-          style={[styles.blurBtn, hasFilter && styles.glassBtnActive]}
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-          <SlidersHorizontal size={19} color="#FFFFFF" strokeWidth={2.2} />
-          {hasFilter && selectedSubject && (
-            <View
-              style={[
-                styles.filterActiveDot,
-                { backgroundColor: selectedSubject.color || '#FFFFFF' },
-                isSelectedWhite && styles.whiteDotBorder,
-              ]}
-            />
-          )}
-        </Pressable>
-      )}
-    </Animated.View>
+          {filterIcon}
+        </View>
+      </MenuView>
+    )
+
+  const searchZone = (
+    <Pressable
+      onPress={() => {
+        triggerHaptic('light')
+        onOpenSearch()
+      }}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel="Buscar tareas"
+      style={styles.pillZone}
+    >
+      <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
+    </Pressable>
   )
-}
 
-export function GlassSearchButton({ onPress }: { onPress: () => void }) {
-  const [reduceTransparency, setReduceTransparency] = useState(false)
-  const scaleAnim = useRef(new Animated.Value(0.4)).current
-
-  // Pop de entrada: cada vez que la barra reaparece (al cerrar el buscador) la
-  // lupa "brota" con un resorte desde escala pequeña.
-  useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 12,
-    }).start()
-  }, [scaleAnim])
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return
-    let active = true
-    AccessibilityInfo.isReduceTransparencyEnabled().then((val) => {
-      if (active) setReduceTransparency(val)
-    })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.82,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 2,
-    }).start()
-  }
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 25,
-      bounciness: 12,
-    }).start()
-  }
-
-  const useGlass = GLASS_AVAILABLE && !reduceTransparency
+  const divider = <View style={styles.pillDivider} pointerEvents="none" />
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       {useGlass ? (
-        <GlassView isInteractive style={styles.glassBtn}>
-          <Pressable
-            onPress={() => {
-              triggerHaptic('light')
-              onPress()
-            }}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Buscar tareas"
-            style={styles.glassBtnInner}
-          >
-            <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
-          </Pressable>
+        <GlassView isInteractive style={styles.pillGlass}>
+          {filterZone}
+          {divider}
+          {searchZone}
         </GlassView>
       ) : (
-        <Pressable
-          onPress={() => {
-            triggerHaptic('light')
-            onPress()
-          }}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Buscar tareas"
-          style={styles.blurBtn}
-        >
+        <View style={styles.pillBlur}>
           <BlurView
             intensity={Platform.OS === 'ios' ? 50 : 85}
             tint="dark"
             style={StyleSheet.absoluteFill}
           />
-          <Search size={19} color="#FFFFFF" strokeWidth={2.2} />
-        </Pressable>
+          {filterZone}
+          {divider}
+          {searchZone}
+        </View>
       )}
     </Animated.View>
   )
@@ -417,6 +385,38 @@ const styles = StyleSheet.create({
     // blanco translúcido encima se ve gris.
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
     borderColor: 'rgba(255, 255, 255, 1)',
+  },
+  pillGlass: {
+    width: 92,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+  },
+  pillBlur: {
+    width: 92,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    overflow: 'hidden',
+  },
+  pillZone: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  pillDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
   },
   filterActiveDot: {
     position: 'absolute',

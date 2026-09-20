@@ -25,11 +25,9 @@ import { MinimalistConfetti } from '@/components/effects/MinimalistConfetti'
 import {
   TasksHeader,
   GlassAddTaskButton,
-  GlassSubjectIconButton,
-  GlassSearchButton,
+  GlassFilterSearchPill,
 } from '@/components/tasks/TasksHeader'
 import { TasksSegmentControl } from '@/components/tasks/TasksSegmentControl'
-import { TasksSubjectFilterModal } from '@/components/tasks/TasksSubjectFilterModal'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { isWhiteColor } from '@/constants/theme'
 import {
@@ -62,7 +60,6 @@ export default function TasksScreen() {
   const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending')
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all')
   const [isSearchActive, setIsSearchActive] = useState(false)
-  const [showSubjectMenu, setShowSubjectMenu] = useState(false)
   const searchInputRef = useRef<TextInput>(null)
 
   // Transición de entrada/salida del buscador: el header enfocado entra con resorte
@@ -655,13 +652,13 @@ export default function TasksScreen() {
           {/* Contenido de la Barra: Materias + Lupa a la Izquierda, Título Centrado y [+] a la Derecha */}
           <View style={styles.stickyHeaderContent} pointerEvents="box-none">
             <View style={styles.stickyHeaderLeft}>
-              <GlassSubjectIconButton
+              <GlassFilterSearchPill
                 selectedSubject={selectedSubject}
                 selectedSubjectId={selectedSubjectId}
-                onPress={() => setShowSubjectMenu(true)}
-              />
-              <GlassSearchButton
-                onPress={() => {
+                subjects={subjects}
+                tasks={tasks}
+                onSelectSubject={setSelectedSubjectId}
+                onOpenSearch={() => {
                   triggerHaptic('light')
                   setIsSearchActive(true)
                 }}
@@ -731,16 +728,6 @@ export default function TasksScreen() {
           removeClippedSubviews={false}
         />
       </View>
-
-      {/* Modal Desplegable de Filtro de Materia */}
-      <TasksSubjectFilterModal
-        visible={showSubjectMenu}
-        subjects={subjects}
-        tasks={tasks}
-        selectedSubjectId={selectedSubjectId}
-        onSelectSubject={setSelectedSubjectId}
-        onClose={() => setShowSubjectMenu(false)}
-      />
 
       {/* Modal Unificado de Tareas */}
       <MinimalistTaskModal

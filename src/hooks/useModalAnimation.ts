@@ -5,7 +5,7 @@ import {
   PanResponder,
   type PanResponderInstance,
 } from 'react-native'
-import { APPLE_EASING, SPRING_PANEL_CONFIG } from '@/constants/animations'
+import { APPLE_EASING } from '@/constants/animations'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { playModalOpenSound, playModalCloseSound } from '@/lib/personalAudio'
@@ -86,13 +86,13 @@ export function useModalAnimation({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 180,
+          duration: 220,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: SCREEN_HEIGHT,
-          duration: 220,
+          duration: 300,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
@@ -131,13 +131,15 @@ export function useModalAnimation({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 200,
+          duration: 240,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
-        Animated.spring(slideAnim, {
+        Animated.timing(slideAnim, {
           toValue: 0,
-          ...SPRING_PANEL_CONFIG,
+          duration: 460,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
         }),
       ]).start()
     } else if (!visible && wasVisible) {
@@ -152,13 +154,13 @@ export function useModalAnimation({
         Animated.parallel([
           Animated.timing(fadeAnim, {
             toValue: 0,
-            duration: 180,
+            duration: 220,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),
           Animated.timing(slideAnim, {
             toValue: SCREEN_HEIGHT,
-            duration: 220,
+            duration: 300,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View,
   Text,
@@ -9,50 +9,54 @@ import {
   StyleSheet,
   Animated,
   Platform,
-  PanResponder,
-  TextInput,
-  ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import {
   ChevronRight,
+  ChevronDown,
   Bell,
   Clock,
   BookOpen,
   RotateCcw,
-  IdCard,
-  User,
+  Globe,
   Smartphone,
   Sparkles,
   Volume2,
   Trash2,
-  Check,
-  Globe,
 } from 'lucide-react-native'
+import { BlurView } from 'expo-blur'
+import { MenuView } from '@react-native-menu/menu'
 import type { PersonalProfile } from '@/types/personal'
 import { APPLE_EASING } from '@/constants/animations'
 import { MONTHS_SHORT } from '@/constants/dates'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { playModalOpenSound, playModalCloseSound } from '@/lib/personalAudio'
 import { formatTime12h } from '@/lib/academicDateUtils'
 import { SemesterConfigCard, type SemesterPickerType } from './SemesterConfigCard'
-import { SCREEN_HEIGHT } from '@/constants/layout'
-import { DEFAULT_STUDENT_NAME } from '@/constants/defaults'
-import { useModalAnimation } from '@/hooks/useModalAnimation'
-import { logger } from '@/lib/logger'
+import { DEFAULT_STUDENT_NAME, DEFAULT_ADVANCE_REMINDER_TIME } from '@/constants/defaults'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
+import { getInitials } from './ProfileHeroCard'
+
+const REMINDER_TIME_OPTIONS = [
+  { time: '18:00', label: '6:00 PM' },
+  { time: '19:00', label: '7:00 PM' },
+  { time: DEFAULT_ADVANCE_REMINDER_TIME, label: '8:00 PM' },
+  { time: '21:00', label: '9:00 PM' },
+  { time: '22:00', label: '10:00 PM' },
+]
 
 export interface SystemSettingsModalProps {
   visible: boolean
   onClose: () => void
   profile: PersonalProfile | null
-  onOpenCredential: () => void
-  onUploadCredential: () => void
   onOpenClassAuth?: () => void
   isConnected?: boolean
   advanceReminderEnabled: boolean
   onToggleAdvanceReminder: (val: boolean) => void
   advanceReminderTime: string
-  onOpenTimeModal: () => void
+  onSelectReminderTime: (time: string) => void
   classReminderEnabled: boolean
   onToggleClassReminder: (val: boolean) => void
   fallStart: string
@@ -94,18 +98,21 @@ function formatTimeDisplay(timeStr?: string): string {
   return formatTime12h(timeStr, '8:00 PM')
 }
 
+/**
+ * Panel de ajustes fullscreen (patrón canónico glass):
+ * entra deslizando desde el borde derecho (estilo ChatGPT), backdrop frost + dim.
+ * Sin hoja inferior, sin drag-line, sin gesto de arrastre.
+ */
 export function SystemSettingsModal({
   visible,
   onClose,
   profile,
-  onOpenCredential,
-  onUploadCredential,
   onOpenClassAuth,
   isConnected = false,
   advanceReminderEnabled,
   onToggleAdvanceReminder,
   advanceReminderTime,
-  onOpenTimeModal,
+  onSelectReminderTime,
   classReminderEnabled,
   onToggleClassReminder,
   fallStart,
@@ -124,151 +131,191 @@ export function SystemSettingsModal({
 }: SystemSettingsModalProps) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { width: SCREEN_W } = useWindowDimensions()
   const currentYear = new Date().getFullYear()
-  const [activeDatePicker, setActiveDatePicker] = useState<
-    'fall_start' | 'fall_end' | 'spring_start' | 'spring_end' | null
-  >(null)
+  const isWeb = Platform.OS === 'web'
+  const [activeDatePicker, setActiveDatePicker] = useState<SemesterPickerType | null>(null)
 
-  const {
-    modalVisible,
-    fadeAnim,
-    slideAnim,
-    panY,
-    panResponder,
-    handleSmoothClose: handleClose,
-  } = useModalAnimation({
-    visible,
-    onClose,
-    onClosed: () => {
-      setActiveDatePicker(null)
+  // Animación slide-from-right (translateX + fade únicamente, por rendimiento)
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideX = useRef(new Animated.Value(SCREEN_W)).current
+  const [modalVisible, setModalVisible] = useState(visible)
+  const closingRef = useRef(false)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
+  // Sincronizar visibilidad de inmediato durante render
+  if (visible && !modalVisible && !closingRef.current) {
+    setModalVisible(true)
+  }
+
+  const closeModal = useCallback(
+    (callback?: () => void) => {
+      if (closingRef.current) return
+      closingRef.current = true
+      playModalCloseSound()
+      triggerHaptic('light')
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 180,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideX, {
+          toValue: SCREEN_W,
+          duration: 240,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false)
+        setActiveDatePicker(null)
+        closingRef.current = false
+        onCloseRef.current()
+        if (callback) setTimeout(callback, 50)
+      })
     },
-  })
+    [fadeAnim, slideX, SCREEN_W]
+  )
+
+  // Apertura/cierre controlados por la prop `visible`
+  useEffect(() => {
+    if (visible) {
+      closingRef.current = false
+      playModalOpenSound()
+      fadeAnim.setValue(0)
+      slideX.setValue(SCREEN_W)
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 240,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideX, {
+          toValue: 0,
+          duration: 400,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    } else if (modalVisible) {
+      // Cierre reactivo desde el padre
+      closeModal()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+
+  const reminderTimeMenuActions = REMINDER_TIME_OPTIONS.map((opt) => ({
+    id: opt.time,
+    title: opt.label,
+    state: advanceReminderTime === opt.time ? ('on' as const) : ('off' as const),
+  }))
+
+  const reminderTimeRow = (
+    <>
+      <View style={styles.iconBox}>
+        <Clock size={15} color="#8E8E93" />
+      </View>
+      <View style={styles.rowMain}>
+        <Text style={styles.rowTitle}>Hora del aviso</Text>
+      </View>
+      <View style={styles.trailingActionRow}>
+        <Text style={styles.trailingValueText}>{formatTimeDisplay(advanceReminderTime)}</Text>
+        <ChevronDown size={13} color="#636366" />
+      </View>
+    </>
+  )
+
+  if (!modalVisible) return null
 
   return (
-    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={handleClose}>
-      <View style={styles.modalBackdrop}>
-        {/* Backdrop con Fade */}
-        <Animated.View style={[styles.backdropTouch, { opacity: fadeAnim }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={() => closeModal()}>
+      <View style={styles.modalRoot}>
+        {/* Backdrop Frosted con Fade (tokens canónicos §0) */}
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropDim} />
+          <Pressable style={styles.backdropTouch} onPress={() => closeModal()} />
         </Animated.View>
 
-        {/* Hoja Deslizante con PanResponder */}
-        <Animated.View
-          style={[
-            styles.settingsSheetContainer,
-            {
-              paddingBottom: Math.max(insets.bottom, 20) + 16,
-              transform: [{ translateY: Animated.add(slideAnim, panY) }],
-            },
-          ]}
-        >
-          {/* Tirador Superior y Cabecera */}
-          <View style={styles.headerPanArea} collapsable={false} {...panResponder.panHandlers}>
-            <View style={styles.dragHandle} />
-
-            <View style={styles.sheetHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Ajustes del Sistema</Text>
-                <Text style={styles.modalSubtitle}>Preferencias de la aplicación</Text>
+        {/* Panel Fullscreen deslizante desde la derecha */}
+        <Animated.View style={[styles.panel, { transform: [{ translateX: slideX }] }]}>
+          {/* Header canónico: X glass + título centrado + hairline */}
+          <View style={[styles.sheetHeader, { paddingTop: insets.top + 6 }]}>
+            <View style={styles.headerRow}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={() => closeModal()}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
               </View>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
+                <Text style={styles.headerTitle}>Ajustes del Sistema</Text>
+                <Text style={styles.headerSubtitle}>Preferencias de la aplicación</Text>
+              </View>
+              <View style={styles.headerSide} />
             </View>
+            <View style={styles.headerHairline} />
           </View>
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            style={styles.settingsSheetScroll}
+            style={styles.settingsScroll}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* Sección 1: Cuenta y Perfil */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionLabel}>Cuenta y Perfil</Text>
-              <View style={styles.groupedList}>
-                {/* Nombre de Estudiante */}
-                <View style={styles.listRow}>
-                  <View style={styles.iconBox}>
-                    <User size={16} color="#A1A1AA" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Nombre de estudiante</Text>
-                    <Text style={styles.rowSubtitle}>{profile?.full_name || DEFAULT_STUDENT_NAME}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.rowDivider} />
-
-                {/* Credencial Digital */}
-                <Pressable
-                  onPress={() => {
-                    handleClose(() => {
-                      if (profile?.student_credential_url) {
-                        onOpenCredential()
-                      } else {
-                        onUploadCredential()
-                      }
-                    })
-                  }}
-                  style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
-                >
-                  <View style={styles.iconBox}>
-                    <IdCard size={16} color="#A1A1AA" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Credencial digital</Text>
-                    <Text style={styles.rowSubtitle}>
-                      {profile?.student_credential_url
-                        ? profile.student_credential_name || 'Credencial vinculada'
-                        : 'Sin credencial vinculada'}
-                    </Text>
-                  </View>
-                  <View style={styles.trailingActionRow}>
-                    <Text style={styles.trailingActionText}>
-                      {profile?.student_credential_url ? 'Ver' : 'Subir'}
-                    </Text>
-                    <ChevronRight size={14} color="#71717A" />
-                  </View>
-                </Pressable>
-
-                {/* Fila: Clase Compartida / Conexión a Clase */}
-                {onOpenClassAuth && (
-                  <>
-                    <View style={styles.rowDivider} />
-                    <Pressable
-                      onPress={() => {
-                        handleClose(() => {
-                          onOpenClassAuth()
-                        })
-                      }}
-                      style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
-                    >
-                      <View style={styles.iconBox}>
-                        <Globe size={16} color={isConnected ? '#34C759' : '#A1A1AA'} />
-                      </View>
-                      <View style={styles.rowMain}>
-                        <Text style={styles.rowTitle}>Clase compartida</Text>
-                        <Text style={styles.rowSubtitle}>
-                          {isConnected ? 'Sincronización activa con tu grupo' : 'Sin conectar a una clase'}
-                        </Text>
-                      </View>
-                      <View style={styles.trailingActionRow}>
-                        <Text style={[styles.trailingActionText, isConnected && { color: '#34C759', fontWeight: '600' }]}>
-                          {isConnected ? 'Conectado' : 'Conectar'}
-                        </Text>
-                        <ChevronRight size={14} color="#71717A" />
-                      </View>
-                    </Pressable>
-                  </>
-                )}
+            {/* Perfil: foto circular glass + nombre arriba (§3.2) */}
+            <View style={styles.profileSection}>
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>{getInitials(profile?.full_name)}</Text>
               </View>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profile?.full_name || DEFAULT_STUDENT_NAME}
+              </Text>
+              <Text style={styles.profileRole}>Estudiante</Text>
             </View>
 
-            {/* Sección 2: Notificaciones y Avisos */}
+            {/* Sección: Cuenta (clase compartida) */}
+            {onOpenClassAuth && (
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionLabel}>Cuenta</Text>
+                <View style={styles.groupedList}>
+                  <Pressable
+                    onPress={() => {
+                      closeModal(() => onOpenClassAuth())
+                    }}
+                    style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
+                  >
+                    <View style={styles.iconBox}>
+                      <Globe size={15} color={isConnected ? '#34C759' : '#8E8E93'} />
+                    </View>
+                    <View style={styles.rowMain}>
+                      <Text style={styles.rowTitle}>Clase compartida</Text>
+                      <Text style={styles.rowSubtitle}>
+                        {isConnected ? 'Sincronización activa con tu grupo' : 'Sin conectar a una clase'}
+                      </Text>
+                    </View>
+                    <View style={styles.trailingActionRow}>
+                      <Text style={[styles.trailingActionText, isConnected && { color: '#34C759', fontWeight: '600' }]}>
+                        {isConnected ? 'Conectado' : 'Conectar'}
+                      </Text>
+                      <ChevronRight size={14} color="#636366" />
+                    </View>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {/* Sección: Notificaciones y Avisos */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionLabel}>Notificaciones y Avisos</Text>
               <View style={styles.groupedList}>
                 {/* Aviso de Entregas */}
                 <View style={styles.listRow}>
                   <View style={styles.iconBox}>
-                    <Bell size={16} color="#A1A1AA" />
+                    <Bell size={15} color="#8E8E93" />
                   </View>
                   <View style={styles.rowMain}>
                     <Text style={styles.rowTitle}>Aviso de entregas</Text>
@@ -277,33 +324,32 @@ export function SystemSettingsModal({
                   <Switch
                     value={advanceReminderEnabled}
                     onValueChange={onToggleAdvanceReminder}
-                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={advanceReminderEnabled ? '#000000' : '#71717A'}
-                    ios_backgroundColor="#27272A"
+                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#3A3A3C"
                   />
                 </View>
 
-                {/* Hora de Recordatorio (Expandible si activo) */}
+                {/* Hora del Recordatorio → context menu nativo (UIMenu) */}
                 {advanceReminderEnabled && (
                   <>
                     <View style={styles.rowDivider} />
-                    <Pressable
-                      onPress={onOpenTimeModal}
-                      style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
-                    >
-                      <View style={styles.iconBox}>
-                        <Clock size={16} color="#A1A1AA" />
-                      </View>
-                      <View style={styles.rowMain}>
-                        <Text style={styles.rowTitle}>Hora del aviso</Text>
-                      </View>
-                      <View style={styles.trailingActionRow}>
-                        <Text style={styles.trailingValueText}>
-                          {formatTimeDisplay(advanceReminderTime)}
-                        </Text>
-                        <ChevronRight size={14} color="#71717A" />
-                      </View>
-                    </Pressable>
+                    {isWeb ? (
+                      <View style={styles.listRow}>{reminderTimeRow}</View>
+                    ) : (
+                      <MenuView
+                        title="Hora del aviso"
+                        shouldOpenOnLongPress={false}
+                        themeVariant="dark"
+                        actions={reminderTimeMenuActions}
+                        onPressAction={({ nativeEvent }) => {
+                          triggerHaptic('selection')
+                          onSelectReminderTime(nativeEvent.event)
+                        }}
+                      >
+                        <View style={styles.listRow}>{reminderTimeRow}</View>
+                      </MenuView>
+                    )}
                   </>
                 )}
 
@@ -312,7 +358,7 @@ export function SystemSettingsModal({
                 {/* Aviso de Próxima Clase */}
                 <View style={styles.listRow}>
                   <View style={styles.iconBox}>
-                    <BookOpen size={16} color="#A1A1AA" />
+                    <BookOpen size={15} color="#8E8E93" />
                   </View>
                   <View style={styles.rowMain}>
                     <Text style={styles.rowTitle}>Aviso de próxima clase</Text>
@@ -321,15 +367,15 @@ export function SystemSettingsModal({
                   <Switch
                     value={classReminderEnabled}
                     onValueChange={onToggleClassReminder}
-                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={classReminderEnabled ? '#000000' : '#71717A'}
-                    ios_backgroundColor="#27272A"
+                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#3A3A3C"
                   />
                 </View>
               </View>
             </View>
 
-            {/* Sección 3: Periodos de Semestre */}
+            {/* Sección: Periodos de Semestre */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeaderFlex}>
                 <Text style={styles.sectionLabel}>Periodos de Semestre</Text>
@@ -338,7 +384,7 @@ export function SystemSettingsModal({
                   hitSlop={8}
                   style={({ pressed }) => [styles.resetActionBtn, pressed && styles.rowPressed]}
                 >
-                  <RotateCcw size={11} color="#71717A" />
+                  <RotateCcw size={11} color="#8E8E93" />
                   <Text style={styles.resetActionText}>Restablecer</Text>
                 </Pressable>
               </View>
@@ -394,14 +440,14 @@ export function SystemSettingsModal({
               </View>
             </View>
 
-            {/* Sección 4: Experiencia */}
+            {/* Sección: Experiencia */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionLabel}>Experiencia</Text>
               <View style={styles.groupedList}>
                 {/* Vibración Háptica */}
                 <View style={styles.listRow}>
                   <View style={styles.iconBox}>
-                    <Smartphone size={16} color="#A1A1AA" />
+                    <Smartphone size={15} color="#8E8E93" />
                   </View>
                   <View style={styles.rowMain}>
                     <Text style={styles.rowTitle}>Vibración háptica</Text>
@@ -410,9 +456,9 @@ export function SystemSettingsModal({
                   <Switch
                     value={hapticsEnabled}
                     onValueChange={onToggleHaptics}
-                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={hapticsEnabled ? '#000000' : '#71717A'}
-                    ios_backgroundColor="#27272A"
+                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#3A3A3C"
                   />
                 </View>
 
@@ -421,7 +467,7 @@ export function SystemSettingsModal({
                 {/* Animación Festiva */}
                 <View style={styles.listRow}>
                   <View style={styles.iconBox}>
-                    <Sparkles size={16} color="#A1A1AA" />
+                    <Sparkles size={15} color="#8E8E93" />
                   </View>
                   <View style={styles.rowMain}>
                     <Text style={styles.rowTitle}>Animación festiva</Text>
@@ -430,9 +476,9 @@ export function SystemSettingsModal({
                   <Switch
                     value={confettiEnabled}
                     onValueChange={onToggleConfetti}
-                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={confettiEnabled ? '#000000' : '#71717A'}
-                    ios_backgroundColor="#27272A"
+                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#3A3A3C"
                   />
                 </View>
 
@@ -441,7 +487,7 @@ export function SystemSettingsModal({
                 {/* Efectos de Sonido */}
                 <View style={styles.listRow}>
                   <View style={styles.iconBox}>
-                    <Volume2 size={16} color="#A1A1AA" />
+                    <Volume2 size={15} color="#8E8E93" />
                   </View>
                   <View style={styles.rowMain}>
                     <Text style={styles.rowTitle}>Efectos de sonido</Text>
@@ -450,9 +496,9 @@ export function SystemSettingsModal({
                   <Switch
                     value={soundEnabled}
                     onValueChange={onToggleSound}
-                    trackColor={{ false: '#27272A', true: '#FFFFFF' }}
-                    thumbColor={soundEnabled ? '#000000' : '#71717A'}
-                    ios_backgroundColor="#27272A"
+                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#3A3A3C"
                   />
                 </View>
 
@@ -464,23 +510,23 @@ export function SystemSettingsModal({
                     onClose()
                     router.push('/welcome')
                   }}
-                  style={({ pressed }) => [styles.listRowPressable, pressed && styles.rowPressed]}
+                  style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
                   accessibilityRole="button"
                   accessibilityLabel="Ver pantalla de bienvenida"
                 >
                   <View style={styles.iconBox}>
-                    <Smartphone size={16} color="#A1A1AA" />
+                    <Smartphone size={15} color="#8E8E93" />
                   </View>
                   <View style={styles.rowMain}>
                     <Text style={styles.rowTitle}>Pantalla de bienvenida</Text>
                     <Text style={styles.rowSubtitle}>Ver la introducción y guía de inicio</Text>
                   </View>
-                  <ChevronRight size={16} color="#71717A" />
+                  <ChevronRight size={14} color="#636366" />
                 </Pressable>
               </View>
             </View>
 
-            {/* Sección 5: Datos Locales */}
+            {/* Sección: Datos Locales */}
             <View style={styles.sectionContainer}>
               <View style={styles.groupedList}>
                 <Pressable
@@ -488,7 +534,7 @@ export function SystemSettingsModal({
                   style={({ pressed }) => [styles.dangerRow, pressed && styles.rowPressed]}
                 >
                   <View style={styles.iconBox}>
-                    <Trash2 size={16} color="#EF4444" />
+                    <Trash2 size={15} color="#EF4444" />
                   </View>
                   <View style={styles.rowMain}>
                     <Text style={styles.dangerRowText}>Restablecer datos locales</Text>
@@ -506,73 +552,110 @@ export function SystemSettingsModal({
 }
 
 const styles = StyleSheet.create({
-  modalBackdrop: {
+  modalRoot: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'transparent',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFill,
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    flex: 1,
   },
-  settingsSheetContainer: {
+  panel: {
+    flex: 1,
     backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    maxHeight: '88%',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     overflow: 'hidden',
   },
-  headerPanArea: {
-    paddingTop: 4,
-    paddingBottom: 2,
-    backgroundColor: 'transparent',
-  },
-  dragHandle: {
-    width: 36,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
   sheetHeader: {
+    alignItems: 'center',
+    paddingBottom: 4,
+    backgroundColor: 'transparent',
+    position: 'relative',
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
-    paddingHorizontal: 4,
+    width: '100%',
+    paddingHorizontal: 16,
   },
-  modalTitle: {
-    color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  modalSubtitle: {
-    color: '#71717A',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  modalCloseBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+  headerSide: {
+    width: 58,
+    height: 58,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingsSheetScroll: {
-    marginBottom: 8,
+  headerTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  headerHairline: {
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: '100%',
+  },
+  settingsScroll: {
+    flex: 1,
   },
   scrollContent: {
-    gap: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    gap: 4,
+  },
+  profileSection: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  profileAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  profileName: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  profileRole: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '500',
   },
   sectionContainer: {
     gap: 6,
@@ -581,14 +664,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   sectionLabel: {
-    color: '#71717A',
-    fontSize: 12,
+    color: '#8E8E93',
+    fontSize: 13,
     fontWeight: '600',
-    letterSpacing: -0.1,
-    paddingHorizontal: 4,
+    letterSpacing: 0.2,
+    marginTop: 20,
+    marginBottom: 7,
+    paddingHorizontal: 2,
   },
   resetActionBtn: {
     flexDirection: 'row',
@@ -597,50 +682,46 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 6,
+    marginTop: 8,
+    marginBottom: 4,
   },
   resetActionText: {
-    color: '#71717A',
+    color: '#8E8E93',
     fontSize: 11,
     fontWeight: '500',
   },
   groupedList: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  listRowPressable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
   },
   dangerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 13,
   },
   dangerRowText: {
     color: '#EF4444',
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '600',
   },
   rowPressed: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   iconBox: {
-    width: 20,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -648,14 +729,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '600',
+    color: '#F4F4F5',
+    fontSize: 15,
+    fontWeight: '500',
     letterSpacing: -0.1,
   },
   rowSubtitle: {
-    color: '#71717A',
-    fontSize: 11.5,
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '400',
     marginTop: 1.5,
   },
   trailingActionRow: {
@@ -664,25 +746,25 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   trailingActionText: {
-    color: '#A1A1AA',
-    fontSize: 13,
+    color: '#8E8E93',
+    fontSize: 14,
     fontWeight: '500',
   },
   trailingValueText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+    color: '#A1A1A6',
+    fontSize: 14,
+    fontWeight: '500',
   },
   rowDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginLeft: 48,
+    height: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginLeft: 54,
   },
   versionText: {
     color: '#3F3F46',
     fontSize: 11,
     fontWeight: '500',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 20,
   },
 })

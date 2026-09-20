@@ -37,7 +37,6 @@ import { MinimalistCredentialModal } from '@/components/profile/MinimalistCreden
 import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
-import { ReminderTimeModal } from '@/components/settings/ReminderTimeModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
@@ -143,7 +142,6 @@ export default function ProfileScreen() {
 
   // Modales
   const [showSettingsModal, setShowSettingsModal] = useState(false)
-  const [showTimeModal, setShowTimeModal] = useState(false)
   const [showCredentialModal, setShowCredentialModal] = useState(false)
   const [showClassAuthModal, setShowClassAuthModal] = useState(false)
 
@@ -576,8 +574,6 @@ export default function ProfileScreen() {
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         profile={profile}
-        onOpenCredential={() => setShowCredentialModal(true)}
-        onUploadCredential={handlePickCredential}
         onOpenClassAuth={() => {
           if (isConnected) {
             setShowClassAuthModal(true)
@@ -589,7 +585,7 @@ export default function ProfileScreen() {
         advanceReminderEnabled={advanceReminderEnabled}
         onToggleAdvanceReminder={handleToggleAdvanceReminder}
         advanceReminderTime={advanceReminderTime}
-        onOpenTimeModal={() => setShowTimeModal(true)}
+        onSelectReminderTime={handleSelectHour}
         classReminderEnabled={classReminderEnabled}
         onToggleClassReminder={handleToggleClassReminder}
         fallStart={fallStart}
@@ -605,14 +601,6 @@ export default function ProfileScreen() {
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onClearData={handleClearAllData}
-      />
-
-      {/* Modal para Seleccionar Hora */}
-      <ReminderTimeModal
-        visible={showTimeModal}
-        currentTime={advanceReminderTime}
-        onClose={() => setShowTimeModal(false)}
-        onSelectTime={handleSelectHour}
       />
 
       {/* Modal de Credencial Digital (PDF con QR) */}

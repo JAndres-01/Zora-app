@@ -11,7 +11,7 @@ export interface ProfileHeroCardProps {
   onUploadCredential: () => void
 }
 
-function getInitials(name?: string): string {
+export function getInitials(name?: string): string {
   if (!name || !name.trim()) return 'ES'
   const parts = name.trim().split(/\s+/)
   if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()

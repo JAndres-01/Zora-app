@@ -110,6 +110,15 @@ export default function SettingsModalScreen() {
     await syncAllNotifications(undefined, undefined, updated)
   }
 
+  const handleSelectReminderTime = async (time: string) => {
+    setAdvanceReminderTime(time)
+    triggerHaptic('selection')
+    const current = await personalStorage.getPreferences()
+    const updated = { ...current, advance_reminder_time: time }
+    await personalStorage.setPreferences(updated)
+    await syncAllNotifications(undefined, undefined, updated)
+  }
+
   const handleUpdateSemesterDate = async (
     target: 'fall_start' | 'fall_end' | 'spring_start' | 'spring_end',
     selectedDate: Date
@@ -183,12 +192,10 @@ export default function SettingsModalScreen() {
       visible={true}
       onClose={handleClose}
       profile={profile}
-      onOpenCredential={() => router.push('/modal/credential')}
-      onUploadCredential={() => {}}
       advanceReminderEnabled={advanceReminderEnabled}
       onToggleAdvanceReminder={handleToggleAdvanceReminder}
       advanceReminderTime={advanceReminderTime}
-      onOpenTimeModal={() => router.push('/modal/reminder-time')}
+      onSelectReminderTime={handleSelectReminderTime}
       classReminderEnabled={classReminderEnabled}
       onToggleClassReminder={handleToggleClassReminder}
       fallStart={fallStart}

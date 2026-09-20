@@ -20,6 +20,7 @@ import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { generateId } from '@/lib/idGenerator'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { logger } from '@/lib/logger'
 
 interface MinimalistAssignSlotModalProps {

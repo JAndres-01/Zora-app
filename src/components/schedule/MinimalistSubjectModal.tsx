@@ -244,6 +244,8 @@ export function MinimalistSubjectModal({
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
       <View style={styles.modalRoot}>
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
 
@@ -274,14 +276,16 @@ export function MinimalistSubjectModal({
               </View>
 
               <View style={styles.headerTitleWrap}>
-                <Text style={styles.sheetTitle}>
-                  {editingSubject ? 'Editar Materia' : 'Gestionar Materias'}
-                </Text>
-                {!editingSubject && (
-                  <Text style={styles.sheetSubtitle}>
-                    {safeSubjects.length === 1 ? '1 registrada' : `${safeSubjects.length} registradas`}
+                <View style={styles.titleWithBadgeRow}>
+                  <Text style={styles.sheetTitle}>
+                    {editingSubject ? 'Editar Materia' : 'Gestionar Materias'}
                   </Text>
-                )}
+                  {!editingSubject && (
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{safeSubjects.length}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
 
               <View style={styles.headerSide}>
@@ -368,10 +372,11 @@ export function MinimalistSubjectModal({
                       <Pressable
                         key={s.id}
                         onPress={() => handleStartEdit(s)}
-                        style={[
+                        style={({ pressed }) => [
                           styles.subjectRow,
                           !isLast && styles.subjectRowBorder,
                           isEditing && styles.subjectRowEditing,
+                          pressed && styles.subjectRowPressed,
                         ]}
                       >
                         <View style={styles.subjectLeft}>
@@ -400,7 +405,10 @@ export function MinimalistSubjectModal({
                             handleDeleteSubject(s.id, s.name)
                           }}
                           hitSlop={12}
-                          style={styles.actionIconBtn}
+                          style={({ pressed }) => [
+                            styles.actionIconBtn,
+                            pressed && styles.actionIconBtnPressed,
+                          ]}
                         >
                           <Trash2 size={14} color="#71717A" />
                         </Pressable>
@@ -424,7 +432,10 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
@@ -433,12 +444,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: '88%',
+    maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
   sheetHeader: {
-    paddingTop: 10,
+    paddingTop: 14,
     paddingBottom: 10,
     paddingHorizontal: 16,
     backgroundColor: 'transparent',
@@ -449,7 +460,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   headerRow: {
     flexDirection: 'row',
@@ -465,20 +476,30 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  titleWithBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sheetTitle: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  sheetSubtitle: {
-    color: '#71717A',
+  countBadge: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  countBadgeText: {
+    color: '#000000',
     fontSize: 11,
-    fontWeight: '500',
-    marginTop: 1,
+    fontWeight: '800',
   },
   sheetScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 24,
   },
   glassInputCard: {
@@ -561,6 +582,9 @@ const styles = StyleSheet.create({
   subjectRowEditing: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
+  subjectRowPressed: {
+    transform: [{ scale: 0.99 }],
+  },
   subjectLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -577,8 +601,8 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   subjectName: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
+    color: '#F4F4F5',
+    fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
@@ -587,12 +611,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   subjectTeacher: {
-    color: '#71717A',
-    fontSize: 11,
+    color: '#8E8E93',
+    fontSize: 12,
     fontWeight: '500',
   },
   actionIconBtn: {
     padding: 6,
+  },
+  actionIconBtnPressed: {
+    opacity: 0.5,
   },
   whiteDotBorder: WHITE_DOT_BORDER,
 })

@@ -487,7 +487,9 @@ const styles = StyleSheet.create({
   },
   headerTitleWrap: {
     flex: 1,
+    height: 58,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   sheetTitle: {
     color: '#FFFFFF',

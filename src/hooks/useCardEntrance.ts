@@ -1,12 +1,18 @@
-import { useRef, useEffect } from 'react'
+import { useCallback, useRef } from 'react'
 import { Animated } from 'react-native'
+import { useFocusEffect } from 'expo-router'
 import { SPRING_ENTRANCE_CONFIG } from '@/constants/animations'
 
 const playedScreens = new Set<string>()
 
 /**
  * Hook reutilizable para animar escalonadamente los contenedores principales de una pantalla.
- * Se ejecuta una única vez por pantalla por sesión para evitar saltos bruscos al cambiar de tab.
+ * Se dispara en el PRIMER foco de la pantalla —al entrar cada pestaña durante la sesión en
+ * frío— y solo una vez por pantalla por sesión para evitar saltos bruscos al cambiar de tab.
+ *
+ * Usa useFocusEffect (no useEffect) porque NativeTabs monta todas las pestañas al arrancar:
+ * si la animación corriera en el mount, las 4 cascadas sonarían ocultas en frío y no se vería
+ * ninguna al entrar después en cada pestaña.
  *
  * @param count Número de elementos/tarjetas a animar secuencialmente.
  * @param screenKey Identificador único de la pantalla (ej. 'today', 'tasks', 'schedule', 'settings').
@@ -23,9 +29,11 @@ export function useCardEntrance(
     Array.from({ length: count }, () => new Animated.Value(hasPlayed ? 1 : 0))
   ).current
 
-  useEffect(() => {
-    if (!playedScreens.has(screenKey)) {
+  useFocusEffect(
+    useCallback(() => {
+      if (playedScreens.has(screenKey)) return
       playedScreens.add(screenKey)
+
       cardEntranceAnims.forEach((anim) => anim.setValue(0))
 
       const staggerAnims = cardEntranceAnims.map((anim) =>
@@ -36,8 +44,8 @@ export function useCardEntrance(
       )
 
       Animated.stagger(staggerDelay, staggerAnims).start()
-    }
-  }, [cardEntranceAnims, screenKey, staggerDelay])
+    }, [cardEntranceAnims, screenKey, staggerDelay])
+  )
 
   return cardEntranceAnims
 }

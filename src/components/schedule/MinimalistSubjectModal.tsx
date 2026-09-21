@@ -298,7 +298,7 @@ export function MinimalistSubjectModal({
                 </Animated.View>
               </View>
 
-              <View style={styles.headerTitleWrap}>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
                 <Text style={styles.sheetTitle}>
                   {editingSubject ? 'Editar Materia' : 'Gestionar Materias'}
                 </Text>
@@ -486,8 +486,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitleWrap: {
-    flex: 1,
-    height: 58,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

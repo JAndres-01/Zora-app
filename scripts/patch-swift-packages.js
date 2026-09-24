@@ -1094,4 +1094,57 @@ if (fs.existsSync(podfilePath)) {
   console.log('[patch-swift-packages] Successfully configured Podfile settings and exclusions')
 }
 
+// 9. Patch project.pbxproj to ensure appex products belong to Products group (prevents CocoaPods xcodeproj consistency errors)
+function ensurePbxprojGroupConsistency(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.DerivedData') {
+        ensurePbxprojGroupConsistency(fullPath)
+      }
+    } else if (entry.name === 'project.pbxproj') {
+      try {
+        let content = fs.readFileSync(fullPath, 'utf8')
+        const orig = content
+        
+        // Find any .appex file references: <UUID> /* <Name>.appex */ = {isa = PBXFileReference; ...
+        const appexRegex = /([A-F0-9]{24})\s*\/\*\s*([^\*]+\.appex)\s*\*\/\s*=\s*\{isa\s*=\s*PBXFileReference;/g
+        let match
+        const appexFiles = []
+        while ((match = appexRegex.exec(content)) !== null) {
+          appexFiles.push({ uuid: match[1], name: match[2] })
+        }
+
+        if (appexFiles.length > 0) {
+          // Find the Products group: <UUID> /* Products */ = { ... children = ( ... ); ... };
+          const productsGroupRegex = /([A-F0-9]{24}\s*\/\*\s*Products\s*\*\/[\s\S]*?children\s*=\s*\()([\s\S]*?)(\);)/
+          const pMatch = content.match(productsGroupRegex)
+          if (pMatch) {
+            let childrenBlock = pMatch[2]
+            let changed = false
+            for (const appex of appexFiles) {
+              if (!childrenBlock.includes(appex.uuid)) {
+                childrenBlock += `\n\t\t\t\t${appex.uuid} /* ${appex.name} */,`
+                changed = true
+              }
+            }
+            if (changed) {
+              content = content.replace(productsGroupRegex, `$1${childrenBlock}\n\t\t\t$3`)
+              if (content !== orig) {
+                fs.writeFileSync(fullPath, content, 'utf8')
+                console.log(`[patch-swift-packages] Successfully ensured PBXGroup consistency for .appex in: ${fullPath}`)
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[patch-swift-packages] Warning inspecting pbxproj at ${fullPath}:`, e.message)
+      }
+    }
+  }
+}
+ensurePbxprojGroupConsistency(path.join(process.cwd(), 'ios'))
+
 console.log('[patch-swift-packages] All Swift and C++ compatibility patches applied successfully.')
+

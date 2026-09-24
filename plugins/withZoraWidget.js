@@ -156,20 +156,29 @@ const withWidgetXcodeProject = (config) => {
       pbxProject.addTargetAttribute('DevelopmentTeam', devTeam, widgetTarget)
     }
 
-    // 10. Dependencia e incrustación de la extensión en la aplicación principal
-    const firstTarget = pbxProject.getFirstTarget()
-    if (firstTarget && firstTarget.uuid) {
-      try {
-        pbxProject.addTargetDependency(firstTarget.uuid, [target.uuid])
-        pbxProject.addBuildPhase(
-          [`${EXTENSION_NAME}.appex`],
-          'PBXCopyFilesBuildPhase',
-          'Embed App Extensions',
-          firstTarget.uuid,
-          'app_extension'
-        )
-      } catch (err) {
-        console.warn('[withZoraWidget] Advertencia al vincular TargetDependency:', err)
+    // 10. Añadir el producto .appex al grupo Products y asegurar coherencia con CocoaPods / xcodeproj
+    const productRefUuid = target.pbxNativeTarget ? target.pbxNativeTarget.productReference : target.productReference
+    if (productRefUuid) {
+      let productsGroupKey = null
+      const firstProject = pbxProject.getFirstProject()?.firstProject
+      if (firstProject && firstProject.productRefGroup) {
+        productsGroupKey = firstProject.productRefGroup
+      }
+      if (!productsGroupKey) {
+        for (const key in groups) {
+          if (groups[key].name === 'Products' || groups[key].name === '"Products"') {
+            productsGroupKey = key
+            break
+          }
+        }
+      }
+      if (productsGroupKey) {
+        pbxProject.addToPbxGroup(productRefUuid, productsGroupKey)
+      } else {
+        const mainGroupKey = firstProject?.mainGroup
+        if (mainGroupKey) {
+          pbxProject.addToPbxGroup(productRefUuid, mainGroupKey)
+        }
       }
     }
 

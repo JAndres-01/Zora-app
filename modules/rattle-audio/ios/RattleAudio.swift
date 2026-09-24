@@ -48,12 +48,12 @@ public class RattleAudioModule: Module {
     let url: URL
     if uri.hasPrefix("file://") {
       guard let parsed = URL(string: uri) else {
-        throw Exceptions.RuntimeException("URI de ruleta inválida: \(uri)")
+        throw NSError(domain: "RattleAudio", code: 1, userInfo: [NSLocalizedDescriptionKey: "URI de ruleta inválida: \(uri)"])
       }
       url = parsed
     } else if uri.hasPrefix("http://") || uri.hasPrefix("https://") {
       guard let remoteUrl = URL(string: uri) else {
-        throw Exceptions.RuntimeException("URI remota inválida: \(uri)")
+        throw NSError(domain: "RattleAudio", code: 2, userInfo: [NSLocalizedDescriptionKey: "URI remota inválida: \(uri)"])
       }
       let data = try Data(contentsOf: remoteUrl)
       let tempUrl = FileManager.default.temporaryDirectory.appendingPathComponent("roulette_click_\(UUID().uuidString).wav")
@@ -69,7 +69,7 @@ public class RattleAudioModule: Module {
     guard frameCount > 0,
       let fileBuffer = AVAudioPCMBuffer(pcmFormat: fileFormat, frameCapacity: frameCount)
     else {
-      throw Exceptions.RuntimeException("No se pudo leer el WAV del clic")
+      throw NSError(domain: "RattleAudio", code: 3, userInfo: [NSLocalizedDescriptionKey: "No se pudo leer el WAV del clic"])
     }
     try file.read(into: fileBuffer)
     clip = fileBuffer
@@ -110,13 +110,12 @@ public class RattleAudioModule: Module {
     merged.frameLength = totalFrames
 
     let srcBytesPerFrame = Int(clipFormat.streamDescription.pointee.mBytesPerFrame)
-    let mergedABL = merged.mutableAudioBufferList
+    let mergedABL = UnsafeMutableAudioBufferListPointer(merged.mutableAudioBufferList)
 
     // Silencio base del flujo completo
-    for i in 0..<Int(mergedABL.pointee.mNumberBuffers) {
-      let dstBuf = mergedABL.pointee.mBuffers[i]
-      if let data = dstBuf.mData {
-        memset(data, 0, Int(dstBuf.mDataByteSize))
+    for buffer in mergedABL {
+      if let data = buffer.mData {
+        memset(data, 0, Int(buffer.mDataByteSize))
       }
     }
 
@@ -160,12 +159,12 @@ public class RattleAudioModule: Module {
         }
       }
     } else {
-      let srcABL = clip.mutableAudioBufferList
+      let srcABL = UnsafeMutableAudioBufferListPointer(clip.mutableAudioBufferList)
       for offsetMs in offsetsMs {
         let startFrame = Int(Double(offsetMs) / 1000.0 * sampleRate)
-        for i in 0..<Int(mergedABL.pointee.mNumberBuffers) {
-          let dstBuf = mergedABL.pointee.mBuffers[i]
-          let srcBuf = srcABL.pointee.mBuffers[i]
+        for i in 0..<min(mergedABL.count, srcABL.count) {
+          let dstBuf = mergedABL[i]
+          let srcBuf = srcABL[i]
           let byteOffset = startFrame * srcBytesPerFrame
           let copyBytes = min(
             Int(srcBuf.mDataByteSize),

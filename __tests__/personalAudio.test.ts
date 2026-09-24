@@ -17,7 +17,7 @@ import {
   configureAudioMode,
   __resetAudioConfigForTesting,
 } from '@/lib/personalAudio'
-import { createAudioPlayer, AudioModule } from 'expo-audio'
+import { createAudioPlayer, AudioModule, setAudioModeAsync } from 'expo-audio'
 
 describe('personalAudio', () => {
   beforeEach(() => {
@@ -63,7 +63,7 @@ describe('personalAudio', () => {
 
   it('configura el modo de audio nativo y precarga sonidos', async () => {
     await expect(configureAudioMode()).resolves.not.toThrow()
-    expect(AudioModule.setAudioModeAsync).toHaveBeenCalledWith({
+    expect(setAudioModeAsync).toHaveBeenCalledWith({
       playsInSilentMode: true,
       interruptionMode: 'mixWithOthers',
     })

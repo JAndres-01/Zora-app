@@ -50,9 +50,20 @@ const TOTAL_PARTICLES = 36 // Cañón individual centrado: densidad óptima y 60
 export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigger }: ConfettiProps) {
   const [bursts, setBursts] = useState<SingleBurst[]>([])
   const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null)
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
-    if (burstTrigger <= 0) return
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (burstTrigger <= 0) {
+      setBursts([])
+      return
+    }
 
     const burstId = Date.now() + Math.random()
     const particles: ParticleData[] = []
@@ -177,8 +188,10 @@ export const MinimalistConfetti = memo(function MinimalistConfetti({ burstTrigge
     const compositeAnim = Animated.parallel(animations)
     activeAnimRef.current = compositeAnim
 
-    compositeAnim.start(() => {
-      setBursts((prev) => prev.filter((b) => b.id !== burstId))
+    compositeAnim.start(({ finished }) => {
+      if (finished && isMountedRef.current) {
+        setBursts((prev) => prev.filter((b) => b.id !== burstId))
+      }
     })
 
     return () => {

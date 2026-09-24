@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native'
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
+import { useMemo } from 'react'
+import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { NativeDayWheelPicker } from '@/components/common/NativeDayWheelPicker'
 
 export type SemesterPickerType = 'fall_start' | 'fall_end' | 'spring_start' | 'spring_end'
 
@@ -18,29 +19,25 @@ export interface SemesterConfigCardProps {
   endDefaultMonth: number
   startDefaultDay: number
   endDefaultDay: number
-  activeDatePicker: SemesterPickerType | null
+  activeDatePicker?: SemesterPickerType | null
   currentYear: number
   formatReadableDate: (d: string, def: string) => string
   onToggleDatePicker: (key: SemesterPickerType) => void
   onUpdateDate: (key: SemesterPickerType, date: Date) => void
 }
 
-function parseDate(dateStr?: string, year?: number, month?: number, day?: number): Date {
-  const y = year || new Date().getFullYear()
-  const m = month !== undefined ? month : 0
-  const d = day || 1
+function parseDayFromDateString(dateStr?: string, defaultDay: number = 1): number {
   if (dateStr) {
     const parts = dateStr.split('-').map((n) => parseInt(n, 10))
     if (parts.length === 3 && !isNaN(parts[2])) {
-      return new Date(y, m, parts[2], 12, 0, 0)
+      return parts[2]
     }
   }
-  return new Date(y, m, d, 12, 0, 0)
+  return defaultDay
 }
 
 export function SemesterConfigCard({
   title,
-  subtitle,
   startKey,
   endKey,
   startDate,
@@ -66,19 +63,24 @@ export function SemesterConfigCard({
   const defaultMonth = isStartActive ? startDefaultMonth : endDefaultMonth
   const defaultDay = isStartActive ? startDefaultDay : endDefaultDay
 
-  const minDate = new Date(currentYear, defaultMonth, 1, 0, 0, 0, 0)
-  const maxDate = new Date(currentYear, defaultMonth + 1, 0, 23, 59, 59, 999)
+  const maxDays = useMemo(() => {
+    return new Date(currentYear, defaultMonth + 1, 0).getDate()
+  }, [currentYear, defaultMonth])
 
-  let currentDate = parseDate(activeDateValue, currentYear, defaultMonth, defaultDay)
-  if (currentDate.getTime() < minDate.getTime()) currentDate = minDate
-  if (currentDate.getTime() > maxDate.getTime()) currentDate = maxDate
+  const selectedDay = useMemo(() => {
+    return parseDayFromDateString(activeDateValue, defaultDay)
+  }, [activeDateValue, defaultDay])
+
+  const handleSelectDay = (day: number) => {
+    const safeDate = new Date(currentYear, defaultMonth, day, 12, 0, 0)
+    onUpdateDate(activeKey, safeDate)
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.row}>
         <View style={styles.labelCol}>
           <Text style={styles.titleText}>{title}</Text>
-          {Boolean(subtitle) && <Text style={styles.subtitleText}>{subtitle}</Text>}
         </View>
 
         <View style={styles.chipsRow}>
@@ -112,25 +114,27 @@ export function SemesterConfigCard({
 
       {isAnyActive && (
         <View style={styles.pickerWrapper}>
-          <Text style={styles.pickerHeader}>
-            {isStartActive ? `Fecha de inicio (${title})` : `Fecha de fin (${title})`}
-          </Text>
-          <DateTimePicker
-            value={currentDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            themeVariant="dark"
-            locale="es-ES"
-            minimumDate={minDate}
-            maximumDate={maxDate}
-            onChange={(_: DateTimePickerEvent, d?: Date) => {
-              if (d) {
-                // Bloquear año y mes a este límite fijo del semestre
-                const safeDate = new Date(currentYear, defaultMonth, d.getDate(), 12, 0, 0)
-                onUpdateDate(activeKey, safeDate)
-                if (Platform.OS === 'android') onToggleDatePicker(activeKey)
-              }
-            }}
+          <View style={styles.pickerHeaderRow}>
+            <Text style={styles.pickerHeader}>
+              {isStartActive ? `Inicio de ${title}` : `Fin de ${title}`}
+            </Text>
+            <Pressable
+              onPress={() => {
+                triggerHaptic('light')
+                onToggleDatePicker(activeKey)
+              }}
+              style={styles.doneBtn}
+            >
+              <Text style={styles.doneBtnText}>Listo</Text>
+            </Pressable>
+          </View>
+
+          <NativeDayWheelPicker
+            key={`${activeKey}-${defaultMonth}`}
+            selectedDay={selectedDay}
+            onSelectDay={handleSelectDay}
+            maxDays={maxDays}
+            formatLabel={(d) => `${d < 10 ? '0' : ''}${d}`}
           />
         </View>
       )}
@@ -140,7 +144,7 @@ export function SemesterConfigCard({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 16,
   },
   row: {
@@ -154,14 +158,9 @@ const styles = StyleSheet.create({
   },
   titleText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.1,
-  },
-  subtitleText: {
-    color: '#71717A',
-    fontSize: 11.5,
-    marginTop: 1.5,
+    fontSize: 15.5,
+    fontWeight: '500',
+    letterSpacing: -0.2,
   },
   chipsRow: {
     flexDirection: 'row',
@@ -169,20 +168,20 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dateChip: {
-    backgroundColor: '#27272A',
+    backgroundColor: '#2C2C2E',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   dateChipActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#3A3A3C',
     borderColor: '#FFFFFF',
   },
   dateChipText: {
     color: '#E4E4E7',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   dateChipTextActive: {
@@ -197,14 +196,33 @@ const styles = StyleSheet.create({
   pickerWrapper: {
     marginTop: 10,
     paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
+    width: '100%',
+  },
+  pickerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 4,
+    marginBottom: 8,
   },
   pickerHeader: {
-    color: '#A1A1AA',
-    fontSize: 11.5,
+    color: '#8E8E93',
+    fontSize: 12,
     fontWeight: '500',
-    marginBottom: 6,
+  },
+  doneBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  doneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 })

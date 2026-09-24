@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X, Share2, FileText } from 'lucide-react-native'
 import * as Sharing from 'expo-sharing'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { logger } from '@/lib/logger'
 
 interface MinimalistPdfViewerModalProps {
@@ -104,9 +105,11 @@ export function MinimalistPdfViewerModal({
             <Pressable onPress={handleShare} hitSlop={12} style={styles.actionBtn}>
               <Share2 size={16} color="#A1A1AA" />
             </Pressable>
-            <Pressable onPress={handleClose} hitSlop={12} style={styles.closeBtn}>
-              <X size={18} color="#FFFFFF" />
-            </Pressable>
+            <NativeGlassIconButton
+              onPress={handleClose}
+              icon="xmark"
+              accessibilityLabel="Cerrar visor PDF"
+            />
           </View>
         </View>
 

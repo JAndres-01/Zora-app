@@ -229,11 +229,19 @@ export function MinimalistDayView({
   return (
     <View style={styles.container}>
       {/* Selector de Días Horizontal Minimalista y Rápido */}
-      <BlurView
-        intensity={Platform.OS === 'ios' ? 55 : 90}
-        tint="dark"
-        style={styles.daySelectorContainer}
+      <View
+        style={[
+          styles.daySelectorContainer,
+          Platform.OS === 'android' && styles.daySelectorContainerAndroid,
+        ]}
       >
+        {Platform.OS === 'ios' && (
+          <BlurView
+            intensity={55}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+        )}
         {/* Indicador deslizante de día seleccionado */}
         <Animated.View
           style={[
@@ -278,7 +286,7 @@ export function MinimalistDayView({
             </Pressable>
           )
         })}
-      </BlurView>
+      </View>
 
       {/* Lista Abierta y Continua de 4 Bloques Diarios */}
       <View style={styles.blocksList}>
@@ -316,6 +324,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     position: 'relative',
     overflow: 'hidden',
+  },
+  daySelectorContainerAndroid: {
+    backgroundColor: '#18181B',
   },
   activeDayIndicator: {
     position: 'absolute',

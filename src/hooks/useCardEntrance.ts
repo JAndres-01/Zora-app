@@ -14,6 +14,10 @@ const playedScreens = new Set<string>()
  * si la animación corriera en el mount, las 4 cascadas sonarían ocultas en frío y no se vería
  * ninguna al entrar después en cada pestaña.
  *
+ * La cascada corre con useNativeDriver (SPRING_ENTRANCE_CONFIG), en el hilo nativo: no bloquea
+ * el acceso a la pestaña ni añade latencia al interactuar durante la entrada. Las tarjetas solo
+ * parten de opacidad 0 en el PRIMER foco; al volver a una pestaña ya visitada se mantienen en 1.
+ *
  * @param count Número de elementos/tarjetas a animar secuencialmente.
  * @param screenKey Identificador único de la pantalla (ej. 'today', 'tasks', 'schedule', 'settings').
  * @param staggerDelay Retardo en ms entre cada tarjeta animada (default: 80ms).

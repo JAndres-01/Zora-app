@@ -48,18 +48,23 @@ import { formatTime12h } from '@/lib/academicDateUtils'
 import { TaskDetailView } from './modal/TaskDetailView'
 import { TaskSubjectPicker } from './modal/TaskSubjectPicker'
 import { TaskDatePicker } from './modal/TaskDatePicker'
-import { formatTaskTypeLabel } from './modal/TaskTypePicker'
+import {
+  formatTaskTypeLabel,
+  TASK_TYPE_OPTIONS,
+  TaskTypePicker,
+} from './modal/TaskTypePicker'
+import { InlineOptionMenu } from './modal/InlineOptionMenu'
 import { MenuView, type MenuAction } from '@react-native-menu/menu'
 import { TaskAttachmentSection } from './modal/TaskAttachmentSection'
+import { TaskAttachmentMenu } from './modal/TaskAttachmentMenu'
+import { TaskCameraView } from './modal/TaskCameraView'
+import { TaskPhotosView } from './modal/TaskPhotosView'
 import { NativeGlassIconButton } from './NativeGlassIconButton'
 import { SCREEN_HEIGHT } from '@/constants/layout'
 import { DEFAULT_CLASS_START_TIME } from '@/constants/defaults'
 import { logger } from '@/lib/logger'
 
 export type TaskModalMode = 'none' | 'detail' | 'create' | 'edit'
-
-/** Tipos de tarea pre-establecidos para el context menu nativo */
-const TASK_TYPE_OPTIONS: TaskType[] = ['individual', 'grupal', 'proyecto', 'examen']
 
 function getNextClassDate(dayOfWeek: number, timeStr: string = DEFAULT_CLASS_START_TIME): Date {
   const now = new Date()
@@ -153,7 +158,8 @@ export function MinimalistTaskModal({
   // Navegación estilo Recordatorios (iOS): sub-páginas deslizantes (Materia/Fecha).
   // Los menús de opciones (Tipo/Adjuntos) usan el context menu nativo de iOS.
   const { width: SCREEN_W } = useWindowDimensions()
-  const [subPage, setSubPage] = useState<'subject' | 'date' | null>(null)
+  const [subPage, setSubPage] = useState<'subject' | 'date' | 'type' | 'attach' | 'camera' | 'photos' | null>(null)
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false)
   const pageSlideX = useRef(new Animated.Value(SCREEN_W)).current
   const subPageFade = useRef(new Animated.Value(1)).current
   const subPageSlide = useRef(new Animated.Value(0)).current
@@ -165,7 +171,7 @@ export function MinimalistTaskModal({
   const [modalVisible, setModalVisible] = useState(false)
 
   // Push/pop de sub-página estilo Recordatorios (deslizamiento desde la derecha)
-  const openSubPage = (page: 'subject' | 'date') => {
+  const openSubPage = (page: 'subject' | 'date' | 'type' | 'attach' | 'camera' | 'photos') => {
     LAYOUT_EASE(130)
     Keyboard.dismiss()
     setSubPage(page)
@@ -521,8 +527,8 @@ export function MinimalistTaskModal({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      quality: 0.7,
+      allowsEditing: false,
+      quality: 0.8,
     })
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -611,14 +617,14 @@ export function MinimalistTaskModal({
     {
       id: 'none',
       title: 'General (Sin materia)',
-      image: 'tray',
+      image: Platform.OS === 'ios' ? 'tray' : undefined,
       imageColor: '#8E8E93',
       state: selectedSubjectId === null ? 'on' : 'off',
     },
     ...subjects.map((s) => ({
       id: s.id,
       title: s.name,
-      image: 'circle.fill',
+      image: Platform.OS === 'ios' ? 'circle.fill' : undefined,
       imageColor: s.color || '#FFFFFF',
       state: selectedSubjectId === s.id ? 'on' : 'off',
     }) satisfies MenuAction),
@@ -627,24 +633,11 @@ export function MinimalistTaskModal({
   const subjectRowIcon = (
     <View
       style={[
-        styles.groupRowIcon,
-        {
-          backgroundColor: selectedSubject
-            ? isFormSubjWhite
-              ? 'rgba(255, 255, 255, 0.16)'
-              : `${selectedSubject.color || '#FFFFFF'}22`
-            : 'rgba(255, 255, 255, 0.08)',
-        },
+        styles.dot,
+        { backgroundColor: selectedSubject?.color || '#8E8E93' },
+        isFormSubjWhite && styles.whiteDotBorder,
       ]}
-    >
-      <View
-        style={[
-          styles.dot,
-          { backgroundColor: selectedSubject?.color || '#A1A1AA' },
-          isFormSubjWhite && styles.whiteDotBorder,
-        ]}
-      />
-    </View>
+    />
   )
 
   // Opciones de los context menus nativos (Tipo / Adjuntar)
@@ -657,18 +650,18 @@ export function MinimalistTaskModal({
   const attachMenuActions: MenuAction[] = [
     {
       id: 'camera',
-      title: 'Tomar foto',
+      title: 'Cámara',
       image: Platform.OS === 'ios' ? 'camera' : undefined,
     },
     {
-      id: 'gallery',
-      title: 'Galería',
+      id: 'photos',
+      title: 'Fotos',
       image: Platform.OS === 'ios' ? 'photo.on.rectangle' : undefined,
     },
     {
-      id: 'document',
-      title: 'Documento',
-      image: Platform.OS === 'ios' ? 'doc' : undefined,
+      id: 'files',
+      title: 'Archivos',
+      image: Platform.OS === 'ios' ? 'paperclip' : undefined,
     },
   ]
 
@@ -679,7 +672,7 @@ export function MinimalistTaskModal({
       <View style={styles.modalRoot}>
         {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={() => handleSmoothClose()} />
         </Animated.View>
@@ -745,7 +738,7 @@ export function MinimalistTaskModal({
               >
                 {/* Campos de Título y Notas en tarjeta liquid glass */}
                 <View style={styles.glassInputCard}>
-                  <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+                  {Platform.OS === 'ios' && <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />}
                   <TextInput
                     ref={titleInputRef}
                     placeholder="¿Qué tienes que hacer?"
@@ -768,18 +761,8 @@ export function MinimalistTaskModal({
                 {/* Sección: Entrega (rows tipo Recordatorios) */}
                 <GroupSectionHeader>Entrega</GroupSectionHeader>
                 <GroupCard>
-                  {/* Materia → context menu nativo con colores (web: sub-página existente) */}
-                  {isWeb ? (
-                    <GroupRow
-                      onPress={() => openSubPage('subject')}
-                      accessibilityLabel="Elegir materia"
-                      iconBox={subjectRowIcon}
-                      label="Materia"
-                      value={selectedSubject?.name || 'No asignada'}
-                      valueActive={Boolean(selectedSubject)}
-                      trailing={<ChevronRight size={14} color="#636366" />}
-                    />
-                  ) : (
+                  {/* Materia → context menu nativo con colores en iOS; sub-página en Android/Web */}
+                  {Platform.OS === 'ios' ? (
                     <MenuView
                       title="Elegir materia"
                       shouldOpenOnLongPress={false}
@@ -802,6 +785,16 @@ export function MinimalistTaskModal({
                         />
                       </View>
                     </MenuView>
+                  ) : (
+                    <GroupRow
+                      onPress={() => openSubPage('subject')}
+                      accessibilityLabel="Elegir materia"
+                      iconBox={subjectRowIcon}
+                      label="Materia"
+                      value={selectedSubject?.name || 'No asignada'}
+                      valueActive={Boolean(selectedSubject)}
+                      trailing={<ChevronRight size={14} color="#636366" />}
+                    />
                   )}
 
                   <View style={styles.groupHairline} />
@@ -810,35 +803,17 @@ export function MinimalistTaskModal({
                   <GroupRow
                     onPress={() => openSubPage('date')}
                     accessibilityLabel="Elegir fecha de entrega"
-                    iconBox={
-                      <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
-                        <Calendar size={15} color="#8E8E93" />
-                      </View>
-                    }
+                    iconBox={<Calendar size={19} color="#FFFFFF" strokeWidth={2} />}
                     label="Fecha de entrega"
                     value={formatDueDateLabel(dueDate)}
                     valueActive={Boolean(dueDate)}
-                    trailing={<ChevronRight size={14} color="#636366" />}
+                    trailing={<ChevronRight size={15} color="#8E8E93" />}
                   />
 
                   <View style={styles.groupHairline} />
 
-                  {/* Tipo de tarea → context menu nativo iOS */}
-                  {isWeb ? (
-                    <View style={styles.groupRow}>
-                      <GroupRowContent
-                        iconBox={
-                          <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
-                            <Layers size={15} color="#8E8E93" />
-                          </View>
-                        }
-                        label="Tipo de tarea"
-                        value={formatTaskTypeLabel(taskType)}
-                        valueActive={taskType !== 'individual'}
-                        trailing={<ChevronDown size={13} color="#636366" />}
-                      />
-                    </View>
-                  ) : (
+                  {/* Tipo de tarea → context menu nativo iOS / sub-página deslizante en Android y Web */}
+                  {Platform.OS === 'ios' ? (
                     <MenuView
                       title="Tipo de tarea"
                       shouldOpenOnLongPress={false}
@@ -852,18 +827,27 @@ export function MinimalistTaskModal({
                     >
                       <View style={styles.groupRow}>
                         <GroupRowContent
-                          iconBox={
-                            <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
-                              <Layers size={15} color="#8E8E93" />
-                            </View>
-                          }
+                          iconBox={<Layers size={19} color="#FFFFFF" strokeWidth={2} />}
                           label="Tipo de tarea"
                           value={formatTaskTypeLabel(taskType)}
                           valueActive={taskType !== 'individual'}
-                          trailing={<ChevronDown size={13} color="#636366" />}
+                          trailing={<ChevronDown size={14} color="#8E8E93" />}
                         />
                       </View>
                     </MenuView>
+                  ) : (
+                    <GroupRow
+                      onPress={() => {
+                        triggerHaptic('light')
+                        openSubPage('type')
+                      }}
+                      accessibilityLabel="Tipo de tarea"
+                      iconBox={<Layers size={19} color="#FFFFFF" strokeWidth={2} />}
+                      label="Tipo de tarea"
+                      value={formatTaskTypeLabel(taskType)}
+                      valueActive={taskType !== 'individual'}
+                      trailing={<ChevronRight size={15} color="#8E8E93" />}
+                    />
                   )}
 
                   {/* Destino: Clase / Personal (Solo visible para Admin en modo crear) */}
@@ -877,11 +861,7 @@ export function MinimalistTaskModal({
                           setPublishToClass(!publishToClass)
                         }}
                         accessibilityLabel="Publicar en la clase"
-                        iconBox={
-                          <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
-                            <Globe size={15} color="#8E8E93" />
-                          </View>
-                        }
+                        iconBox={<Globe size={19} color="#FFFFFF" strokeWidth={2} />}
                         label="Publicar en la clase"
                         trailing={
                           <Switch
@@ -900,54 +880,53 @@ export function MinimalistTaskModal({
                 {/* Sección: Archivos */}
                 <GroupSectionHeader>Archivos</GroupSectionHeader>
                 <GroupCard>
-                  {/* Adjuntar archivo → context menu nativo iOS (foto / galería / documento) */}
-                  {isWeb ? (
-                    <View style={styles.groupRow}>
-                      <GroupRowContent
-                        iconBox={
-                          <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
-                            <Paperclip size={15} color="#8E8E93" />
-                          </View>
-                        }
-                        label="Adjuntar archivo"
-                        value={
-                          attachments.length > 0
-                            ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
-                            : undefined
-                        }
-                        trailing={<ChevronDown size={13} color="#636366" />}
-                      />
-                    </View>
-                  ) : (
+                  {Platform.OS === 'ios' ? (
                     <MenuView
-                      title="Adjuntar archivo"
+                      testID="task-attachment-menu"
+                      title="Añadir adjuntos"
                       shouldOpenOnLongPress={false}
                       themeVariant="dark"
                       actions={attachMenuActions}
                       onPressAction={({ nativeEvent }) => {
-                        const opt = nativeEvent.event
-                        if (opt === 'camera') handleTakePhoto()
-                        else if (opt === 'gallery') handlePickImage()
-                        else handlePickDocument()
+                        triggerHaptic('selection')
+                        if (nativeEvent.event === 'camera') {
+                          openSubPage('camera')
+                        } else if (nativeEvent.event === 'photos') {
+                          openSubPage('photos')
+                        } else if (nativeEvent.event === 'files') {
+                          handlePickDocument()
+                        }
                       }}
                     >
                       <View style={styles.groupRow}>
                         <GroupRowContent
-                          iconBox={
-                            <View style={[styles.groupRowIcon, styles.groupRowIconDefault]}>
-                              <Paperclip size={15} color="#8E8E93" />
-                            </View>
-                          }
-                          label="Adjuntar archivo"
+                          iconBox={<Paperclip size={19} color="#FFFFFF" strokeWidth={2} />}
+                          label="Añadir adjuntos"
                           value={
                             attachments.length > 0
                               ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
                               : undefined
                           }
-                          trailing={<ChevronDown size={13} color="#636366" />}
+                          trailing={<ChevronDown size={14} color="#8E8E93" />}
                         />
                       </View>
                     </MenuView>
+                  ) : (
+                    <GroupRow
+                      onPress={() => {
+                        triggerHaptic('light')
+                        setShowAttachmentMenu(true)
+                      }}
+                      accessibilityLabel="Añadir adjuntos"
+                      iconBox={<Paperclip size={19} color="#FFFFFF" strokeWidth={2} />}
+                      label="Añadir adjuntos"
+                      value={
+                        attachments.length > 0
+                          ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
+                          : undefined
+                      }
+                      trailing={<ChevronRight size={15} color="#8E8E93" />}
+                    />
                   )}
                 </GroupCard>
 
@@ -962,7 +941,7 @@ export function MinimalistTaskModal({
                 />
               </ScrollView>
 
-              {/* Sub-página deslizante estilo Recordatorios (Materia / Fecha) */}
+              {/* Sub-página deslizante estilo Recordatorios (Materia / Fecha / Cámara / Fotos) */}
               {subPage != null && (
                 <Animated.View
                   style={[
@@ -970,57 +949,119 @@ export function MinimalistTaskModal({
                     { transform: [{ translateX: pageSlideX }] },
                   ]}
                 >
-                  <View style={styles.subPageBack}>
-                    <View style={styles.dragHandle} />
-                    <View style={styles.headerRow}>
-                      <View style={styles.headerSide}>
-                        <NativeGlassIconButton
-                          onPress={closeSubPage}
-                          icon="back"
-                          accessibilityLabel="Volver"
-                        />
+                  {subPage === 'camera' ? (
+                    <TaskCameraView
+                      onCapture={(attachment) => {
+                        setAttachments((prev) => [...prev, attachment])
+                        playSaveSound()
+                        closeSubPage()
+                      }}
+                      onBack={closeSubPage}
+                    />
+                  ) : subPage === 'photos' ? (
+                    <TaskPhotosView
+                      onSelectPhoto={(attachment) => {
+                        setAttachments((prev) => [...prev, attachment])
+                        playSaveSound()
+                        closeSubPage()
+                      }}
+                      onBack={closeSubPage}
+                    />
+                  ) : (
+                    <>
+                      <View style={styles.subPageBack}>
+                        <View style={styles.dragHandle} />
+                        <View style={styles.headerRow}>
+                          <View style={styles.headerSide}>
+                            <NativeGlassIconButton
+                              onPress={closeSubPage}
+                              icon="back"
+                              accessibilityLabel="Volver"
+                            />
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                  </View>
-                  <ScrollView
-                    contentContainerStyle={styles.subPageContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    keyboardDismissMode="on-drag"
-                  >
-                    {subPage === 'subject' ? (
-                      <TaskSubjectPicker
-                        subjects={subjects}
-                        selectedSubjectId={selectedSubjectId}
-                        onSelectSubject={(id) => {
-                          LAYOUT_EASE(130)
-                          setSelectedSubjectId(id)
-                          closeSubPage()
-                        }}
-                        fadeAnim={subPageFade}
-                        slideAnim={subPageSlide}
-                      />
-                    ) : (
-                      <TaskDatePicker
-                        dueDate={dueDate}
-                        onSelectDueDate={setDueDate}
-                        onSelectClass={(sched, subj) => {
-                          LAYOUT_EASE(130)
-                          handleSelectClass(sched, subj)
-                        }}
-                        schedules={schedules}
-                        subjects={subjects}
-                        fadeAnim={subPageFade}
-                        slideAnim={subPageSlide}
-                        onClosePicker={closeSubPage}
-                      />
-                    )}
-                  </ScrollView>
+                      <ScrollView
+                        contentContainerStyle={styles.subPageContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
+                      >
+                        {subPage === 'subject' ? (
+                          <TaskSubjectPicker
+                            subjects={subjects}
+                            selectedSubjectId={selectedSubjectId}
+                            onSelectSubject={(id) => {
+                              LAYOUT_EASE(130)
+                              setSelectedSubjectId(id)
+                              closeSubPage()
+                            }}
+                            fadeAnim={subPageFade}
+                            slideAnim={subPageSlide}
+                          />
+                        ) : subPage === 'type' ? (
+                          <TaskTypePicker
+                            selectedType={taskType}
+                            onSelectType={(t) => {
+                              LAYOUT_EASE(130)
+                              setTaskType(t)
+                              closeSubPage()
+                            }}
+                          />
+                        ) : subPage === 'attach' ? (
+                          <InlineOptionMenu
+                            header="Adjuntar"
+                            options={[
+                              { key: 'camera', label: 'Cámara' },
+                              { key: 'photos', label: 'Fotos' },
+                              { key: 'files', label: 'Archivos' },
+                            ]}
+                            onSelect={(key) => {
+                              LAYOUT_EASE(130)
+                              closeSubPage()
+                              if (key === 'camera') openSubPage('camera')
+                              else if (key === 'photos') openSubPage('photos')
+                              else handlePickDocument()
+                            }}
+                          />
+                        ) : (
+                          <TaskDatePicker
+                            dueDate={dueDate}
+                            onSelectDueDate={setDueDate}
+                            onSelectClass={(sched, subj) => {
+                              LAYOUT_EASE(130)
+                              handleSelectClass(sched, subj)
+                            }}
+                            schedules={schedules}
+                            subjects={subjects}
+                            fadeAnim={subPageFade}
+                            slideAnim={subPageSlide}
+                            onClosePicker={closeSubPage}
+                          />
+                        )}
+                      </ScrollView>
+                    </>
+                  )}
                 </Animated.View>
               )}
             </>
           )}
         </Animated.View>
+
+        {/* Popover / Menú Contextual de Adjuntos (Liquid Glass) */}
+        <TaskAttachmentMenu
+          visible={showAttachmentMenu}
+          onClose={() => setShowAttachmentMenu(false)}
+          onSelectOption={(opt) => {
+            if (opt === 'camera') {
+              openSubPage('camera')
+            } else if (opt === 'photos') {
+              openSubPage('photos')
+            } else if (opt === 'files') {
+              handlePickDocument()
+            }
+          }}
+        />
 
         {/* Visor de Fotos con Zoom */}
         <MinimalistImageViewerModal
@@ -1048,7 +1089,7 @@ export function MinimalistTaskModal({
 function GroupCard({ children }: { children: ReactNode }) {
   return (
     <View style={styles.groupCard}>
-      <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+      {Platform.OS === 'ios' && <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />}
       {children}
     </View>
   )
@@ -1141,15 +1182,15 @@ const styles = StyleSheet.create({
   },
   backdropDim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
@@ -1160,7 +1201,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   sheetHeader: {
     alignItems: 'center',
@@ -1177,8 +1218,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   headerSide: {
-    width: 58,
-    height: 58,
+    width: Platform.OS === 'ios' ? 58 : 36,
+    height: Platform.OS === 'ios' ? 58 : 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1205,8 +1246,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   glassInputCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     overflow: 'hidden',
   },
@@ -1218,8 +1260,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   glassInputHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   glassNotesInput: {
     color: '#D4D4D8',
@@ -1238,8 +1280,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   groupCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   groupRow: {
@@ -1252,16 +1295,6 @@ const styles = StyleSheet.create({
   },
   groupRowPressed: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  groupRowIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  groupRowIconDefault: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   groupRowLabel: {
     color: '#F4F4F5',
@@ -1283,14 +1316,13 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   groupHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    marginLeft: 54,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
   },
   whiteDotBorder: {
     borderWidth: 1,
@@ -1302,7 +1334,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#171719',
     zIndex: 50,
   },
   subPageBack: {

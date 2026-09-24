@@ -22,6 +22,7 @@ import {
 import * as Sharing from 'expo-sharing'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from '@/constants/layout'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { logger } from '@/lib/logger'
 
 const MIN_SCALE = 1
@@ -356,9 +357,11 @@ export function MinimalistImageViewerModal({
               <Share2 size={16} color="#FAFAFA" strokeWidth={2.2} />
             </Pressable>
 
-            <Pressable onPress={handleClose} hitSlop={10} style={styles.closeBtn}>
-              <X size={18} color="#FFFFFF" strokeWidth={2.4} />
-            </Pressable>
+            <NativeGlassIconButton
+              onPress={handleClose}
+              icon="xmark"
+              accessibilityLabel="Cerrar visor"
+            />
           </View>
         </Animated.View>
 

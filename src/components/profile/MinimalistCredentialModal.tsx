@@ -15,8 +15,9 @@ import { WebView } from 'react-native-webview'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { IdCard, Share2, RefreshCw, Trash2 } from 'lucide-react-native'
+import { IdCard } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
+import { MenuView, type MenuAction } from '@react-native-menu/menu'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { DEFAULT_STUDENT_NAME } from '@/constants/defaults'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
@@ -172,6 +173,28 @@ export function MinimalistCredentialModal({
     credentialName?.match(/\.(jpeg|jpg|png|webp|gif|bmp|heic)/i)
   )
 
+  const menuActions: MenuAction[] = useMemo(
+    () => [
+      {
+        id: 'share',
+        title: 'Compartir',
+        image: Platform.select({ ios: 'square.and.arrow.up', android: 'ic_menu_share' }),
+      },
+      {
+        id: 'change',
+        title: isImage ? 'Cambiar imagen' : 'Cambiar PDF',
+        image: Platform.select({ ios: 'arrow.triangle.2.circlepath', android: 'ic_menu_rotate' }),
+      },
+      {
+        id: 'delete',
+        title: 'Eliminar credencial',
+        attributes: { destructive: true },
+        image: Platform.select({ ios: 'trash', android: 'ic_menu_delete' }),
+      },
+    ],
+    [isImage]
+  )
+
   useEffect(() => {
     let active = true
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -273,6 +296,27 @@ export function MinimalistCredentialModal({
     onChangeCredential()
   }
 
+  const handleMenuAction = (actionId: string) => {
+    triggerHaptic('selection')
+    if (actionId === 'share') handleShare()
+    else if (actionId === 'change') handleChange()
+    else if (actionId === 'delete') handleDelete()
+  }
+
+  const handleOpenMenuFallback = () => {
+    triggerHaptic('light')
+    Alert.alert(
+      'Opciones de Credencial',
+      undefined,
+      [
+        { text: 'Compartir', onPress: handleShare },
+        { text: isImage ? 'Cambiar imagen' : 'Cambiar PDF', onPress: handleChange },
+        { text: 'Eliminar credencial', style: 'destructive', onPress: handleDelete },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    )
+  }
+
   return (
     <Modal
       visible={modalVisible}
@@ -282,29 +326,29 @@ export function MinimalistCredentialModal({
       statusBarTranslucent={true}
     >
       <View style={styles.modalRoot}>
-        {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
+        {/* Backdrop Frosted con Fade */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleClose} />
         </Animated.View>
 
-        {/* Hoja Deslizante de Pantalla Completa */}
+        {/* Hoja Deslizante */}
         <Animated.View
           style={[
             styles.sheetContainer,
             {
-              paddingTop: Math.max(insets.top, 14),
-              paddingBottom: Math.max(insets.bottom, 14),
+              paddingBottom: Math.max(insets.bottom, 16),
               transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
         >
-          {/* Header (patrón canónico: X glass + título centrado + hairline) */}
+          {/* Header minimalista con botón X + Título centrado + Botón 3 puntos */}
           <View style={styles.headerSection} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
 
             <View style={styles.headerRow}>
+              {/* Botón Cerrar (Izquierda) */}
               <View style={styles.headerSide}>
                 <NativeGlassIconButton
                   onPress={handleClose}
@@ -313,6 +357,7 @@ export function MinimalistCredentialModal({
                 />
               </View>
 
+              {/* Título Centrado (Sin subtítulo) */}
               <View style={styles.headerTitleWrap} pointerEvents="none">
                 <View style={styles.titleRow}>
                   <Text style={styles.headerTitle}>Credencial Digital</Text>
@@ -320,12 +365,38 @@ export function MinimalistCredentialModal({
                     <Text style={styles.pdfPillText}>{isImage ? 'IMG' : 'PDF'}</Text>
                   </View>
                 </View>
-                <Text style={styles.headerSubtitle} numberOfLines={1}>
-                  {studentName} • {credentialName || (isImage ? 'Imagen escolar' : 'Archivo escolar')}
-                </Text>
               </View>
 
-              <View style={styles.headerSide} />
+              {/* Botón 3 Puntos / Menú Contextual Nativo (Derecha) */}
+              <View style={styles.headerSide}>
+                {Platform.OS === 'ios' ? (
+                  <MenuView
+                    testID="credential-options-menu"
+                    title="Opciones de Credencial"
+                    style={styles.menuContainer}
+                    shouldOpenOnLongPress={false}
+                    themeVariant="dark"
+                    actions={menuActions}
+                    onPressAction={({ nativeEvent }) => {
+                      handleMenuAction(nativeEvent.event)
+                    }}
+                  >
+                    <View pointerEvents="none" style={styles.menuButtonWrap}>
+                      <NativeGlassIconButton
+                        onPress={() => {}}
+                        icon="ellipsis"
+                        accessibilityLabel="Opciones de credencial"
+                      />
+                    </View>
+                  </MenuView>
+                ) : (
+                  <NativeGlassIconButton
+                    onPress={handleOpenMenuFallback}
+                    icon="ellipsis"
+                    accessibilityLabel="Opciones de credencial"
+                  />
+                )}
+              </View>
             </View>
 
             <View style={styles.headerHairline} />
@@ -391,47 +462,6 @@ export function MinimalistCredentialModal({
               />
             )}
           </View>
-
-          {/* Barra de Acciones Inferior */}
-          <View style={styles.actionBar}>
-            {/* Botón Cambiar */}
-            <Pressable
-              onPress={handleChange}
-              style={({ pressed }) => [
-                styles.actionBtn,
-                styles.changeBtn,
-                pressed && styles.btnPressed,
-              ]}
-            >
-              <RefreshCw size={15} color="#FFFFFF" strokeWidth={2.2} />
-              <Text style={styles.changeBtnText}>Cambiar {isImage ? 'Imagen' : 'PDF'}</Text>
-            </Pressable>
-
-            {/* Botón Compartir / Exportar */}
-            <Pressable
-              onPress={handleShare}
-              style={({ pressed }) => [
-                styles.actionBtn,
-                styles.shareBtn,
-                pressed && styles.btnPressed,
-              ]}
-            >
-              <Share2 size={15} color="#000000" strokeWidth={2.2} />
-              <Text style={styles.shareBtnText}>Compartir</Text>
-            </Pressable>
-
-            {/* Botón Eliminar */}
-            <Pressable
-              onPress={handleDelete}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.deleteBtn,
-                pressed && styles.btnPressed,
-              ]}
-            >
-              <Trash2 size={17} color="#EF4444" strokeWidth={2.2} />
-            </Pressable>
-          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -449,23 +479,22 @@ const styles = StyleSheet.create({
   },
   backdropDim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    height: '94%',
-    paddingHorizontal: 16,
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    height: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
   headerSection: {
     alignItems: 'center',
-    paddingTop: 10,
+    paddingTop: 8,
     paddingBottom: 4,
     backgroundColor: 'transparent',
     position: 'relative',
@@ -476,7 +505,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   headerRow: {
     flexDirection: 'row',
@@ -484,10 +513,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     paddingHorizontal: 16,
+    position: 'relative',
+    minHeight: Platform.OS === 'ios' ? 58 : 36,
   },
   headerSide: {
-    width: 58,
-    height: 58,
+    width: Platform.OS === 'ios' ? 58 : 36,
+    height: Platform.OS === 'ios' ? 58 : 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  menuContainer: {
+    width: Platform.OS === 'ios' ? 58 : 36,
+    height: Platform.OS === 'ios' ? 58 : 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuButtonWrap: {
+    width: Platform.OS === 'ios' ? 58 : 36,
+    height: Platform.OS === 'ios' ? 58 : 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -499,11 +543,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 72,
+    zIndex: 1,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
   headerTitle: {
@@ -523,25 +568,24 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '800',
   },
-  headerSubtitle: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
   headerHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     width: '100%',
+    marginTop: 4,
   },
   viewerWrapper: {
     flex: 1,
     backgroundColor: '#000000',
-    borderRadius: 18,
+    borderRadius: 20,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     position: 'relative',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 6,
   },
   errorOverlay: {
     ...StyleSheet.absoluteFill,
@@ -583,51 +627,5 @@ const styles = StyleSheet.create({
   webview: {
     flex: 1,
     backgroundColor: '#000000',
-  },
-  actionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingTop: 12,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  changeBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  changeBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  shareBtn: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  shareBtnText: {
-    color: '#000000',
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  deleteBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.28)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnPressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.98 }],
   },
 })

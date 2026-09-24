@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -15,9 +15,10 @@ import {
 } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router'
+import { Stack, useLocalSearchParams } from 'expo-router'
 import { CheckCircle2, Search, X, ChevronLeft } from 'lucide-react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
+import { sameSubjects, sameTasks } from '@/lib/dataEquality'
 import type { Task, Subject } from '@/types/personal'
 import { MinimalistTaskRow } from '@/components/tasks/MinimalistTaskRow'
 import { MinimalistTaskModal, TaskModalMode } from '@/components/tasks/MinimalistTaskModal'
@@ -40,6 +41,7 @@ import {
   scheduleTaskReminder,
 } from '@/lib/personalNotifications'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
+import { useDeferredFocusLoad } from '@/hooks/useDeferredFocusLoad'
 import { sortTasksByDueDate } from '@/lib/taskSort'
 import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
 import { useClassAuth } from '@/context/ClassAuthContext'
@@ -132,21 +134,30 @@ export default function TasksScreen() {
     return () => hideListener.remove()
   }, [isSearchActive, searchQuery])
 
+  const lastTasksRef = useRef(tasks)
+  const lastSubjectsRef = useRef(subjects)
+
   const loadData = useCallback(async () => {
     const [resolvedTasks, cachedSubjs] = await Promise.all([
       personalStorage.getTasksWithSubjects(),
       personalStorage.getSubjects(),
     ])
 
-    setTasks(resolvedTasks)
-    setSubjects(cachedSubjs)
+    // Skip setState cuando la data no cambió: la entrada a una pestaña ya
+    // cargada no debe re-renderizar toda la pantalla (congelaba el frame del
+    // switch en Android y hacía caer el FPS de JS de 90 a 60).
+    if (!sameTasks(resolvedTasks, lastTasksRef.current)) {
+      lastTasksRef.current = resolvedTasks
+      setTasks(resolvedTasks)
+    }
+    if (!sameSubjects(cachedSubjs, lastSubjectsRef.current)) {
+      lastSubjectsRef.current = cachedSubjs
+      setSubjects(cachedSubjs)
+    }
   }, [])
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData()
-    }, [loadData])
-  )
+  // Refresco DIFERIDO tras el paint del switch: la entrada no espera al re-render.
+  useDeferredFocusLoad(loadData)
 
   const isSavingTaskRef = useRef(false)
 
@@ -164,32 +175,115 @@ export default function TasksScreen() {
     highlight?: string
     taskId?: string
     openNewTask?: string
+    _t?: string
   }>()
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
-  
+  const lastProcessedParamRef = useRef<string | null>(null)
+  const entranceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadDataTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollToIndexTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (entranceTimeoutRef.current) clearTimeout(entranceTimeoutRef.current)
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
+      if (scrollToIndexTimerRef.current) clearTimeout(scrollToIndexTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (params.filter === 'pending' || params.filter === 'completed' || params.filter === 'all') {
       setStatusFilter(params.filter)
     }
-    const targetId = params.highlight || params.taskId
-    if (targetId) {
-      setHighlightedTaskId(targetId)
-      const timer = setTimeout(() => setHighlightedTaskId(null), 3000)
-      return () => clearTimeout(timer)
-    }
+
     if (params.openNewTask === 'true') {
       setActiveTask(null)
       setTaskModalMode('create')
     }
-  }, [params.filter, params.highlight, params.taskId, params.openNewTask])
+
+    const targetId = params.highlight || params.taskId
+    if (targetId) {
+      const paramKey = `${targetId}_${params._t || ''}`
+      if (paramKey !== lastProcessedParamRef.current) {
+        lastProcessedParamRef.current = paramKey
+
+        // 1. Ajustar filtros si la tarea objetivo quedaría oculta
+        const currentTasks = tasksRef.current
+        const target = currentTasks.find((t) => t.id === targetId)
+        if (target) {
+          if (target.status === 'pending' && statusFilter === 'completed') {
+            setStatusFilter('pending')
+          } else if (target.status === 'completed' && statusFilter === 'pending') {
+            setStatusFilter('completed')
+          }
+          if (selectedSubjectId !== 'all' && target.subject_id !== selectedSubjectId) {
+            setSelectedSubjectId('all')
+          }
+          if (searchQuery.trim()) {
+            setSearchQuery('')
+            setDebouncedQuery('')
+          }
+          if (isSearchActive) {
+            setIsSearchActive(false)
+          }
+        }
+
+        // 2. Activar el resaltado con contorno blanco y elevación
+        setHighlightedTaskId(targetId)
+        if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+        highlightTimeoutRef.current = setTimeout(() => {
+          setHighlightedTaskId(null)
+        }, 2800)
+
+        // 3. Desplazamiento animado suave hacia la posición de la tarea en la lista
+        if (scrollToIndexTimerRef.current) clearTimeout(scrollToIndexTimerRef.current)
+        scrollToIndexTimerRef.current = setTimeout(() => {
+          const freshTasks = tasksRef.current
+          const targetItem = freshTasks.find((t) => t.id === targetId)
+          const targetStatus = targetItem ? targetItem.status : statusFilter
+
+          const visibleList = sortTasksByDueDate(
+            freshTasks.filter((t) => {
+              if (targetStatus === 'pending' && t.status !== 'pending') return false
+              if (targetStatus === 'completed' && t.status !== 'completed') return false
+              return true
+            })
+          )
+
+          const index = visibleList.findIndex((t) => t.id === targetId)
+          if (index >= 0 && flatListRef.current) {
+            try {
+              flatListRef.current.scrollToIndex({
+                index,
+                animated: true,
+                viewPosition: 0.25,
+              })
+            } catch {
+              // FlatList onScrollToIndexFailed se encargará si la celda aún no está renderizada
+            }
+          }
+        }, 120)
+      }
+    }
+  }, [
+    params.filter,
+    params.highlight,
+    params.taskId,
+    params.openNewTask,
+    params._t,
+    statusFilter,
+    selectedSubjectId,
+    searchQuery,
+    isSearchActive,
+  ])
 
   // Handlers de Tareas
-  const handleStatusChange = (newStatus: 'pending' | 'completed' | 'all') => {
-    if (newStatus === statusFilter) return
+  const handleStatusChange = useCallback((newStatus: 'pending' | 'completed' | 'all') => {
     setStatusFilter(newStatus)
-  }
+  }, [])
 
   const handleToggleStatus = useCallback(
     async (taskId: string, currentStatus: string) => {
@@ -197,9 +291,11 @@ export default function TasksScreen() {
 
       if (nextStatus === 'completed') {
         cancelTaskReminder(taskId)
+        // El sonido de completar es feedback de la acción: suena siempre que el sonido
+        // global esté activo (sound_enabled). confetti_enabled solo controla el confeti visual.
+        playConfettiSound()
         personalStorage.getPreferences().then((prefs) => {
           if (prefs.confetti_enabled) {
-            playConfettiSound()
             setConfettiBurstTrigger((prev) => prev + 1)
           }
         })
@@ -323,7 +419,7 @@ export default function TasksScreen() {
 
       if (debouncedQuery.trim()) {
         const query = debouncedQuery.toLowerCase().trim()
-        const matchesTitle = task.title.toLowerCase().includes(query)
+        const matchesTitle = (task.title || '').toLowerCase().includes(query)
         const matchesDesc = (task.description || '').toLowerCase().includes(query)
         const matchesSubject = (task.subject?.name || '').toLowerCase().includes(query)
         return matchesTitle || matchesDesc || matchesSubject
@@ -351,18 +447,6 @@ export default function TasksScreen() {
     if (t.status === 'completed') return
     setActiveTask(t)
     setTaskModalMode('edit')
-  }, [])
-
-  const entranceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const loadDataTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (entranceTimeoutRef.current) clearTimeout(entranceTimeoutRef.current)
-      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-      if (loadDataTimeoutRef.current) clearTimeout(loadDataTimeoutRef.current)
-    }
   }, [])
 
   const handleTaskSaved = useCallback(
@@ -500,6 +584,7 @@ export default function TasksScreen() {
           <TasksHeader
             cardEntranceAnim={cardEntranceAnims[0]}
             largeTitleOpacity={largeTitleOpacity}
+            scrollY={scrollY}
           />
         )}
 
@@ -516,9 +601,9 @@ export default function TasksScreen() {
   }, [
     isSearchActive,
     statusFilter,
-    tasks,
     cardEntranceAnims,
     largeTitleOpacity,
+    scrollY,
     handleStatusChange,
   ])
 
@@ -571,11 +656,15 @@ export default function TasksScreen() {
             },
           ]}
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 75 : 90}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
+          {Platform.OS === 'ios' ? (
+            <BlurView
+              intensity={75}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#18181B' }]} />
+          )}
           <View style={styles.focusedSearchContent}>
             {/* Botón Volver / Salir de Búsqueda */}
             <Pressable
@@ -638,14 +727,17 @@ export default function TasksScreen() {
             style={[
               StyleSheet.absoluteFill,
               { opacity: headerBgOpacity },
+              Platform.OS === 'android' && { backgroundColor: '#000000' },
             ]}
             pointerEvents="none"
           >
-            <BlurView
-              intensity={Platform.OS === 'ios' ? 75 : 90}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
+            {Platform.OS === 'ios' && (
+              <BlurView
+                intensity={75}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <View style={styles.stickyHeaderBorder} />
           </Animated.View>
 
@@ -726,6 +818,15 @@ export default function TasksScreen() {
           maxToRenderPerBatch={12}
           windowSize={9}
           removeClippedSubviews={false}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: true,
+                viewPosition: 0.25,
+              })
+            }, 100)
+          }}
         />
       </View>
 
@@ -796,6 +897,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
+    elevation: 20,
   },
   stickyHeaderBorder: {
     position: 'absolute',
@@ -843,6 +945,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
+    elevation: 20,
   },
   focusedSearchContent: {
     flex: 1,

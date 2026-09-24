@@ -7,7 +7,7 @@ import {
 } from '@expo/ui/swift-ui/modifiers'
 import type { SFSymbol } from 'sf-symbols-typescript'
 
-export type GlassIconName = 'xmark' | 'checkmark' | 'back'
+export type GlassIconName = 'xmark' | 'checkmark' | 'back' | 'ellipsis' | 'photos'
 
 export type GlassIconVariant = 'default' | 'prominent'
 
@@ -15,14 +15,18 @@ const SYMBOLS: Record<GlassIconName, SFSymbol> = {
   xmark: 'xmark',
   checkmark: 'checkmark',
   back: 'chevron.backward',
+  ellipsis: 'ellipsis',
+  photos: 'photo.on.rectangle',
 }
 
-// SF Symbols: chevron.backward es ópticamente más angosto que checkmark;
-// se escala un poco más para que "atrás" se perciba del mismo tamaño que la palomita.
+// SF Symbols: chevron.backward y ellipsis requieren ajuste de escala óptica
+// para que la silueta y los 3 puntos se perciban con el mismo peso visual que xmark.
 const DEFAULT_ICON_SIZE: Record<GlassIconName, number> = {
   xmark: 26,
   checkmark: 26,
   back: 32,
+  ellipsis: 36,
+  photos: 26,
 }
 
 /**
@@ -54,13 +58,18 @@ export function NativeGlassIconButton({
         onPress={onPress}
         disabled={disabled}
         modifiers={[
+          frame({ width: 58, height: 58, alignment: 'center' }),
           buttonStyle('glass'),
           buttonBorderShape('circle'),
-          frame({ width: 58, height: 58, alignment: 'center' }),
           accessibilityLabel(label),
         ]}
       >
-        <Icon name={SYMBOLS[icon]} size={effectiveSize} color="#FFFFFF" />
+        <Icon
+          name={SYMBOLS[icon]}
+          size={effectiveSize}
+          color="#FFFFFF"
+          modifiers={[frame({ width: 28, height: 28, alignment: 'center' })]}
+        />
       </Button>
     </Host>
   )

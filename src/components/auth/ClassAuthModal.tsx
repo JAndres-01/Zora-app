@@ -151,7 +151,7 @@ export function ClassAuthModal({ visible, onClose, onSuccess, embedded }: ClassA
       <View style={styles.modalRoot}>
         {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleClose} />
         </Animated.View>
@@ -203,15 +203,15 @@ const styles = StyleSheet.create({
   },
   backdropDim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -258,8 +258,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   headerHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     width: '100%',
   },
   content: {
@@ -269,14 +269,15 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   fieldList: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    paddingHorizontal: 16,
     overflow: 'hidden',
   },
   fieldItem: {
     gap: 3,
-    paddingVertical: 12,
+    paddingVertical: 13,
   },
   fieldLabel: {
     color: '#8E8E93',
@@ -301,18 +302,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   fieldDivider: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    marginLeft: 14,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
-    paddingVertical: 13,
+    backgroundColor: '#232326',
+    borderRadius: 18,
+    borderCurve: 'continuous',
+    paddingVertical: 14,
   },
   signOutBtnText: {
     color: '#EF4444',

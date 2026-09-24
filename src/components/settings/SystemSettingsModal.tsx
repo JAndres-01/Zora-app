@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Animated,
   Platform,
+  Alert,
   useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -25,19 +26,21 @@ import {
   Sparkles,
   Volume2,
   Trash2,
+  User,
+  CalendarDays,
+  Pencil,
 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import { MenuView } from '@react-native-menu/menu'
 import type { PersonalProfile } from '@/types/personal'
-import { APPLE_EASING } from '@/constants/animations'
 import { MONTHS_SHORT } from '@/constants/dates'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { formatTime12h } from '@/lib/academicDateUtils'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { SemesterConfigCard, type SemesterPickerType } from './SemesterConfigCard'
 import { DEFAULT_STUDENT_NAME, DEFAULT_ADVANCE_REMINDER_TIME } from '@/constants/defaults'
-import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { getInitials } from './ProfileHeroCard'
 
 const REMINDER_TIME_OPTIONS = [
@@ -47,6 +50,8 @@ const REMINDER_TIME_OPTIONS = [
   { time: '21:00', label: '9:00 PM' },
   { time: '22:00', label: '10:00 PM' },
 ]
+
+type SettingsSubPage = 'account' | 'notifications' | 'semesters' | 'experience' | 'class_feed'
 
 export interface SystemSettingsModalProps {
   visible: boolean
@@ -100,11 +105,6 @@ function formatTimeDisplay(timeStr?: string): string {
   return formatTime12h(timeStr, '8:00 PM')
 }
 
-/**
- * Panel de ajustes fullscreen (patrón canónico glass):
- * entra deslizando desde el borde derecho (estilo ChatGPT), backdrop frost + dim.
- * Sin hoja inferior, sin drag-line, sin gesto de arrastre.
- */
 export function SystemSettingsModal({
   visible,
   onClose,
@@ -136,16 +136,13 @@ export function SystemSettingsModal({
   const insets = useSafeAreaInsets()
   const { width: SCREEN_W } = useWindowDimensions()
   const currentYear = new Date().getFullYear()
-  const isWeb = Platform.OS === 'web'
   const [activeDatePicker, setActiveDatePicker] = useState<SemesterPickerType | null>(null)
 
-  // Hoja inferior canónica: entrada/salida con APPLE_EASING, drag dismiss, sonidos y haptics
   const {
     modalVisible,
     fadeAnim,
     slideAnim,
     panY,
-    panResponder,
     handleSmoothClose: dismissSheet,
   } = useModalAnimation({ visible, onClose })
 
@@ -154,81 +151,50 @@ export function SystemSettingsModal({
     dismissSheet(callback)
   }
 
-  // Sub-página de Clase: push desde la derecha (patrón Recordatorios) + crossfade X↔atrás
-  // isClassPage controla el header (botones + título) y cambia de inmediato;
-  // classPageMounted mantiene la sub-página renderizada hasta que termina el pop.
-  const [isClassPage, setIsClassPage] = useState(false)
-  const [classPageMounted, setClassPageMounted] = useState(false)
-  const pageSlideX = useRef(new Animated.Value(SCREEN_W)).current
-  const xBtnAnim = useRef(new Animated.Value(1)).current
-  const backBtnAnim = useRef(new Animated.Value(0)).current
+  // Navegación de Sub-páginas
+  const [activeSubPage, setActiveSubPage] = useState<SettingsSubPage | null>(null)
+  const [subPageMounted, setSubPageMounted] = useState(false)
+  const subPageSlideX = useRef(new Animated.Value(SCREEN_W)).current
 
-  const openClassPage = () => {
-    setIsClassPage(true)
-    setClassPageMounted(true)
-    pageSlideX.setValue(SCREEN_W)
-    Animated.spring(pageSlideX, {
+  const openSubPage = (page: SettingsSubPage) => {
+    triggerHaptic('light')
+    setActiveSubPage(page)
+    setSubPageMounted(true)
+    subPageSlideX.setValue(SCREEN_W)
+    Animated.spring(subPageSlideX, {
       toValue: 0,
-      stiffness: 380,
-      damping: 32,
+      stiffness: 420,
+      damping: 36,
       mass: 0.8,
       useNativeDriver: true,
     }).start()
-    Animated.parallel([
-      Animated.timing(xBtnAnim, {
-        toValue: 0,
-        duration: 180,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backBtnAnim, {
-        toValue: 1,
-        duration: 200,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-    ]).start()
   }
 
-  const closeClassPage = () => {
-    // La X vuelve a ser tocable al instante: no espera al fin de la animación de pop
-    setIsClassPage(false)
-    Animated.spring(pageSlideX, {
+  const closeSubPage = () => {
+    triggerHaptic('light')
+    Animated.spring(subPageSlideX, {
       toValue: SCREEN_W,
       stiffness: 420,
       damping: 36,
-      mass: 0.9,
+      mass: 0.8,
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) setClassPageMounted(false)
+      if (finished) {
+        setSubPageMounted(false)
+        setActiveSubPage(null)
+      }
     })
-    Animated.parallel([
-      Animated.timing(xBtnAnim, {
-        toValue: 1,
-        duration: 180,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backBtnAnim, {
-        toValue: 0,
-        duration: 160,
-        easing: APPLE_EASING,
-        useNativeDriver: true,
-      }),
-    ]).start()
   }
 
-  // Al reabrir la hoja: reset sub-página y selector de fechas
+  // Reset al abrir/cerrar modal
   useEffect(() => {
     if (visible) {
       setActiveDatePicker(null)
-      setIsClassPage(false)
-      setClassPageMounted(false)
-      pageSlideX.setValue(SCREEN_W)
-      xBtnAnim.setValue(1)
-      backBtnAnim.setValue(0)
+      setActiveSubPage(null)
+      setSubPageMounted(false)
+      subPageSlideX.setValue(SCREEN_W)
     }
-  }, [visible, pageSlideX, xBtnAnim, backBtnAnim])
+  }, [visible, SCREEN_W, subPageSlideX])
 
   const reminderTimeMenuActions = REMINDER_TIME_OPTIONS.map((opt) => ({
     id: opt.time,
@@ -238,37 +204,69 @@ export function SystemSettingsModal({
 
   const reminderTimeRow = (
     <>
-      <View style={styles.iconBox}>
-        <Clock size={15} color="#8E8E93" />
-      </View>
+      <Clock size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
       <View style={styles.rowMain}>
         <Text style={styles.rowTitle}>Hora del aviso</Text>
       </View>
       <View style={styles.trailingActionRow}>
         <Text style={styles.trailingValueText}>{formatTimeDisplay(advanceReminderTime)}</Text>
-        <ChevronDown size={13} color="#636366" />
+        <ChevronDown size={14} color="#8E8E93" />
       </View>
     </>
   )
 
   if (!modalVisible) return null
 
+  const getSubPageTitle = (): string => {
+    switch (activeSubPage) {
+      case 'account':
+        return 'Cuenta'
+      case 'notifications':
+        return 'Notificaciones'
+      case 'semesters':
+        return 'Periodos de Semestre'
+      case 'experience':
+        return 'Experiencia'
+      case 'class_feed':
+        return 'Feed de Clase'
+      default:
+        return 'Ajustes'
+    }
+  }
+
   return (
     <Modal
       visible={modalVisible}
       transparent
       animationType="none"
-      onRequestClose={() => handleSmoothClose()}
+      onRequestClose={() => {
+        if (activeSubPage) {
+          closeSubPage()
+        } else {
+          handleSmoothClose()
+        }
+      }}
     >
       <View style={styles.modalRoot}>
-        {/* Backdrop Frosted con Fade (tokens canónicos §0) */}
+        {/* Backdrop Frosted con Fade */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'ios' && (
+            <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          )}
           <View style={styles.backdropDim} />
-          <Pressable style={styles.backdropTouch} onPress={() => handleSmoothClose()} />
+          <Pressable
+            style={styles.backdropTouch}
+            onPress={() => {
+              if (activeSubPage) {
+                closeSubPage()
+              } else {
+                handleSmoothClose()
+              }
+            }}
+          />
         </Animated.View>
 
-        {/* Hoja inferior canónica (92%) con drag dismiss */}
+        {/* Hoja principal de ajustes */}
         <Animated.View
           style={[
             styles.sheetContainer,
@@ -278,347 +276,105 @@ export function SystemSettingsModal({
             },
           ]}
         >
-          {/* Header canónico: drag handle + X↔atrás (crossfade) + título centrado */}
-          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
-            <View style={styles.dragHandle} />
-            <View style={styles.headerRow}>
-              <View style={styles.headerSide}>
-                <Animated.View
-                  pointerEvents={isClassPage ? 'none' : 'auto'}
-                  style={[
-                    styles.headerSideBtn,
-                    {
-                      opacity: xBtnAnim,
-                      transform: [
-                        {
-                          scale: xBtnAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.85, 1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <NativeGlassIconButton
-                    onPress={() => handleSmoothClose()}
-                    icon="xmark"
-                    accessibilityLabel="Cerrar"
-                  />
-                </Animated.View>
-                <Animated.View
-                  pointerEvents={isClassPage ? 'auto' : 'none'}
-                  style={[
-                    styles.headerSideBtn,
-                    {
-                      opacity: backBtnAnim,
-                      transform: [
-                        {
-                          scale: backBtnAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.85, 1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <NativeGlassIconButton
-                    onPress={closeClassPage}
-                    icon="back"
-                    accessibilityLabel="Volver"
-                  />
-                </Animated.View>
-              </View>
-              <View style={styles.headerTitleWrap} pointerEvents="none">
-                <Text style={styles.headerTitle}>
-                  {isClassPage ? 'Feed de Clase' : 'Ajustes del Sistema'}
-                </Text>
-              </View>
-              <View style={styles.headerSide} />
-            </View>
+          {/* Barra Superior con Botón X liquid glass arriba a la derecha */}
+          <View style={styles.topBar}>
+            <View style={styles.topBarSpacer} />
+            <NativeGlassIconButton
+              onPress={() => handleSmoothClose()}
+              icon="xmark"
+              accessibilityLabel="Cerrar ajustes"
+            />
           </View>
 
+          {/* Menú Principal de Ajustes */}
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={styles.mainScrollContent}
           >
-            {/* Perfil: foto circular glass + nombre arriba (§3.2) */}
+            {/* Perfil del Estudiante (Estilo ChatGPT: Avatar azul + Lápiz + Nombre sin subtítulo) */}
             <View style={styles.profileSection}>
-              <View style={styles.profileAvatar}>
-                <Text style={styles.profileAvatarText}>{getInitials(profile?.full_name)}</Text>
+              <View style={styles.avatarWrapper}>
+                <View style={styles.profileAvatar}>
+                  <Text style={styles.profileAvatarText}>{getInitials(profile?.full_name)}</Text>
+                </View>
+                <View style={styles.editBadge}>
+                  <Pencil size={10} color="#FFFFFF" strokeWidth={2.5} />
+                </View>
               </View>
               <Text style={styles.profileName} numberOfLines={1}>
                 {profile?.full_name || DEFAULT_STUDENT_NAME}
               </Text>
-              <Text style={styles.profileRole}>Estudiante</Text>
             </View>
 
-            {/* Sección: Cuenta (clase compartida) */}
-            {onOpenClassAuth && (
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionLabel}>Cuenta</Text>
-                <View style={styles.groupedList}>
-                  <Pressable
-                    onPress={() => {
-                      if (isConnected) {
-                        openClassPage()
-                      } else {
-                        handleSmoothClose(() => onOpenClassAuth?.())
-                      }
-                    }}
-                    style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
-                  >
-                    <View style={styles.iconBox}>
-                      <Globe size={15} color={isConnected ? '#34C759' : '#8E8E93'} />
-                    </View>
-                    <View style={styles.rowMain}>
-                      <Text style={styles.rowTitle}>Clase compartida</Text>
-                      <Text style={styles.rowSubtitle}>
-                        {isConnected ? 'Sincronización activa con tu grupo' : 'Sin conectar a una clase'}
-                      </Text>
-                    </View>
-                    <View style={styles.trailingActionRow}>
-                      <Text style={[styles.trailingActionText, isConnected && { color: '#34C759', fontWeight: '600' }]}>
-                        {isConnected ? 'Conectado' : 'Conectar'}
-                      </Text>
-                      <ChevronRight size={14} color="#636366" />
-                    </View>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
-            {/* Sección: Notificaciones y Avisos */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionLabel}>Notificaciones y Avisos</Text>
+            {/* Grupo de Opciones de Configuración */}
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionLabel}>Configuración</Text>
               <View style={styles.groupedList}>
-                {/* Aviso de Entregas */}
-                <View style={styles.listRow}>
-                  <View style={styles.iconBox}>
-                    <Bell size={15} color="#8E8E93" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Aviso de entregas</Text>
-                    <Text style={styles.rowSubtitle}>Notificar la noche anterior</Text>
-                  </View>
-                  <Switch
-                    value={advanceReminderEnabled}
-                    onValueChange={onToggleAdvanceReminder}
-                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
-                    thumbColor="#FFFFFF"
-                    ios_backgroundColor="#3A3A3C"
-                  />
-                </View>
-
-                {/* Hora del Recordatorio → context menu nativo (UIMenu) */}
-                {advanceReminderEnabled && (
-                  <>
-                    <View style={styles.rowDivider} />
-                    {isWeb ? (
-                      <View style={styles.listRow}>{reminderTimeRow}</View>
-                    ) : (
-                      <MenuView
-                        title="Hora del aviso"
-                        shouldOpenOnLongPress={false}
-                        themeVariant="dark"
-                        actions={reminderTimeMenuActions}
-                        onPressAction={({ nativeEvent }) => {
-                          triggerHaptic('selection')
-                          onSelectReminderTime(nativeEvent.event)
-                        }}
-                      >
-                        <View style={styles.listRow}>{reminderTimeRow}</View>
-                      </MenuView>
-                    )}
-                  </>
-                )}
-
-                <View style={styles.rowDivider} />
-
-                {/* Aviso de Próxima Clase */}
-                <View style={styles.listRow}>
-                  <View style={styles.iconBox}>
-                    <BookOpen size={15} color="#8E8E93" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Aviso de próxima clase</Text>
-                    <Text style={styles.rowSubtitle}>10 min antes de iniciar</Text>
-                  </View>
-                  <Switch
-                    value={classReminderEnabled}
-                    onValueChange={onToggleClassReminder}
-                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
-                    thumbColor="#FFFFFF"
-                    ios_backgroundColor="#3A3A3C"
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Sección: Periodos de Semestre */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeaderFlex}>
-                <Text style={styles.sectionLabel}>Periodos de Semestre</Text>
+                {/* 1. Botón: Cuenta */}
                 <Pressable
-                  onPress={onResetSemesterDates}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.resetActionBtn, pressed && styles.rowPressed]}
-                >
-                  <RotateCcw size={11} color="#8E8E93" />
-                  <Text style={styles.resetActionText}>Restablecer</Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.groupedList}>
-                <SemesterConfigCard
-                  title="Otoño"
-                  subtitle="Agosto — Diciembre"
-                  color="#FF6B00"
-                  startKey="fall_start"
-                  endKey="fall_end"
-                  startDate={fallStart}
-                  endDate={fallEnd}
-                  defaultStartText="01 Ago"
-                  defaultEndText="31 Dic"
-                  startDefaultMonth={7}
-                  endDefaultMonth={11}
-                  startDefaultDay={1}
-                  endDefaultDay={31}
-                  activeDatePicker={activeDatePicker}
-                  currentYear={currentYear}
-                  formatReadableDate={formatReadableDate}
-                  onToggleDatePicker={(key) =>
-                    setActiveDatePicker(activeDatePicker === key ? null : key)
-                  }
-                  onUpdateDate={onUpdateSemesterDate}
-                />
-
-                <View style={styles.rowDivider} />
-
-                <SemesterConfigCard
-                  title="Primavera"
-                  subtitle="Febrero — Junio"
-                  color="#34D399"
-                  startKey="spring_start"
-                  endKey="spring_end"
-                  startDate={springStart}
-                  endDate={springEnd}
-                  defaultStartText="01 Feb"
-                  defaultEndText="30 Jun"
-                  startDefaultMonth={1}
-                  endDefaultMonth={5}
-                  startDefaultDay={1}
-                  endDefaultDay={30}
-                  activeDatePicker={activeDatePicker}
-                  currentYear={currentYear}
-                  formatReadableDate={formatReadableDate}
-                  onToggleDatePicker={(key) =>
-                    setActiveDatePicker(activeDatePicker === key ? null : key)
-                  }
-                  onUpdateDate={onUpdateSemesterDate}
-                />
-              </View>
-            </View>
-
-            {/* Sección: Experiencia */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionLabel}>Experiencia</Text>
-              <View style={styles.groupedList}>
-                {/* Vibración Háptica */}
-                <View style={styles.listRow}>
-                  <View style={styles.iconBox}>
-                    <Smartphone size={15} color="#8E8E93" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Vibración háptica</Text>
-                    <Text style={styles.rowSubtitle}>Retroalimentación táctil nativa</Text>
-                  </View>
-                  <Switch
-                    value={hapticsEnabled}
-                    onValueChange={onToggleHaptics}
-                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
-                    thumbColor="#FFFFFF"
-                    ios_backgroundColor="#3A3A3C"
-                  />
-                </View>
-
-                <View style={styles.rowDivider} />
-
-                {/* Animación Festiva */}
-                <View style={styles.listRow}>
-                  <View style={styles.iconBox}>
-                    <Sparkles size={15} color="#8E8E93" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Animación festiva</Text>
-                    <Text style={styles.rowSubtitle}>Confetti al completar tareas</Text>
-                  </View>
-                  <Switch
-                    value={confettiEnabled}
-                    onValueChange={onToggleConfetti}
-                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
-                    thumbColor="#FFFFFF"
-                    ios_backgroundColor="#3A3A3C"
-                  />
-                </View>
-
-                <View style={styles.rowDivider} />
-
-                {/* Efectos de Sonido */}
-                <View style={styles.listRow}>
-                  <View style={styles.iconBox}>
-                    <Volume2 size={15} color="#8E8E93" />
-                  </View>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Efectos de sonido</Text>
-                    <Text style={styles.rowSubtitle}>Micro-sonidos para tareas y acciones</Text>
-                  </View>
-                  <Switch
-                    value={soundEnabled}
-                    onValueChange={onToggleSound}
-                    trackColor={{ false: '#3A3A3C', true: '#30D158' }}
-                    thumbColor="#FFFFFF"
-                    ios_backgroundColor="#3A3A3C"
-                  />
-                </View>
-
-                <View style={styles.rowDivider} />
-
-                {/* Pantalla de Bienvenida (Onboarding) */}
-                <Pressable
-                  onPress={() => {
-                    handleSmoothClose(() => router.push('/welcome'))
-                  }}
-                  style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
+                  onPress={() => openSubPage('account')}
+                  style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
                   accessibilityRole="button"
-                  accessibilityLabel="Ver pantalla de bienvenida"
+                  accessibilityLabel="Abrir ajustes de cuenta"
                 >
-                  <View style={styles.iconBox}>
-                    <Smartphone size={15} color="#8E8E93" />
-                  </View>
+                  <User size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
                   <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>Pantalla de bienvenida</Text>
-                    <Text style={styles.rowSubtitle}>Ver la introducción y guía de inicio</Text>
+                    <Text style={styles.rowTitle}>Cuenta</Text>
                   </View>
-                  <ChevronRight size={14} color="#636366" />
+                  <View style={styles.trailingActionRow}>
+                    <Text style={styles.trailingStatusText}>
+                      {isConnected ? 'Conectado' : ''}
+                    </Text>
+                    <ChevronRight size={15} color="#8E8E93" />
+                  </View>
                 </Pressable>
-              </View>
-            </View>
 
-            {/* Sección: Datos Locales */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.groupedList}>
+                <View style={styles.rowDivider} />
+
+                {/* 2. Botón: Notificaciones y Avisos */}
                 <Pressable
-                  onPress={onClearData}
-                  style={({ pressed }) => [styles.dangerRow, pressed && styles.rowPressed]}
+                  onPress={() => openSubPage('notifications')}
+                  style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir ajustes de notificaciones y avisos"
                 >
-                  <View style={styles.iconBox}>
-                    <Trash2 size={15} color="#EF4444" />
-                  </View>
+                  <Bell size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
                   <View style={styles.rowMain}>
-                    <Text style={styles.dangerRowText}>Restablecer datos locales</Text>
+                    <Text style={styles.rowTitle}>Notificaciones y Avisos</Text>
                   </View>
+                  <ChevronRight size={15} color="#8E8E93" />
+                </Pressable>
+
+                <View style={styles.rowDivider} />
+
+                {/* 3. Botón: Periodos de Semestre */}
+                <Pressable
+                  onPress={() => openSubPage('semesters')}
+                  style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir ajustes de periodos de semestre"
+                >
+                  <CalendarDays size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Periodos de Semestre</Text>
+                  </View>
+                  <ChevronRight size={15} color="#8E8E93" />
+                </Pressable>
+
+                <View style={styles.rowDivider} />
+
+                {/* 4. Botón: Experiencia */}
+                <Pressable
+                  onPress={() => openSubPage('experience')}
+                  style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir ajustes de experiencia"
+                >
+                  <Sparkles size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Experiencia</Text>
+                  </View>
+                  <ChevronRight size={15} color="#8E8E93" />
                 </Pressable>
               </View>
             </View>
@@ -626,22 +382,302 @@ export function SystemSettingsModal({
             <Text style={styles.versionText}>Zora v2.0</Text>
           </ScrollView>
 
-          {/* Sub-página de Clase: mismo tamaño que la hoja, push desde la derecha */}
-          {classPageMounted && (
+          {/* Sub-Página Deslizable (Push de Derecha a Izquierda) */}
+          {subPageMounted && (
             <Animated.View
-              style={[styles.subPage, { transform: [{ translateX: pageSlideX }] }]}
+              style={[styles.subPage, { transform: [{ translateX: subPageSlideX }] }]}
             >
+              {/* Header de Sub-Página con Botón Atrás liquid glass */}
+              <View style={styles.subPageHeader}>
+                <View style={styles.headerSide}>
+                  <NativeGlassIconButton
+                    onPress={closeSubPage}
+                    icon="back"
+                    accessibilityLabel="Volver al menú principal"
+                  />
+                </View>
+                <View style={styles.subPageHeaderCenter} pointerEvents="none">
+                  <Text style={styles.subPageHeaderTitle} numberOfLines={1}>
+                    {getSubPageTitle()}
+                  </Text>
+                </View>
+                <View style={styles.headerSide} />
+              </View>
+
               <ScrollView
                 style={styles.subPageScroll}
-                contentContainerStyle={styles.classPageScrollContent}
+                contentContainerStyle={styles.subPageScrollContent}
                 showsVerticalScrollIndicator={false}
               >
-                <ClassAuthModal
-                  embedded
-                  visible
-                  onClose={closeClassPage}
-                  onSuccess={onClassAuthSuccess}
-                />
+                {/* SUB-PÁGINA 1: CUENTA */}
+                {activeSubPage === 'account' && (
+                  <View style={styles.subPageSection}>
+                    <View style={styles.groupedList}>
+                      {/* Clase Compartida */}
+                      {onOpenClassAuth && (
+                        <Pressable
+                          onPress={() => {
+                            if (isConnected) {
+                              openSubPage('class_feed')
+                            } else {
+                              handleSmoothClose(() => onOpenClassAuth?.())
+                            }
+                          }}
+                          style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                        >
+                          <Globe size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                          <View style={styles.rowMain}>
+                            <Text style={styles.rowTitle}>Clase compartida</Text>
+                          </View>
+                          <View style={styles.trailingActionRow}>
+                            <Text
+                              style={[
+                                styles.trailingActionText,
+                                isConnected && { color: '#34C759', fontWeight: '600' },
+                              ]}
+                            >
+                              {isConnected ? 'Conectado' : 'Conectar'}
+                            </Text>
+                            <ChevronRight size={15} color="#8E8E93" />
+                          </View>
+                        </Pressable>
+                      )}
+
+                      <View style={styles.rowDivider} />
+
+                      {/* Restablecer Datos Locales */}
+                      <Pressable
+                        onPress={onClearData}
+                        style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                      >
+                        <Trash2 size={19} color="#EF4444" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.dangerRowText}>Restablecer datos locales</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                {/* SUB-PÁGINA 2: NOTIFICACIONES Y AVISOS */}
+                {activeSubPage === 'notifications' && (
+                  <View style={styles.subPageSection}>
+                    <View style={styles.groupedList}>
+                      {/* Aviso de Entregas */}
+                      <View style={styles.listRow}>
+                        <Bell size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Aviso de entregas</Text>
+                        </View>
+                        <Switch
+                          value={advanceReminderEnabled}
+                          onValueChange={onToggleAdvanceReminder}
+                          trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#3A3A3C"
+                        />
+                      </View>
+
+                      {/* Hora del Recordatorio */}
+                      {advanceReminderEnabled && (
+                        <>
+                          <View style={styles.rowDivider} />
+                          {Platform.OS === 'ios' ? (
+                            <MenuView
+                              title="Hora del aviso"
+                              shouldOpenOnLongPress={false}
+                              themeVariant="dark"
+                              actions={reminderTimeMenuActions}
+                              onPressAction={({ nativeEvent }) => {
+                                triggerHaptic('selection')
+                                onSelectReminderTime(nativeEvent.event)
+                              }}
+                            >
+                              <View style={styles.listRow}>{reminderTimeRow}</View>
+                            </MenuView>
+                          ) : (
+                            <Pressable
+                              style={styles.listRow}
+                              onPress={() => {
+                                triggerHaptic('light')
+                                Alert.alert(
+                                  'Hora del aviso',
+                                  'Elige la hora para recibir el aviso de entregas',
+                                  [
+                                    ...REMINDER_TIME_OPTIONS.map((opt) => ({
+                                      text:
+                                        opt.time === advanceReminderTime
+                                          ? `✓ ${opt.label}`
+                                          : opt.label,
+                                      onPress: () => {
+                                        triggerHaptic('selection')
+                                        onSelectReminderTime(opt.time)
+                                      },
+                                    })),
+                                    { text: 'Cancelar', style: 'cancel' as const },
+                                  ]
+                                )
+                              }}
+                            >
+                              {reminderTimeRow}
+                            </Pressable>
+                          )}
+                        </>
+                      )}
+
+                      <View style={styles.rowDivider} />
+
+                      {/* Aviso de Próxima Clase */}
+                      <View style={styles.listRow}>
+                        <BookOpen size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Aviso de próxima clase</Text>
+                        </View>
+                        <Switch
+                          value={classReminderEnabled}
+                          onValueChange={onToggleClassReminder}
+                          trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#3A3A3C"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* SUB-PÁGINA 3: PERIODOS DE SEMESTRE */}
+                {activeSubPage === 'semesters' && (
+                  <View style={styles.subPageSection}>
+                    <View style={styles.sectionHeaderFlex}>
+                      <Text style={styles.sectionLabel}>Periodos</Text>
+                      <Pressable
+                        onPress={onResetSemesterDates}
+                        hitSlop={8}
+                        style={({ pressed }) => [
+                          styles.resetActionBtn,
+                          pressed && styles.rowPressed,
+                        ]}
+                      >
+                        <RotateCcw size={12} color="#8E8E93" />
+                        <Text style={styles.resetActionText}>Restablecer</Text>
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.groupedList}>
+                      <SemesterConfigCard
+                        title="Otoño"
+                        startKey="fall_start"
+                        endKey="fall_end"
+                        startDate={fallStart}
+                        endDate={fallEnd}
+                        defaultStartText="01 Ago"
+                        defaultEndText="31 Dic"
+                        startDefaultMonth={7}
+                        endDefaultMonth={11}
+                        startDefaultDay={1}
+                        endDefaultDay={31}
+                        activeDatePicker={activeDatePicker}
+                        currentYear={currentYear}
+                        formatReadableDate={formatReadableDate}
+                        onToggleDatePicker={(key) =>
+                          setActiveDatePicker(activeDatePicker === key ? null : key)
+                        }
+                        onUpdateDate={onUpdateSemesterDate}
+                      />
+
+                      <View style={styles.rowDivider} />
+
+                      <SemesterConfigCard
+                        title="Primavera"
+                        startKey="spring_start"
+                        endKey="spring_end"
+                        startDate={springStart}
+                        endDate={springEnd}
+                        defaultStartText="01 Feb"
+                        defaultEndText="30 Jun"
+                        startDefaultMonth={1}
+                        endDefaultMonth={5}
+                        startDefaultDay={1}
+                        endDefaultDay={30}
+                        activeDatePicker={activeDatePicker}
+                        currentYear={currentYear}
+                        formatReadableDate={formatReadableDate}
+                        onToggleDatePicker={(key) =>
+                          setActiveDatePicker(activeDatePicker === key ? null : key)
+                        }
+                        onUpdateDate={onUpdateSemesterDate}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* SUB-PÁGINA 4: EXPERIENCIA */}
+                {activeSubPage === 'experience' && (
+                  <View style={styles.subPageSection}>
+                    <View style={styles.groupedList}>
+                      {/* Vibración Háptica */}
+                      <View style={styles.listRow}>
+                        <Smartphone size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Vibración háptica</Text>
+                        </View>
+                        <Switch
+                          value={hapticsEnabled}
+                          onValueChange={onToggleHaptics}
+                          trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#3A3A3C"
+                        />
+                      </View>
+
+                      <View style={styles.rowDivider} />
+
+                      {/* Animación Festiva */}
+                      <View style={styles.listRow}>
+                        <Sparkles size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Animación festiva</Text>
+                        </View>
+                        <Switch
+                          value={confettiEnabled}
+                          onValueChange={onToggleConfetti}
+                          trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#3A3A3C"
+                        />
+                      </View>
+
+                      <View style={styles.rowDivider} />
+
+                      {/* Efectos de Sonido */}
+                      <View style={styles.listRow}>
+                        <Volume2 size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Efectos de sonido</Text>
+                        </View>
+                        <Switch
+                          value={soundEnabled}
+                          onValueChange={onToggleSound}
+                          trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#3A3A3C"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* SUB-PÁGINA 5: FEED DE CLASE */}
+                {activeSubPage === 'class_feed' && (
+                  <View style={styles.subPageSection}>
+                    <ClassAuthModal
+                      embedded
+                      visible
+                      onClose={closeSubPage}
+                      onSuccess={onClassAuthSuccess}
+                    />
+                  </View>
+                )}
               </ScrollView>
             </Animated.View>
           )}
@@ -658,234 +694,261 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   backdropDim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor:
+      Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.44)',
   },
   backdropTouch: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     overflow: 'hidden',
     borderCurve: 'continuous',
-    maxHeight: '92%',
+    height: '95%',
   },
-  sheetHeader: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
-    backgroundColor: 'transparent',
-    position: 'relative',
-    zIndex: 60,
-  },
-  dragHandle: {
-    width: 36,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  headerRow: {
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 6,
+    zIndex: 10,
   },
-  headerSide: {
-    width: 58,
-    height: 58,
+  topBarSpacer: {
+    width: 36,
+  },
+  closeCircleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#28282B',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerSideBtn: {
-    ...StyleSheet.absoluteFill,
+  closeCircleBtnPressed: {
+    backgroundColor: '#38383C',
+    transform: [{ scale: 0.95 }],
+  },
+  backCircleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#28282B',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitleWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+  mainScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 36,
+    gap: 20,
+  },
+  profileSection: {
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 10,
+    gap: 12,
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  profileAvatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#2B82C9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
+  profileAvatarText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    gap: 4,
+  editBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#343438',
+    borderWidth: 2,
+    borderColor: '#171719',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  profileName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  sectionBlock: {
+    gap: 8,
+  },
+  sectionLabel: {
+    color: '#8E8E93',
+    fontSize: 13,
+    fontWeight: '500',
+    paddingHorizontal: 4,
+  },
+  groupedList: {
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 14,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    gap: 14,
+  },
+  leadingIcon: {
+    marginRight: 2,
+  },
+  rowMain: {
+    flex: 1,
+  },
+  rowTitle: {
+    color: '#FFFFFF',
+    fontSize: 15.5,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+  },
+  dangerRowText: {
+    color: '#EF4444',
+    fontSize: 15.5,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+  },
+  rowPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginLeft: 50,
+  },
+  trailingActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trailingStatusText: {
+    color: '#8E8E93',
+    fontSize: 14,
+  },
+  trailingActionText: {
+    color: '#8E8E93',
+    fontSize: 14,
+  },
+  trailingValueText: {
+    color: '#8E8E93',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  sectionHeaderFlex: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  resetActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  resetActionText: {
+    color: '#8E8E93',
+    fontSize: 12.5,
+    fontWeight: '500',
+  },
+  versionText: {
+    color: '#52525B',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+
+  // ─── Sub-Página Deslizable ───
   subPage: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#171719',
     zIndex: 50,
+  },
+  subPageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  headerSide: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subPageHeaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subPageHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: 16.5,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  subPageHeaderRight: {
+    width: 34,
   },
   subPageScroll: {
     flex: 1,
   },
-  classPageScrollContent: {
-    paddingTop: 90,
-    paddingBottom: 28,
+  subPageScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 36,
+    gap: 16,
   },
-  profileSection: {
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 4,
-    gap: 8,
-  },
-  profileAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  profileName: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  profileRole: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  sectionContainer: {
-    gap: 6,
-  },
-  sectionHeaderFlex: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-  },
-  sectionLabel: {
-    color: '#8E8E93',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    marginTop: 20,
-    marginBottom: 7,
-    paddingHorizontal: 2,
-  },
-  resetActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  resetActionText: {
-    color: '#8E8E93',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  groupedList: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  dangerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  dangerRowText: {
-    color: '#EF4444',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  rowPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  iconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowMain: {
-    flex: 1,
-  },
-  rowTitle: {
-    color: '#F4F4F5',
-    fontSize: 15,
-    fontWeight: '500',
-    letterSpacing: -0.1,
-  },
-  rowSubtitle: {
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '400',
-    marginTop: 1.5,
-  },
-  trailingActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  trailingActionText: {
-    color: '#8E8E93',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  trailingValueText: {
-    color: '#A1A1A6',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  rowDivider: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    marginLeft: 54,
-  },
-  versionText: {
-    color: '#3F3F46',
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 20,
+  subPageSection: {
+    gap: 14,
   },
 })

@@ -17,6 +17,7 @@ import {
   isGlassEffectAPIAvailable,
 } from 'expo-glass-effect'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
+import { sameSchedules, sameSubjects, sameTasks } from '@/lib/dataEquality'
 import type { Schedule, Subject, Task } from '@/types/personal'
 import { MinimalistDayView } from '@/components/schedule/MinimalistDayView'
 import { MinimalistWeeklyMatrix } from '@/components/schedule/MinimalistWeeklyMatrix'
@@ -27,8 +28,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LayoutGrid, CalendarDays, BookOpen } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { getActiveAcademicWeek } from '@/lib/academicDateUtils'
-import { Stack, useRouter, useFocusEffect } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
+import { useDeferredFocusLoad } from '@/hooks/useDeferredFocusLoad'
 import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
 import { SCREEN_WIDTH } from '@/constants/layout'
 import { useClassAuth } from '@/context/ClassAuthContext'
@@ -111,11 +113,13 @@ function GlassSubjectButton({ onPress }: { onPress: () => void }) {
           accessibilityLabel="Gestionar materias"
           style={[styles.blurBtn, styles.blurBtnWhite]}
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
+          {Platform.OS === 'ios' && (
+            <BlurView
+              intensity={50}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <BookOpen size={20} color="#18181B" strokeWidth={2.2} />
         </Pressable>
       )}
@@ -187,6 +191,20 @@ export default function ScheduleScreen() {
   // Animaciones de Entrada Escalonada
   const cardEntranceAnims = useCardEntrance(3, 'schedule')
 
+  // Estilos de entrada memoizados: evita recrear interpolaciones nativas en cada render
+  const headerEntranceStyle = useMemo(
+    () => getCardEntranceStyle(cardEntranceAnims[0]),
+    [cardEntranceAnims]
+  )
+  const segmentEntranceStyle = useMemo(
+    () => getCardEntranceStyle(cardEntranceAnims[1]),
+    [cardEntranceAnims]
+  )
+  const viewEntranceStyle = useMemo(
+    () => getCardEntranceStyle(cardEntranceAnims[2]),
+    [cardEntranceAnims]
+  )
+
   // Colapso del header estilo Apple Notes / WhatsApp (sincronizado con el scroll).
   // El título grande se esconde justo cuando la barra fija toca su borde inferior.
   const scrollY = useRef(new Animated.Value(0)).current
@@ -233,16 +251,28 @@ export default function ScheduleScreen() {
   const viewModeAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    Animated.spring(viewModeAnim, {
-      toValue: viewMode === 'day' ? 0 : SEGMENT_WIDTH,
-      ...SPRING_SLIDE_INDICATOR,
-    }).start()
+    if (Platform.OS === 'android') {
+      Animated.timing(viewModeAnim, {
+        toValue: viewMode === 'day' ? 0 : SEGMENT_WIDTH,
+        duration: 150,
+        useNativeDriver: true,
+      }).start()
+    } else {
+      Animated.spring(viewModeAnim, {
+        toValue: viewMode === 'day' ? 0 : SEGMENT_WIDTH,
+        ...SPRING_SLIDE_INDICATOR,
+      }).start()
+    }
   }, [viewMode, SEGMENT_WIDTH, viewModeAnim])
 
   const handleViewModeChange = (mode: 'day' | 'week') => {
     if (mode === viewMode) return
     setViewMode(mode)
   }
+
+  const lastSchedulesRef = useRef(schedules)
+  const lastSubjectsRef = useRef(subjects)
+  const lastTasksRef = useRef(tasks)
 
   const loadData = useCallback(async () => {
     const [resolvedScheds, cachedSubjs, resolvedTasks] = await Promise.all([
@@ -251,16 +281,25 @@ export default function ScheduleScreen() {
       personalStorage.getTasksWithSubjects(),
     ])
 
-    setSchedules(resolvedScheds)
-    setSubjects(cachedSubjs)
-    setTasks(resolvedTasks)
+    // Skip setState cuando la data no cambió: la entrada a una pestaña ya
+    // cargada no debe re-renderizar toda la pantalla (congelaba el frame del
+    // switch en Android y hacía caer el FPS de JS de 90 a 60).
+    if (!sameSchedules(resolvedScheds, lastSchedulesRef.current)) {
+      lastSchedulesRef.current = resolvedScheds
+      setSchedules(resolvedScheds)
+    }
+    if (!sameSubjects(cachedSubjs, lastSubjectsRef.current)) {
+      lastSubjectsRef.current = cachedSubjs
+      setSubjects(cachedSubjs)
+    }
+    if (!sameTasks(resolvedTasks, lastTasksRef.current)) {
+      lastTasksRef.current = resolvedTasks
+      setTasks(resolvedTasks)
+    }
   }, [])
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData()
-    }, [loadData])
-  )
+  // Refresco DIFERIDO tras el paint del switch: la entrada no espera al re-render.
+  useDeferredFocusLoad(loadData)
 
   useEffect(() => {
     const unsubscribe = subscribeToPersonalStorage(() => {
@@ -296,6 +335,7 @@ export default function ScheduleScreen() {
         pathname: '/(tabs)/tasks',
         params: {
           taskId: task.id,
+          _t: Date.now().toString(),
         },
       })
     }, 120)
@@ -318,14 +358,20 @@ export default function ScheduleScreen() {
       >
         {/* Fondo Translúcido con Transición en Scroll */}
         <Animated.View
-          style={[StyleSheet.absoluteFill, { opacity: headerBgOpacity }]}
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: headerBgOpacity },
+            Platform.OS === 'android' && { backgroundColor: '#000000' },
+          ]}
           pointerEvents="none"
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 75 : 90}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
+          {Platform.OS === 'ios' && (
+            <BlurView
+              intensity={75}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <View style={styles.stickyHeaderBorder} />
         </Animated.View>
 
@@ -381,7 +427,7 @@ export default function ScheduleScreen() {
         )}
       >
         {/* Cabecera iOS: Large Title colapsable + semana académica */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
+        <Animated.View style={headerEntranceStyle}>
           <Animated.View
             style={[
               styles.titleCoverBlock,
@@ -402,13 +448,20 @@ export default function ScheduleScreen() {
         </Animated.View>
 
         {/* Card 1: Segmented Control iOS Minimalista y Ultrarrápido */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
-          <View style={styles.segmentedContainer}>
-            <BlurView
-              intensity={Platform.OS === 'ios' ? 55 : 90}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
+        <Animated.View style={segmentEntranceStyle}>
+          <View
+            style={[
+              styles.segmentedContainer,
+              Platform.OS === 'android' && styles.segmentedContainerAndroid,
+            ]}
+          >
+            {Platform.OS === 'ios' && (
+              <BlurView
+                intensity={55}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <Animated.View
               style={[
                 styles.activeSegmentPill,
@@ -420,7 +473,8 @@ export default function ScheduleScreen() {
             />
 
             <Pressable
-              onPressIn={() => handleViewModeChange('day')}
+              onPress={() => handleViewModeChange('day')}
+              hitSlop={6}
               style={styles.segmentButton}
             >
               <CalendarDays
@@ -438,7 +492,8 @@ export default function ScheduleScreen() {
             </Pressable>
 
             <Pressable
-              onPressIn={() => handleViewModeChange('week')}
+              onPress={() => handleViewModeChange('week')}
+              hitSlop={6}
               style={styles.segmentButton}
             >
               <LayoutGrid
@@ -458,8 +513,10 @@ export default function ScheduleScreen() {
         </Animated.View>
 
         {/* Card 2: Vista Seleccionada (Diaria / Semanal) */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
-          {viewMode === 'day' ? (
+        {/* Ambas vistas permanecen montadas; el toggle con display:none hace el cambio
+            instantáneo sin re-crear BlurViews ni tarjetas animadas en cada conmutación. */}
+        <Animated.View style={viewEntranceStyle}>
+          <View style={viewMode === 'day' ? undefined : styles.viewPaneHidden}>
             <MinimalistDayView
               schedules={activeSchedules}
               tasks={tasks}
@@ -468,14 +525,15 @@ export default function ScheduleScreen() {
               onOpenDayTasks={handleOpenDayTasks}
               onAssignSlot={canEdit ? handleOpenAssign : undefined}
             />
-          ) : (
+          </View>
+          <View style={viewMode === 'week' ? undefined : styles.viewPaneHidden}>
             <MinimalistWeeklyMatrix
               schedules={activeSchedules}
               tasks={tasks}
               onAssignSlot={canEdit ? handleOpenAssign : undefined}
               onOpenDayTasks={handleOpenDayTasks}
             />
-          )}
+          </View>
         </Animated.View>
       </Animated.ScrollView>
 
@@ -521,6 +579,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  // Oculta una vista manteniéndola montada (toggle instantáneo del segmented control)
+  viewPaneHidden: {
+    display: 'none',
+  },
   container: {
     flex: 1,
   },
@@ -535,6 +597,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
+    elevation: 20,
   },
   stickyHeaderBorder: {
     position: 'absolute',
@@ -622,14 +685,15 @@ const styles = StyleSheet.create({
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: Platform.OS === 'android' ? '#18181B' : 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     overflow: 'hidden',
   },
   blurBtnWhite: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderColor: 'rgba(255, 255, 255, 0.7)',
+    // Fallback sin liquid glass: blanco nítido
+    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   },
   segmentedContainer: {
     flexDirection: 'row',
@@ -642,6 +706,10 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     overflow: 'hidden',
+  },
+  segmentedContainerAndroid: {
+    backgroundColor: '#18181B',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   activeSegmentPill: {
     position: 'absolute',

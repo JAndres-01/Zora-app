@@ -17,12 +17,12 @@ describe('Smoke and Regression Tests for All Main Screens', () => {
   })
 
   test('TodayScreen renderiza sin fallos', async () => {
-    const { getByText } = await render(
+    const { getAllByText } = await render(
       <PersonalAuthProvider>
         <TodayScreen />
       </PersonalAuthProvider>
     )
-    expect(getByText('Hoy')).toBeTruthy()
+    expect(getAllByText('Hoy').length).toBeGreaterThanOrEqual(1)
   })
 
   test('TasksScreen renderiza y muestra la barra de tareas y botón de crear', async () => {
@@ -50,6 +50,6 @@ describe('Smoke and Regression Tests for All Main Screens', () => {
       </PersonalAuthProvider>
     )
     expect(getAllByText('Perfil').length).toBeGreaterThanOrEqual(1)
-    expect(getByText('WIDGETS · PANTALLA DE INICIO')).toBeTruthy()
+    expect(getByText('Distribución de Carga')).toBeTruthy()
   })
 })

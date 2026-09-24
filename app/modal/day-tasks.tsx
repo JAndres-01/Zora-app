@@ -31,7 +31,7 @@ export default function DayTasksModalScreen() {
   const handleOpenDetail = (t: Task) => {
     router.navigate({
       pathname: '/(tabs)/tasks',
-      params: { taskId: t.id },
+      params: { taskId: t.id, _t: Date.now().toString() },
     })
   }
 

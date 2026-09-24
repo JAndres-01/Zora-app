@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
+  View,
   Text,
   Pressable,
   StyleSheet,
@@ -43,13 +44,15 @@ export function TasksSegmentControl({
   }
 
   const card1Style = cardEntranceAnim ? getCardEntranceStyle(cardEntranceAnim) : undefined
+  const isAndroid = Platform.OS === 'android'
 
   return (
     <Animated.View style={card1Style}>
-      <BlurView
-        intensity={Platform.OS === 'ios' ? 55 : 90}
-        tint="dark"
-        style={styles.segmentedContainer}
+      <View
+        style={[
+          styles.segmentedContainer,
+          isAndroid && styles.segmentedContainerAndroid,
+        ]}
         onLayout={(e: LayoutChangeEvent) => {
           const w = e.nativeEvent.layout.width
           if (w > 0 && Math.abs(w - containerWidth) > 1) {
@@ -57,6 +60,13 @@ export function TasksSegmentControl({
           }
         }}
       >
+        {!isAndroid && (
+          <BlurView
+            intensity={55}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+        )}
         {/* Indicador Deslizante Suave */}
         <Animated.View
           style={[
@@ -109,7 +119,7 @@ export function TasksSegmentControl({
             Todas
           </Text>
         </Pressable>
-      </BlurView>
+      </View>
     </Animated.View>
   )
 }
@@ -126,6 +136,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     height: 42,
+  },
+  segmentedContainerAndroid: {
+    backgroundColor: '#18181B',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   activeSegmentPill: {
     position: 'absolute',

@@ -31,3 +31,5 @@ graphify-out/
 release-artifacts/
 *.ipa
 
+# Educational Study Notes
+study_notes/

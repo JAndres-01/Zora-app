@@ -15,15 +15,15 @@ import {
   isLiquidGlassAvailable,
   isGlassEffectAPIAvailable,
 } from 'expo-glass-effect'
-import { SymbolView } from 'expo-symbols'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack, useFocusEffect, useRouter } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { Settings as SettingsIcon } from 'lucide-react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system/legacy'
 import { usePersonalAuth } from '@/context/PersonalAuthContext'
 import { useClassAuth } from '@/context/ClassAuthContext'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
+import { samePreferences } from '@/lib/dataEquality'
 import { triggerHaptic, setGlobalHapticsEnabled } from '@/lib/personalHaptics'
 import {
   syncAllNotifications,
@@ -32,12 +32,13 @@ import {
 import { MinimalistVitalStats } from '@/components/stats/MinimalistVitalStats'
 import { MinimalistActivityHeatmap } from '@/components/stats/MinimalistActivityHeatmap'
 import { MinimalistSubjectBalance } from '@/components/stats/MinimalistSubjectBalance'
-import { DualBalanceWidget } from '@/components/widgets/DualBalanceWidget'
 import { MinimalistCredentialModal } from '@/components/profile/MinimalistCredentialModal'
 import { ProfileHeroCard } from '@/components/settings/ProfileHeroCard'
 import { SystemSettingsModal } from '@/components/settings/SystemSettingsModal'
 import { formatDateKey } from '@/lib/heatmapUtils'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
+import { useDeferredFocusLoad } from '@/hooks/useDeferredFocusLoad'
+import type { AppPreferences } from '@/types/personal'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_STUDENT_NAME } from '@/constants/defaults'
 import {
   setGlobalSoundEnabled,
@@ -92,7 +93,11 @@ function GlassSettingsButton({ onPress }: { onPress: () => void }) {
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       {useGlass ? (
-        <GlassView isInteractive style={styles.glassBtn}>
+        <GlassView
+          isInteractive
+          colorScheme="light"
+          style={[styles.glassBtn, styles.glassBtnWhite]}
+        >
           <Pressable
             onPress={() => {
               triggerHaptic('light')
@@ -105,7 +110,7 @@ function GlassSettingsButton({ onPress }: { onPress: () => void }) {
             accessibilityLabel="Ajustes"
             style={styles.glassBtnInner}
           >
-            <SettingsIcon size={20} color="#FFFFFF" strokeWidth={2.2} />
+            <SettingsIcon size={20} color="#18181B" strokeWidth={2.2} />
           </Pressable>
         </GlassView>
       ) : (
@@ -119,14 +124,16 @@ function GlassSettingsButton({ onPress }: { onPress: () => void }) {
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Ajustes"
-          style={styles.blurBtn}
+          style={[styles.blurBtn, styles.blurBtnWhite]}
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-          <SettingsIcon size={20} color="#FFFFFF" strokeWidth={2.2} />
+          {Platform.OS === 'ios' && (
+            <BlurView
+              intensity={50}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+          )}
+          <SettingsIcon size={20} color="#18181B" strokeWidth={2.2} />
         </Pressable>
       )}
     </Animated.View>
@@ -165,43 +172,51 @@ export default function ProfileScreen() {
   const scrollY = useRef(new Animated.Value(0)).current
 
   const headerBgOpacity = scrollY.interpolate({
-    inputRange: [0, 25, 60],
-    outputRange: [0, 0.5, 1],
+    inputRange: [18, 38],
+    outputRange: [0, 1],
     extrapolate: 'clamp',
   })
 
   const compactTitleOpacity = scrollY.interpolate({
-    inputRange: [25, 60],
+    inputRange: [40, 60],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   })
 
   const compactTitleTranslateY = scrollY.interpolate({
-    inputRange: [25, 60],
+    inputRange: [40, 60],
     outputRange: [6, 0],
     extrapolate: 'clamp',
   })
 
   const largeTitleOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+    inputRange: [4, 45],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   })
 
-  const largeTitleTranslateY = scrollY.interpolate({
-    inputRange: [-80, 0, 50],
-    outputRange: [20, 0, -14],
+  const titleCollapseY = largeTitleOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-24, 0],
     extrapolate: 'clamp',
   })
 
-  const largeTitleScale = scrollY.interpolate({
-    inputRange: [-100, 0],
-    outputRange: [1.08, 1],
-    extrapolateRight: 'clamp',
+  const titleCollapseScale = largeTitleOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.92, 1],
+    extrapolate: 'clamp',
   })
+
+  const lastPrefsRef = useRef<AppPreferences | null>(null)
 
   const loadData = useCallback(async () => {
     const prefs = await personalStorage.getPreferences()
+    const prev = lastPrefsRef.current
+    lastPrefsRef.current = prefs
+    // Skip setState cuando las prefs no cambiaron: la entrada a una pestaña ya
+    // cargada no debe re-renderizar toda la pantalla (congelaba el frame del
+    // switch en Android y hacía caer el FPS de JS de 90 a 60).
+    if (prev && samePreferences(prev, prefs)) return
     setHapticsEnabled(prefs.haptics_enabled)
     setConfettiEnabled(prefs.confetti_enabled)
     setSoundEnabled(prefs.sound_enabled ?? true)
@@ -216,11 +231,8 @@ export default function ProfileScreen() {
     if (prefs.semester_spring_end) setSpringEnd(prefs.semester_spring_end)
   }, [])
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData()
-    }, [loadData])
-  )
+  // Refresco DIFERIDO tras el paint del switch: la entrada no espera al re-render.
+  useDeferredFocusLoad(loadData)
 
   useEffect(() => {
     const unsubscribe = subscribeToPersonalStorage(() => {
@@ -446,7 +458,7 @@ export default function ProfileScreen() {
         style={[
           styles.stickyHeaderBar,
           {
-            height: insets.top + 44,
+            height: insets.top + 56,
             paddingTop: insets.top,
           },
         ]}
@@ -456,20 +468,23 @@ export default function ProfileScreen() {
           style={[
             StyleSheet.absoluteFill,
             { opacity: headerBgOpacity },
+            Platform.OS === 'android' && { backgroundColor: '#000000' },
           ]}
           pointerEvents="none"
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 75 : 90}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
+          {Platform.OS === 'ios' && (
+            <BlurView
+              intensity={75}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <View style={styles.stickyHeaderBorder} />
         </Animated.View>
 
-        {/* Contenido de la Barra: Título Centrado y Botón Liquid Glass a la Derecha */}
+        {/* Contenido de la Barra: Título Compacto Centrado y Botón Liquid Glass a la Derecha */}
         <View style={styles.stickyHeaderContent} pointerEvents="box-none">
-          <View style={styles.stickyHeaderLeftSpacer} />
+          <View style={styles.stickyHeaderLeft} />
 
           <Animated.View
             style={[
@@ -496,7 +511,7 @@ export default function ProfileScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: insets.top + 10,
+            paddingTop: insets.top + 60,
             paddingBottom: Math.max(insets.bottom, 24) + 64,
           },
         ]}
@@ -507,27 +522,26 @@ export default function ProfileScreen() {
           { useNativeDriver: true }
         )}
       >
-        {/* Cabecera iOS con Large Title y Subtítulo en el Cuerpo */}
-        <Animated.View
-          style={[
-            styles.largeHeader,
-            {
-              opacity: largeTitleOpacity,
-              transform: [
-                { translateY: largeTitleTranslateY },
-                { scale: largeTitleScale },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.titleColumn}>
+        {/* Card 0: Cabecera iOS con Large Title (entra con la cascada) */}
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
+          <Animated.View
+            style={[
+              styles.titleCoverBlock,
+              {
+                opacity: largeTitleOpacity,
+                transform: [
+                  { translateY: titleCollapseY },
+                  { scale: titleCollapseScale },
+                ],
+              },
+            ]}
+          >
             <Text style={styles.title}>Perfil</Text>
-            <Text style={styles.subtitle}>Estudiante • Ajustes y estadísticas</Text>
-          </View>
+          </Animated.View>
         </Animated.View>
 
-        {/* Card 0: Tarjeta Hero de Perfil */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
+        {/* Card 1: Tarjeta Hero de Perfil */}
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
           <ProfileHeroCard
             fullName={profile?.full_name}
             credentialUrl={profile?.student_credential_url}
@@ -536,34 +550,19 @@ export default function ProfileScreen() {
           />
         </Animated.View>
 
-        {/* Card 1: Métricas Vitales Académicas */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
+        {/* Card 2: Métricas Vitales Académicas */}
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
           <MinimalistVitalStats />
         </Animated.View>
 
-        {/* Card 2: Mapa de Actividad Estilo GitHub */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
+        {/* Card 3: Mapa de Actividad Estilo GitHub */}
+        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[3])}>
           <MinimalistActivityHeatmap />
         </Animated.View>
 
-        {/* Card 3: Balance de Materias */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[3])}>
-          <MinimalistSubjectBalance />
-        </Animated.View>
-
-        {/* Card 4: Previsualización de Widget #3A Dual Balance */}
+        {/* Card 4: Balance de Materias */}
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[4])}>
-          <View style={styles.widgetSectionCard}>
-            <View style={styles.widgetSectionHeader}>
-              <View>
-                <Text style={styles.widgetSectionTitle}>WIDGETS · PANTALLA DE INICIO</Text>
-                <Text style={styles.widgetSectionSubtitle}>#3A Dual Balance · Toca el widget para abrir Tareas</Text>
-              </View>
-            </View>
-            <View style={styles.widgetPreviewContainer}>
-              <DualBalanceWidget size="small" />
-            </View>
-          </View>
+          <MinimalistSubjectBalance />
         </Animated.View>
       </Animated.ScrollView>
 
@@ -628,6 +627,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
+    elevation: 20,
   },
   stickyHeaderBorder: {
     position: 'absolute',
@@ -642,12 +642,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   compactTitleWrapper: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: 8,
   },
   compactTitle: {
     color: '#FFFFFF',
@@ -656,85 +657,65 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     textAlign: 'center',
   },
-  stickyHeaderLeftSpacer: {
-    width: 40,
+  stickyHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   stickyHeaderRight: {
-    width: 40,
+    flex: 1,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   glassBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    padding: 6,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  glassBtnWhite: {
+    // Variante del botón "Ajustes": material glass CLARO (colorScheme="light")
+    // teñido de blanco, mismo patrón que "+" en Tareas y "Materias" en Horarios.
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderColor: 'rgba(255, 255, 255, 1)',
+  },
   glassBtnInner: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   blurBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: Platform.OS === 'android' ? '#18181B' : 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     overflow: 'hidden',
   },
-  largeHeader: {
-    paddingHorizontal: 2,
-    marginBottom: 4,
+  blurBtnWhite: {
+    // Fallback sin liquid glass: blanco nítido
+    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   },
-  titleColumn: {
-    gap: 2,
+  titleCoverBlock: {
+    backgroundColor: '#000000',
+    zIndex: 20,
+    paddingHorizontal: 2,
+    marginBottom: 2,
   },
   title: {
     color: '#FFFFFF',
     fontSize: 34,
     fontWeight: '800',
     letterSpacing: -0.8,
-  },
-  subtitle: {
-    color: '#71717A',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  widgetSectionCard: {
-    backgroundColor: '#000000',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 16,
-    gap: 14,
-  },
-  widgetSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  widgetSectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#A1A1AA',
-    letterSpacing: 0.5,
-  },
-  widgetSectionSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#71717A',
-    marginTop: 2,
-  },
-  widgetPreviewContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
   },
 })

@@ -10,6 +10,7 @@ import {
   UIManager,
 } from 'react-native'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
+import { samePreferences, sameTasks } from '@/lib/dataEquality'
 import type { Task, AppPreferences } from '@/types/personal'
 import { generateHeatmapGrid, type HeatmapDay } from '@/lib/heatmapUtils'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -50,12 +51,25 @@ export function MinimalistActivityHeatmap() {
     }
   }, [])
 
+  const lastTasksRef = useRef<Task[]>(tasks)
+  const lastPrefsRef = useRef<AppPreferences | null>(prefs)
+
   const updateData = useCallback(() => {
+    // Skip setState cuando la data no cambió: enfocar Settings no debe
+    // re-renderizar el heatmap completo (costo de JS en cada entrada de tab).
     personalStorage.getTasksWithSubjects().then((t) => {
-      if (isMountedRef.current && t) setTasks(t)
+      if (isMountedRef.current && t) {
+        const prev = lastTasksRef.current
+        lastTasksRef.current = t
+        if (!sameTasks(t, prev)) setTasks(t)
+      }
     })
     personalStorage.getPreferences().then((p) => {
-      if (isMountedRef.current && p) setPrefs(p)
+      if (isMountedRef.current && p) {
+        const prev = lastPrefsRef.current
+        lastPrefsRef.current = p
+        if (!prev || !samePreferences(prev, p)) setPrefs(p)
+      }
     })
   }, [])
 

@@ -1,4 +1,4 @@
-const { withXcodeProject } = require('@expo/config-plugins')
+const { withXcodeProject, withEntitlementsPlist, withPlugins } = require('@expo/config-plugins')
 const plist = require('@expo/plist')
 const fs = require('fs')
 const path = require('path')
@@ -24,10 +24,23 @@ function getMainAppDevTeam(pbx) {
 }
 
 /**
+ * Añade el App Group a los Entitlements de la app principal de iOS.
+ */
+const withMainAppEntitlements = (config) => {
+  return withEntitlementsPlist(config, (config) => {
+    const existing = config.modResults['com.apple.security.application-groups'] || []
+    if (!existing.includes(APP_GROUP)) {
+      config.modResults['com.apple.security.application-groups'] = [...existing, APP_GROUP]
+    }
+    return config
+  })
+}
+
+/**
  * Config Plugin de Expo para compilar automáticamente el Widget de iOS (WidgetKit)
  * durante EAS Build o expo prebuild.
  */
-const withZoraWidget = (config) => {
+const withWidgetXcodeProject = (config) => {
   return withXcodeProject(config, async (config) => {
     const pbxProject = config.modResults
     const platformProjectRoot = config.modRequest.platformProjectRoot
@@ -69,7 +82,7 @@ const withZoraWidget = (config) => {
     }
     fs.writeFileSync(infoPlistPath, plist.default ? plist.default.build(infoPlistContent) : plist.build(infoPlistContent))
 
-    // 3. Escribir Entitlements para el App Group
+    // 3. Escribir Entitlements para el App Group del Widget
     const entitlementsPath = path.join(extensionDir, `${EXTENSION_NAME}.entitlements`)
     const entitlementsContent = {
       'com.apple.security.application-groups': [APP_GROUP],
@@ -107,12 +120,12 @@ const withZoraWidget = (config) => {
     // 7. Añadir Target nativo de tipo app_extension
     const target = pbxProject.addTarget(EXTENSION_NAME, 'app_extension', EXTENSION_NAME)
 
-    // 8. Fases de compilación
+    // 8. Fases de compilación del widget
     pbxProject.addBuildPhase(sourceFiles, 'PBXSourcesBuildPhase', 'Sources', target.uuid)
     pbxProject.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', target.uuid)
     pbxProject.addBuildPhase([], 'PBXResourcesBuildPhase', 'Resources', target.uuid)
 
-    // 9. Configuración de Build Settings
+    // 9. Configuración de Build Settings del Widget
     const devTeam = getMainAppDevTeam(pbxProject)
     const configurations = pbxProject.pbxXCBuildConfigurationSection()
     for (const key in configurations) {
@@ -143,9 +156,31 @@ const withZoraWidget = (config) => {
       pbxProject.addTargetAttribute('DevelopmentTeam', devTeam, widgetTarget)
     }
 
+    // 10. Dependencia e incrustación de la extensión en la aplicación principal
+    const firstTarget = pbxProject.getFirstTarget()
+    if (firstTarget && firstTarget.uuid) {
+      try {
+        pbxProject.addTargetDependency(firstTarget.uuid, [target.uuid])
+        pbxProject.addBuildPhase(
+          [`${EXTENSION_NAME}.appex`],
+          'PBXCopyFilesBuildPhase',
+          'Embed App Extensions',
+          firstTarget.uuid,
+          'app_extension'
+        )
+      } catch (err) {
+        console.warn('[withZoraWidget] Advertencia al vincular TargetDependency:', err)
+      }
+    }
+
     console.log(`[withZoraWidget] Target ${EXTENSION_NAME} configurado con éxito en el proyecto Xcode.`)
     return config
   })
 }
 
+const withZoraWidget = (config) => {
+  return withPlugins(config, [withMainAppEntitlements, withWidgetXcodeProject])
+}
+
 module.exports = withZoraWidget
+

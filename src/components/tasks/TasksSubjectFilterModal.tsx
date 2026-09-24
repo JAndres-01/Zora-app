@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -7,15 +6,15 @@ import {
   Pressable,
   StyleSheet,
   Animated,
+  Platform,
 } from 'react-native'
-import { X, Check } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
+import { BlurView } from 'expo-blur'
 import type { Subject, Task } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { playChipSnapSound } from '@/lib/personalAudio'
-import { SCREEN_HEIGHT } from '@/constants/layout'
-import { APPLE_EASING } from '@/constants/animations'
-
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 
 export interface TasksSubjectFilterModalProps {
@@ -60,6 +59,8 @@ export function TasksSubjectFilterModal({
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleClose}>
       <View style={styles.modalRoot}>
         <Animated.View style={[styles.menuBackdrop, { opacity: menuFadeAnim }]}>
+          {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
+          <View style={styles.backdropDim} />
           <Pressable style={styles.menuBackdropTouch} onPress={handleClose} />
         </Animated.View>
 
@@ -71,70 +72,87 @@ export function TasksSubjectFilterModal({
         >
           <View style={styles.menuHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
-            <Text style={styles.menuTitle}>Filtrar por Materia</Text>
+            <View style={styles.headerRow}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
+              </View>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
+                <Text style={styles.menuTitle}>Filtrar por Materia</Text>
+              </View>
+              <View style={styles.headerSide} />
+            </View>
           </View>
 
           <ScrollView style={styles.menuList} showsVerticalScrollIndicator={false}>
-            <Pressable
-              onPress={() => handleSelect('all')}
-              style={[
-                styles.menuItem,
-                selectedSubjectId === 'all' && styles.menuItemActive,
-              ]}
-            >
-              <View style={styles.menuItemLeft}>
-                <View style={[styles.dot, { backgroundColor: '#FFFFFF' }]} />
-                <Text style={styles.menuItemText}>Todas las materias</Text>
-                <Text style={styles.menuItemCount}>({tasks.length})</Text>
-              </View>
+            <View style={styles.groupedList}>
+              <Pressable
+                onPress={() => handleSelect('all')}
+                style={[
+                  styles.menuItem,
+                  selectedSubjectId === 'all' && styles.menuItemActive,
+                  subjects.length > 0 && styles.menuItemBorder,
+                ]}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.dot, { backgroundColor: '#FFFFFF' }]} />
+                  <Text style={styles.menuItemText}>Todas las materias</Text>
+                  <Text style={styles.menuItemCount}>({tasks.length})</Text>
+                </View>
 
-              {selectedSubjectId === 'all' && (
-                <Check size={16} color="#FFFFFF" strokeWidth={2.5} />
-              )}
-            </Pressable>
+                {selectedSubjectId === 'all' && (
+                  <Check size={16} color="#FFFFFF" strokeWidth={2.5} />
+                )}
+              </Pressable>
 
-            {subjects.map((subj) => {
-              const isSelected = selectedSubjectId === subj.id
-              const isWhite = isWhiteColor(subj.color)
-              const count = tasks.filter(
-                (t) =>
-                  t.subject_id === subj.id ||
-                  t.subject?.id === subj.id ||
-                  (t.subject?.name &&
-                    t.subject.name.trim().toLowerCase() === subj.name.trim().toLowerCase())
-              ).length
+              {subjects.map((subj, idx) => {
+                const isSelected = selectedSubjectId === subj.id
+                const isWhite = isWhiteColor(subj.color)
+                const isLast = idx === subjects.length - 1
+                const count = tasks.filter(
+                  (t) =>
+                    t.subject_id === subj.id ||
+                    t.subject?.id === subj.id ||
+                    (t.subject?.name &&
+                      t.subject.name.trim().toLowerCase() === subj.name.trim().toLowerCase())
+                ).length
 
-              return (
-                <Pressable
-                  key={subj.id}
-                  onPress={() => handleSelect(subj.id)}
-                  style={[
-                    styles.menuItem,
-                    isSelected && styles.menuItemActive,
-                  ]}
-                >
-                  <View style={styles.menuItemLeft}>
-                    <View
-                      style={[
-                        styles.dot,
-                        { backgroundColor: subj.color || '#FFFFFF' },
-                        isWhite && styles.whiteDotBorder,
-                      ]}
-                    />
-                    <Text style={styles.menuItemText}>{subj.name}</Text>
-                    <Text style={styles.menuItemCount}>({count})</Text>
-                  </View>
+                return (
+                  <Pressable
+                    key={subj.id}
+                    onPress={() => handleSelect(subj.id)}
+                    style={[
+                      styles.menuItem,
+                      isSelected && styles.menuItemActive,
+                      !isLast && styles.menuItemBorder,
+                    ]}
+                  >
+                    <View style={styles.menuItemLeft}>
+                      <View
+                        style={[
+                          styles.dot,
+                          { backgroundColor: subj.color || '#FFFFFF' },
+                          isWhite && styles.whiteDotBorder,
+                        ]}
+                      />
+                      <Text style={styles.menuItemText}>{subj.name}</Text>
+                      <Text style={styles.menuItemCount}>({count})</Text>
+                    </View>
 
-                  {isSelected && (
-                    <Check
-                      size={16}
-                      color={subj.color || '#FFFFFF'}
-                      strokeWidth={2.5}
-                    />
-                  )}
-                </Pressable>
-              )
-            })}
+                    {isSelected && (
+                      <Check
+                        size={16}
+                        color={subj.color || '#FFFFFF'}
+                        strokeWidth={2.5}
+                      />
+                    )}
+                  </Pressable>
+                )
+              })}
+            </View>
           </ScrollView>
         </Animated.View>
       </View>
@@ -149,31 +167,28 @@ const styles = StyleSheet.create({
   },
   menuBackdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.38)',
   },
   menuBackdropTouch: {
     flex: 1,
   },
   menuSheet: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     maxHeight: '80%',
     paddingBottom: 36,
     overflow: 'hidden',
+    borderCurve: 'continuous',
   },
   menuHeader: {
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    paddingTop: 10,
+    paddingBottom: 12,
     backgroundColor: 'transparent',
-    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -181,44 +196,54 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  menuTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+  headerRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
   },
-  menuCloseBtn: {
-    position: 'absolute',
-    right: 18,
-    top: 24,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  headerSide: {
+    width: 58,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
   menuList: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 6,
+  },
+  groupedList: {
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 14,
-    marginBottom: 8,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  menuItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   menuItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -236,13 +261,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   menuItemText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#FAFAFA',
+    fontSize: 15,
+    fontWeight: '500',
   },
   menuItemCount: {
     color: '#71717A',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
 })

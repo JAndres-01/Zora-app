@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Animated,
   PanResponder,
+  Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Task, Schedule } from '@/types/personal'
@@ -20,6 +21,7 @@ import { sortTasksByDueDate } from '@/lib/taskSort'
 import { DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { BlurView } from 'expo-blur'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 
 interface MinimalistDayTasksModalProps {
   visible: boolean
@@ -87,7 +89,7 @@ export function MinimalistDayTasksModal({
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
       <View style={styles.modalRoot}>
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
@@ -101,18 +103,31 @@ export function MinimalistDayTasksModal({
             },
           ]}
         >
-          {/* Header: drag handle + título centrado (sin X glass, sin hairline, sin subtítulo) */}
+          {/* Header (patrón canónico con botón X liquid glass) */}
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
-            <View style={styles.titleWithBadgeRow} pointerEvents="none">
-              <Text style={styles.headerTitle}>
-                {targetSubject ? `Tareas de ${targetSubject.name}` : `Tareas del ${dayName}`}
-              </Text>
-              {sortedDayTasks.length > 0 && (
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{sortedDayTasks.length}</Text>
+            <View style={styles.headerRow}>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
+                <View style={styles.titleWithBadgeRow}>
+                  <Text style={styles.headerTitle} numberOfLines={1}>
+                    {targetSubject ? `Tareas de ${targetSubject.name}` : `Tareas del ${dayName}`}
+                  </Text>
+                  {sortedDayTasks.length > 0 && (
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{sortedDayTasks.length}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
+
+              <View style={[styles.headerSide, styles.iosButtonNudge]}>
+                <NativeGlassIconButton
+                  onPress={handleSmoothClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
+              </View>
+              <View style={styles.headerSide} />
             </View>
           </View>
 
@@ -213,24 +228,25 @@ const styles = StyleSheet.create({
   },
   backdropDim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
   sheetHeader: {
     alignItems: 'center',
-    paddingTop: 14,
-    paddingBottom: 22,
+    paddingTop: 10,
+    paddingBottom: 4,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -238,18 +254,50 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  headerRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    position: 'relative',
+    minHeight: Platform.OS === 'ios' ? 58 : 36,
+  },
+  headerSide: {
+    width: Platform.OS === 'ios' ? 58 : 36,
+    height: Platform.OS === 'ios' ? 58 : 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  iosButtonNudge: {
+    transform: [{ translateY: Platform.OS === 'ios' ? 12 : 0 }],
+  },
+  headerTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   titleWithBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    maxWidth: '65%',
   },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
+    textAlign: 'center',
   },
   countBadge: {
     backgroundColor: '#FFFFFF',
@@ -263,22 +311,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   sheetScroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   sheetScrollContent: {
     paddingBottom: 24,
   },
   tasksList: {
-    paddingHorizontal: 2,
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    paddingHorizontal: 14,
   },
   taskItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 13,
     gap: 12,
   },
   taskItemRowBorder: {
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   taskItemRowPressed: {

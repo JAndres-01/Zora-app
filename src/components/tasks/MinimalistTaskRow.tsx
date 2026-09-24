@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, memo } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react'
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   StyleSheet,
   Animated,
   PanResponder,
+  type LayoutChangeEvent,
 } from 'react-native'
 import type { Task } from '@/types/personal'
 import { Check, Paperclip, Edit2, Trash2, RotateCcw } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
+import { playTrashSound } from '@/lib/personalAudio'
 import { formatTaskDueDate } from '@/lib/academicDateUtils'
 import { APPLE_EASING } from '@/constants/animations'
 import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
@@ -54,11 +56,22 @@ export const MinimalistTaskRow = memo(
     // Microinteracciones de escala y atenuación de la fila
     const scaleAnim = useRef(new Animated.Value(1)).current
     const rowFadeAnim = useRef(new Animated.Value(isVisuallyDone ? 0.65 : 1)).current
+    const maxHeightAnim = useRef(new Animated.Value(140)).current
+    const measuredHeight = useRef(0)
 
     // Animación de Brillo Blanco y Elevación al Resaltar
     const highlightAnim = useRef(new Animated.Value(0)).current
     const liftAnim = useRef(new Animated.Value(0)).current
+    const deleteAnim = useRef(new Animated.Value(0)).current
+    const shakeAnim = useRef(new Animated.Value(0)).current
+    const rotateAnim = useRef(new Animated.Value(0)).current
     const isDeleting = useRef(false)
+    const [isDeletingState, setIsDeletingState] = useState(false)
+
+    // statusFilter fresco para decidir si la fila sale de la lista al hacer toggle
+    // (el PanResponder captura las props de la primera render, así que usamos un ref)
+    const statusFilterRef = useRef(statusFilter)
+    statusFilterRef.current = statusFilter
 
     // Animación de Desplazamiento Horizontal (Gestos estilo Spotify)
     const translateX = useRef(new Animated.Value(0)).current
@@ -68,6 +81,14 @@ export const MinimalistTaskRow = memo(
     const isGreenTriggered = useRef(false)
     const toggleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const deleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+
+    const handleLayout = useCallback((e: LayoutChangeEvent) => {
+      const h = e.nativeEvent.layout.height
+      if (h > 0 && !isDeleting.current) {
+        measuredHeight.current = h
+        maxHeightAnim.setValue(h)
+      }
+    }, [maxHeightAnim])
 
     // Limpieza y reinicio solo si cambia el ID de la tarea
     useEffect(() => {
@@ -81,13 +102,26 @@ export const MinimalistTaskRow = memo(
       deleteTimersRef.current = []
 
       isDeleting.current = false
+      setIsDeletingState(false)
+      deleteAnim.stopAnimation()
+      deleteAnim.setValue(0)
+      shakeAnim.stopAnimation()
+      shakeAnim.setValue(0)
+      rotateAnim.stopAnimation()
+      rotateAnim.setValue(0)
       translateX.stopAnimation()
       rightSwipeDistance.stopAnimation()
       scaleAnim.stopAnimation()
+      maxHeightAnim.stopAnimation()
       translateX.setValue(0)
       rightSwipeDistance.setValue(0)
       scaleAnim.setValue(1)
       rowFadeAnim.setValue(isVisuallyDone ? 0.6 : 1)
+      if (measuredHeight.current > 0) {
+        maxHeightAnim.setValue(measuredHeight.current)
+      } else {
+        maxHeightAnim.setValue(140)
+      }
       isOpen.current = false
       isSwiping.current = false
       isGreenTriggered.current = false
@@ -284,14 +318,30 @@ export const MinimalistTaskRow = memo(
               }),
             ]).start()
 
-            // Ejecutar el cambio de estado en el momento justo del rebote de látigo
+            // Ejecutar el cambio de estado en el momento justo del rebote de látigo.
+            // Si la fila sale de la lista actual (Pendientes→ha completado, Completadas→desmarcada),
+            // primero se desvanece con Animated API (fiable en Fabric) y solo después se avisa al
+            // padre para que la retire: el fade NO depende de la fase delete de LayoutAnimation,
+            // que se pierde en iOS/Fabric al encadenar acciones seguidas.
+            const leavesList = statusFilterRef.current !== 'all'
             if (toggleTimerRef.current) {
               clearTimeout(toggleTimerRef.current)
             }
             toggleTimerRef.current = setTimeout(() => {
               translateX.setValue(0)
               rightSwipeDistance.setValue(0)
-              onToggleStatus(task.id, task.status)
+              if (leavesList) {
+                Animated.timing(rowFadeAnim, {
+                  toValue: 0,
+                  duration: 150,
+                  useNativeDriver: true,
+                }).start(() => {
+                  rowFadeAnim.setValue(0)
+                  onToggleStatus(task.id, task.status)
+                })
+              } else {
+                onToggleStatus(task.id, task.status)
+              }
             }, 105)
           } else if (dx <= -36 && canModify) {
             // Desplegar y anclar botones de acción
@@ -413,6 +463,7 @@ export const MinimalistTaskRow = memo(
     const handleDeletePress = () => {
       if (isDeleting.current) return
       isDeleting.current = true
+      setIsDeletingState(true)
       isOpen.current = false
       isSwiping.current = false
 
@@ -426,9 +477,91 @@ export const MinimalistTaskRow = memo(
       translateX.stopAnimation()
       scaleAnim.stopAnimation()
       rowFadeAnim.stopAnimation()
+      shakeAnim.stopAnimation()
+      rotateAnim.stopAnimation()
+      deleteAnim.stopAnimation()
+      maxHeightAnim.stopAnimation()
 
+      playTrashSound()
+
+      // 1. Ráfaga háptica sincronizada con cada impacto del temblor y colapso
       triggerHaptic('heavy')
-      onDelete?.(task.id)
+      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('heavy'), 85))
+      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('medium'), 175))
+      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('medium'), 265))
+      deleteTimersRef.current.push(setTimeout(() => triggerHaptic('light'), 355))
+
+      // 2. Efecto de Destrucción unificado: Regreso al centro + Temblor + Torsión + Implosión + Disolución + Colapso
+      Animated.parallel([
+        // Retornar la tarjeta inmediatamente al centro (0px) sin disparar gestos de rebote
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 90,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        // Destello sutil carmesí mate (sin neón)
+        Animated.timing(deleteAnim, {
+          toValue: 1,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        // Vibración / Temblor destructivo
+        Animated.sequence([
+          Animated.timing(shakeAnim, { toValue: 8, duration: 45, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: -8, duration: 45, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 6, duration: 45, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: -6, duration: 45, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 4, duration: 45, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: -3, duration: 45, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 2, duration: 45, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
+        ]),
+        // Torsión / Micro-rotación de fractura
+        Animated.sequence([
+          Animated.timing(rotateAnim, { toValue: 1, duration: 45, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: -1, duration: 45, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: 0.7, duration: 45, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: -0.7, duration: 45, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: 0.4, duration: 45, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: -0.3, duration: 45, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
+        ]),
+        // Expansión breve y colapso / implosión en escala profundo hasta 0
+        Animated.sequence([
+          Animated.timing(scaleAnim, { toValue: 1.02, duration: 90, useNativeDriver: true }),
+          Animated.timing(scaleAnim, {
+            toValue: 0,
+            duration: 380,
+            easing: APPLE_EASING,
+            useNativeDriver: true,
+          }),
+        ]),
+        // Desvanecimiento progresivo continuo que disuelve la tarjeta por completo
+        Animated.sequence([
+          Animated.timing(rowFadeAnim, { toValue: 1, duration: 90, useNativeDriver: true }),
+          Animated.timing(rowFadeAnim, {
+            toValue: 0,
+            duration: 360,
+            easing: APPLE_EASING,
+            useNativeDriver: true,
+          }),
+        ]),
+        // Colapso de altura suave y sincronizado para cerrar el espacio entre tareas
+        Animated.sequence([
+          Animated.delay(120),
+          Animated.timing(maxHeightAnim, {
+            toValue: 0,
+            duration: 350,
+            easing: APPLE_EASING,
+            useNativeDriver: false,
+          }),
+        ]),
+      ]).start(() => {
+        deleteTimersRef.current.forEach(clearTimeout)
+        deleteTimersRef.current = []
+        onDelete?.(task.id)
+      })
     }
 
     const dueInfo = useMemo(
@@ -438,10 +571,13 @@ export const MinimalistTaskRow = memo(
     const attachCount = Array.isArray(task.attachments) ? task.attachments.length : 0
 
     return (
-      <View
+      <Animated.View
+        onLayout={handleLayout}
         style={[
-          styles.normalWrapper,
+          isDeletingState ? styles.collapseWrapper : styles.normalWrapper,
+          isDeletingState && { maxHeight: maxHeightAnim },
           isHighlighted && styles.highlightedZIndex,
+          { pointerEvents: isDeletingState ? 'none' : 'auto' },
         ]}
       >
         <Animated.View
@@ -648,16 +784,28 @@ export const MinimalistTaskRow = memo(
 
           {/* 2. Capa Frontal Deslizable (La Tarjeta de la Tarea) */}
           <Animated.View
-            {...panResponder.panHandlers}
+            {...(isDeletingState ? {} : panResponder.panHandlers)}
             style={[
               styles.glowWrapper,
               {
-                transform: [{ translateX }],
+                pointerEvents: isDeletingState ? 'none' : 'auto',
+                transform: [
+                  { translateX: Animated.add(translateX, shakeAnim) },
+                  {
+                    rotate: rotateAnim.interpolate({
+                      inputRange: [-1, 0, 1],
+                      outputRange: ['-1.6deg', '0deg', '1.6deg'],
+                    }),
+                  },
+                ],
               },
             ]}
           >
             <Animated.View
               style={[styles.highlightOverlay, { opacity: highlightAnim, pointerEvents: 'none' }]}
+            />
+            <Animated.View
+              style={[styles.deleteOverlay, { opacity: deleteAnim, pointerEvents: 'none' }]}
             />
             <View style={[styles.rowContainer, !isLast && styles.rowBorder]}>
               {/* Contenido de la Tarea */}
@@ -755,7 +903,7 @@ export const MinimalistTaskRow = memo(
             </View>
           </Animated.View>
         </Animated.View>
-      </View>
+      </Animated.View>
     )
   },
   (prev, next) => {

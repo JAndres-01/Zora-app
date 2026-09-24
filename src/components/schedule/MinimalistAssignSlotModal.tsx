@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  Platform,
 } from 'react-native'
 import type { Subject, Schedule } from '@/types/personal'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
@@ -19,6 +20,7 @@ import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { generateId } from '@/lib/idGenerator'
 import { useModalAnimation } from '@/hooks/useModalAnimation'
 import { BlurView } from 'expo-blur'
+import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
 import { logger } from '@/lib/logger'
 
 interface MinimalistAssignSlotModalProps {
@@ -142,8 +144,9 @@ export function MinimalistAssignSlotModal({
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
       <View style={styles.modalRoot}>
+        {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
@@ -154,12 +157,24 @@ export function MinimalistAssignSlotModal({
             { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
           ]}
         >
-          {/* Header: drag handle + título centrado (sin X glass, sin hairline, sin subtítulo) */}
+          {/* Header (patrón canónico con botón X liquid glass) */}
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
-            <Text style={styles.headerTitle}>
-              {existingSchedule ? 'Editar Clase' : 'Asignar Materia'}
-            </Text>
+            <View style={styles.headerRow}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleSmoothClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
+              </View>
+              <View style={styles.headerTitleWrap} pointerEvents="none">
+                <Text style={styles.headerTitle}>
+                  {existingSchedule ? 'Editar Clase' : 'Asignar Materia'}
+                </Text>
+              </View>
+              <View style={styles.headerSide} />
+            </View>
           </View>
 
           <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
@@ -249,23 +264,23 @@ const styles = StyleSheet.create({
   },
   backdropDim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
   sheetHeader: {
     alignItems: 'center',
-    paddingTop: 14,
-    paddingBottom: 22,
+    paddingTop: 10,
+    paddingBottom: 12,
     backgroundColor: 'transparent',
   },
   dragHandle: {
@@ -274,7 +289,24 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  headerRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  headerSide: {
+    width: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -287,20 +319,21 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   subjectsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   subjectRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   subjectRowBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   subjectRowSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -311,21 +344,21 @@ const styles = StyleSheet.create({
   subjectLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
     flex: 1,
   },
   subjDot: {
-    width: 7.5,
-    height: 7.5,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
   },
   subjectInfo: {
     flex: 1,
-    gap: 1,
+    gap: 2,
   },
   subjectName: {
     color: '#F4F4F5',
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
@@ -335,22 +368,23 @@ const styles = StyleSheet.create({
   },
   subjectTeacher: {
     color: '#8E8E93',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '500',
   },
   checkBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   clearSlotContainer: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 14,
+    backgroundColor: '#232326',
+    borderRadius: 18,
+    borderCurve: 'continuous',
     overflow: 'hidden',
-    marginTop: 12,
+    marginTop: 14,
     marginBottom: 6,
   },
   clearSlotBtn: {

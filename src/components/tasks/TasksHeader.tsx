@@ -16,6 +16,7 @@ import {
 } from 'expo-glass-effect'
 import { SlidersHorizontal, Plus, Search } from 'lucide-react-native'
 import { MenuView, type MenuAction } from '@react-native-menu/menu'
+import { TasksSubjectFilterModal } from './TasksSubjectFilterModal'
 import type { Subject, Task } from '@/types/personal'
 import { isWhiteColor } from '@/constants/theme'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -98,11 +99,13 @@ export function GlassAddTaskButton({ onPress }: { onPress: () => void }) {
           accessibilityLabel="Nueva tarea"
           style={[styles.blurBtn, styles.blurBtnWhite]}
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
+          {Platform.OS === 'ios' && (
+            <BlurView
+              intensity={50}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <Plus size={20} color="#18181B" strokeWidth={2.4} />
         </Pressable>
       )}
@@ -127,6 +130,7 @@ export function GlassFilterSearchPill({
 }) {
   const [reduceTransparency, setReduceTransparency] = useState(false)
   const scaleAnim = useRef(new Animated.Value(1)).current
+  const [showFilterModal, setShowFilterModal] = useState(false)
   const isSelectedWhite = isWhiteColor(selectedSubject?.color)
 
   useEffect(() => {
@@ -163,12 +167,12 @@ export function GlassFilterSearchPill({
   const hasFilter = selectedSubjectId !== 'all'
 
   // Acciones del menú nativo: "Todas las materias" + cada materia con su color.
-  // imageColor (SF Symbol coloreado) permite ver el color real de cada materia.
+  // En iOS se usan SF Symbols coloreados; en Android se omiten para evitar fallos de recursos.
   const subjectFilterActions: MenuAction[] = [
     {
       id: 'all',
       title: 'Todas las materias',
-      image: 'square.grid.2x2',
+      image: Platform.OS === 'ios' ? 'square.grid.2x2' : undefined,
       imageColor: '#FFFFFF',
       state: selectedSubjectId === 'all' ? 'on' : 'off',
     },
@@ -184,7 +188,7 @@ export function GlassFilterSearchPill({
         id: subj.id,
         title: subj.name,
         subtitle: count > 0 ? `${count} tarea${count !== 1 ? 's' : ''}` : undefined,
-        image: 'circle.fill',
+        image: Platform.OS === 'ios' ? 'circle.fill' : undefined,
         imageColor: subj.color || '#FFFFFF',
         state: selectedSubjectId === subj.id ? 'on' : 'off',
       } satisfies MenuAction
@@ -206,11 +210,9 @@ export function GlassFilterSearchPill({
     </>
   )
 
-  // iOS: context menu nativo; web: el menú nativo no existe, se muestra el icono inerte.
+  // iOS: context menu nativo; Android/Web: TasksSubjectFilterModal modal bottom sheet
   const filterZone =
-    Platform.OS === 'web' ? (
-      <View style={styles.pillZone}>{filterIcon}</View>
-    ) : (
+    Platform.OS === 'ios' ? (
       <MenuView
         title="Filtrar por Materia"
         shouldOpenOnLongPress={false}
@@ -229,6 +231,21 @@ export function GlassFilterSearchPill({
           {filterIcon}
         </View>
       </MenuView>
+    ) : (
+      <Pressable
+        onPress={() => {
+          triggerHaptic('light')
+          setShowFilterModal(true)
+        }}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Filtrar materias"
+        style={styles.pillZone}
+      >
+        {filterIcon}
+      </Pressable>
     )
 
   const searchZone = (
@@ -239,7 +256,7 @@ export function GlassFilterSearchPill({
       }}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      hitSlop={4}
+      hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel="Buscar tareas"
       style={styles.pillZone}
@@ -251,37 +268,53 @@ export function GlassFilterSearchPill({
   const divider = <View style={styles.pillDivider} pointerEvents="none" />
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      {useGlass ? (
-        <GlassView isInteractive style={styles.pillGlass}>
-          {filterZone}
-          {divider}
-          {searchZone}
-        </GlassView>
-      ) : (
-        <View style={styles.pillBlur}>
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 50 : 85}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-          {filterZone}
-          {divider}
-          {searchZone}
-        </View>
+    <>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        {useGlass ? (
+          <GlassView isInteractive style={styles.pillGlass}>
+            {filterZone}
+            {divider}
+            {searchZone}
+          </GlassView>
+        ) : (
+          <View style={styles.pillBlur}>
+            {Platform.OS === 'ios' && (
+              <BlurView
+                intensity={50}
+                tint="dark"
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+            {filterZone}
+            {divider}
+            {searchZone}
+          </View>
+        )}
+      </Animated.View>
+      {Platform.OS !== 'ios' && (
+        <TasksSubjectFilterModal
+          visible={showFilterModal}
+          subjects={subjects}
+          tasks={tasks}
+          selectedSubjectId={selectedSubjectId}
+          onSelectSubject={onSelectSubject}
+          onClose={() => setShowFilterModal(false)}
+        />
       )}
-    </Animated.View>
+    </>
   )
 }
 
 export interface TasksHeaderProps {
   cardEntranceAnim?: Animated.Value
   largeTitleOpacity?: Animated.AnimatedInterpolation<number>
+  scrollY?: Animated.Value
 }
 
 export function TasksHeader({
   cardEntranceAnim,
   largeTitleOpacity,
+  scrollY,
 }: TasksHeaderProps) {
   const card0Style = cardEntranceAnim
     ? {
@@ -306,18 +339,30 @@ export function TasksHeader({
       }
     : {}
 
-  // Colapso dinámico del título: al esconderse sube y encoge hacia la barra
-  // (sincronizado con la opacidad, que a su vez sigue el scroll).
-  const titleCollapseY = largeTitleOpacity?.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-24, 0],
-    extrapolate: 'clamp',
-  })
-  const titleCollapseScale = largeTitleOpacity?.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.92, 1],
-    extrapolate: 'clamp',
-  })
+  // Colapso dinámico del título: si scrollY existe, interpolar directo de scrollY para evitar cadenas de interpolación en Android
+  const titleCollapseY = scrollY
+    ? scrollY.interpolate({
+        inputRange: [4, 45],
+        outputRange: [0, -24],
+        extrapolate: 'clamp',
+      })
+    : largeTitleOpacity?.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-24, 0],
+        extrapolate: 'clamp',
+      })
+
+  const titleCollapseScale = scrollY
+    ? scrollY.interpolate({
+        inputRange: [4, 45],
+        outputRange: [1, 0.92],
+        extrapolate: 'clamp',
+      })
+    : largeTitleOpacity?.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.92, 1],
+        extrapolate: 'clamp',
+      })
 
   return (
     <View style={styles.headerContainer}>
@@ -401,7 +446,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: Platform.OS === 'android' ? '#18181B' : 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     overflow: 'hidden',
@@ -437,14 +482,14 @@ const styles = StyleSheet.create({
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: Platform.OS === 'android' ? '#18181B' : 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     overflow: 'hidden',
   },
   blurBtnWhite: {
-    // Variante blanca del botón "+" (fallback sin liquid glass: blur claro)
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderColor: 'rgba(255, 255, 255, 0.7)',
+    // Variante blanca del botón "+" (fallback sin liquid glass: blanco nítido)
+    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   },
 })

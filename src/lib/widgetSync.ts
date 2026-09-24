@@ -1,6 +1,8 @@
+import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Task } from '@/types/personal'
 import { logger } from '@/lib/logger'
+import { syncWidgetDataNative } from '../../modules/rattle-audio'
 
 export interface DualBalanceWidgetData {
   pendingCount: number
@@ -56,14 +58,27 @@ export function computeDualBalanceData(tasks: Task[], referenceDate: Date = new 
 }
 
 /**
- * Persiste el estado del widget para consumo por extensiones nativas o caché local.
+ * Persiste el estado del widget para consumo por extensiones nativas de iOS (App Group) y caché local.
  */
 export async function syncWidgetData(tasks: Task[]): Promise<DualBalanceWidgetData> {
   const data = computeDualBalanceData(tasks)
+  const jsonString = JSON.stringify(data)
+
   try {
-    await AsyncStorage.setItem(WIDGET_DATA_STORAGE_KEY, JSON.stringify(data))
+    await AsyncStorage.setItem(WIDGET_DATA_STORAGE_KEY, jsonString)
   } catch (error) {
-    logger.warn('[widgetSync] Error persistiendo datos del widget:', error)
+    logger.warn('[widgetSync] Error persistiendo datos del widget en AsyncStorage:', error)
   }
+
+  // Sincronización nativa con App Group de iOS y recarga de WidgetKit
+  if (Platform.OS === 'ios') {
+    try {
+      syncWidgetDataNative(jsonString)
+    } catch (err) {
+      // Ignorar si el módulo nativo no está disponible
+    }
+  }
+
   return data
 }
+

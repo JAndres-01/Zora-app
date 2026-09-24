@@ -1,0 +1,10 @@
+{
+  "name": "rattle-audio",
+  "version": "1.0.0",
+  "description": "Ráfaga de clics de ruleta programada en el reloj del hardware de audio (cero lag, cero tráfico JS por clic)",
+  "license": "MIT",
+  "author": "Zora",
+  "homepage": "https://zora.app",
+  "main": "index.ts",
+  "private": true
+}

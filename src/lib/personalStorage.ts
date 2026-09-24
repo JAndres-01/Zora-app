@@ -18,6 +18,7 @@ import {
 } from '@/constants/defaults'
 import { logger } from './logger'
 import { setGlobalSoundEnabled } from './personalAudio'
+import { syncWidgetData } from './widgetSync'
 
 const KEYS = {
   SUBJECTS: 'zora_personal_subjects_v2',
@@ -65,6 +66,12 @@ function notifyListeners() {
       logger.error('[personalStorage] Error en listener:', e)
     }
   })
+  try {
+    const tasks = personalStorage.getCachedTasksWithSubjects()
+    syncWidgetData(tasks).catch(() => {})
+  } catch (err) {
+    // Ignorar en precarga temprana
+  }
 }
 
 function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[] | null): Subject[] {
@@ -274,6 +281,8 @@ export const personalStorage = {
         this.getClassSubjectsCache(),
         this.getClassSchedulesCache(),
       ])
+      const activeTasks = this.getCachedTasksWithSubjects()
+      syncWidgetData(activeTasks).catch(() => {})
     } catch (err) {
       logger.error('[personalStorage] Error en preloadAll:', err)
     }

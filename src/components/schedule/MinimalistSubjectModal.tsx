@@ -256,7 +256,7 @@ export function MinimalistSubjectModal({
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
       <View style={styles.modalRoot}>
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
           <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
         </Animated.View>
@@ -271,24 +271,49 @@ export function MinimalistSubjectModal({
           <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
-              <View style={styles.headerSide}>
+              <View style={[styles.headerSide, styles.iosButtonNudge]}>
+                <Animated.View
+                  pointerEvents={editingSubject ? 'none' : 'auto'}
+                  style={[
+                    styles.headerSideBtn,
+                    {
+                      opacity: backBtnAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 0],
+                      }),
+                      transform: [
+                        {
+                          scale: backBtnAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 0.7],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <NativeGlassIconButton
+                    onPress={handleSmoothClose}
+                    icon="xmark"
+                    accessibilityLabel="Cerrar modal de materias"
+                  />
+                </Animated.View>
                 <Animated.View
                   pointerEvents={editingSubject ? 'auto' : 'none'}
-                  style={{
-                    width: 58,
-                    height: 58,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: backBtnAnim,
-                    transform: [
-                      {
-                        scale: backBtnAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.6, 1],
-                        }),
-                      },
-                    ],
-                  }}
+                  style={[
+                    styles.headerSideBtn,
+                    {
+                      opacity: backBtnAnim,
+                      transform: [
+                        {
+                          scale: backBtnAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.7, 1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
                 >
                   <NativeGlassIconButton
                     onPress={handleCancelEdit}
@@ -304,7 +329,7 @@ export function MinimalistSubjectModal({
                 </Text>
               </View>
 
-              <View style={styles.headerSide}>
+              <View style={[styles.headerSide, styles.iosButtonNudge]}>
                 <NativeGlassIconButton
                   onPress={handleSaveSubject}
                   icon="checkmark"
@@ -319,7 +344,7 @@ export function MinimalistSubjectModal({
           <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Tarjeta glass de Nombre + Profesor (mismo tratamiento que el modal de tarea) */}
             <View style={styles.glassInputCard}>
-              <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+              {Platform.OS === 'ios' && <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />}
               <TextInput
                 placeholder="Ej. Cálculo Multivariable, Física..."
                 placeholderTextColor="#71717A"
@@ -446,24 +471,25 @@ const styles = StyleSheet.create({
   },
   backdropDim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.38)',
   },
   backdropTouch: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#171719',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     maxHeight: '92%',
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
   sheetHeader: {
-    paddingTop: 14,
-    paddingBottom: 10,
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 4,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   dragHandle: {
     width: 36,
@@ -471,19 +497,29 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
+    paddingHorizontal: 16,
   },
   headerSide: {
-    width: 58,
-    height: 58,
+    width: Platform.OS === 'ios' ? 58 : 36,
+    height: Platform.OS === 'ios' ? 58 : 36,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  headerSideBtn: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iosButtonNudge: {
+    transform: [{ translateY: Platform.OS === 'ios' ? 12 : 0 }],
   },
   headerTitleWrap: {
     position: 'absolute',
@@ -505,8 +541,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   glassInputCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     overflow: 'hidden',
   },
@@ -518,8 +555,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   glassInputHairline: {
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   glassTeacherInput: {
     color: '#D4D4D8',
@@ -535,8 +572,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
+    backgroundColor: '#232326',
+    borderRadius: 20,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     paddingVertical: 18,
   },

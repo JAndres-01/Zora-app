@@ -1,19 +1,19 @@
 import { useRef } from 'react'
 import type { ComponentType } from 'react'
-import { Animated, Pressable, StyleSheet, View } from 'react-native'
+import { Animated, Pressable, StyleSheet, View, Platform } from 'react-native'
 import { BlurView } from 'expo-blur'
-import { Check, ChevronLeft, X } from 'lucide-react-native'
+import { Check, ChevronLeft, Images, MoreHorizontal, X } from 'lucide-react-native'
 
-export type GlassIconName = 'xmark' | 'checkmark' | 'back'
+export type GlassIconName = 'xmark' | 'checkmark' | 'back' | 'ellipsis' | 'photos'
 
 export type GlassIconVariant = 'default' | 'prominent'
 
 const DEFAULT_ICON_SIZE: Record<GlassIconName, number> = {
-  xmark: 26,
-  checkmark: 26,
-  // ChevronLeft es ópticamente más angosto que Check/X; se escala un poco
-  // más para que el botón "atrás" se perciba del mismo tamaño que la palomita.
-  back: 32,
+  xmark: 17,
+  checkmark: 17,
+  back: 19,
+  ellipsis: 22,
+  photos: 18,
 }
 
 const ICON_MAP: Record<
@@ -23,14 +23,14 @@ const ICON_MAP: Record<
   xmark: X,
   checkmark: Check,
   back: ChevronLeft,
+  ellipsis: MoreHorizontal,
+  photos: Images,
 }
 
 /**
- * Fallback para Android/web: botón circular liquid glass aproximado
- * (BlurView + tinte translúcido + sheen). En iOS se usa la versión nativa
- * (`NativeGlassIconButton.ios.tsx`) con SwiftUI.
- * `variant="prominent"` aclara apenas el fondo (transparente, un poco más
- * claro que el default) para resaltar la acción principal.
+ * Fallback para Android/web: botón circular con acabado limpio y nítido.
+ * En iOS se usa la versión nativa (`NativeGlassIconButton.ios.tsx`) con SwiftUI.
+ * En Android/web, evita BlurView y brillos diagonales que difuminan el icono.
  */
 export function NativeGlassIconButton({
   onPress,
@@ -51,6 +51,8 @@ export function NativeGlassIconButton({
   const Icon = ICON_MAP[icon]
   const prominent = variant === 'prominent'
   const effectiveSize = iconSize ?? DEFAULT_ICON_SIZE[icon]
+  const isIOS = Platform.OS === 'ios'
+
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -77,9 +79,13 @@ export function NativeGlassIconButton({
         hitSlop={8}
         style={[styles.glassButton, prominent && styles.glassButtonProminent]}
       >
-        <BlurView intensity={prominent ? 30 : 26} tint="dark" style={StyleSheet.absoluteFill} />
-        <View pointerEvents="none" style={styles.glassSheen} />
-        <Icon size={effectiveSize} color={disabled ? '#8E8E93' : '#FFFFFF'} />
+        {isIOS && (
+          <>
+            <BlurView intensity={prominent ? 30 : 26} tint="dark" style={StyleSheet.absoluteFill} />
+            <View pointerEvents="none" style={styles.glassSheen} />
+          </>
+        )}
+        <Icon size={effectiveSize} color={disabled ? '#8E8E93' : '#FFFFFF'} strokeWidth={2.4} />
       </Pressable>
     </Animated.View>
   )
@@ -87,19 +93,19 @@ export function NativeGlassIconButton({
 
 const styles = StyleSheet.create({
   glassButton: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
   },
   glassButtonProminent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderColor: 'rgba(255, 255, 255, 0.26)',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
   },
   glassSheen: {
     position: 'absolute',

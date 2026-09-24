@@ -116,6 +116,7 @@ const withWidgetXcodeProject = (config) => {
     const projObjects = pbxProject.hash.project.objects
     projObjects.PBXTargetDependency = projObjects.PBXTargetDependency || {}
     projObjects.PBXContainerItemProxy = projObjects.PBXContainerItemProxy || {}
+    projObjects.PBXVariantGroup = projObjects.PBXVariantGroup || {}
 
     // 7. Añadir Target nativo de tipo app_extension
     const target = pbxProject.addTarget(EXTENSION_NAME, 'app_extension', EXTENSION_NAME)
@@ -166,18 +167,20 @@ const withWidgetXcodeProject = (config) => {
       }
       if (!productsGroupKey) {
         for (const key in groups) {
-          if (groups[key].name === 'Products' || groups[key].name === '"Products"') {
+          if (groups[key] && (groups[key].name === 'Products' || groups[key].name === '"Products"')) {
             productsGroupKey = key
             break
           }
         }
       }
-      if (productsGroupKey) {
-        pbxProject.addToPbxGroup(productRefUuid, productsGroupKey)
-      } else {
-        const mainGroupKey = firstProject?.mainGroup
-        if (mainGroupKey) {
-          pbxProject.addToPbxGroup(productRefUuid, mainGroupKey)
+      const targetGroupKey = productsGroupKey || firstProject?.mainGroup
+      if (targetGroupKey && groups[targetGroupKey] && Array.isArray(groups[targetGroupKey].children)) {
+        const alreadyExists = groups[targetGroupKey].children.some((c) => (typeof c === 'object' ? c.value : c) === productRefUuid)
+        if (!alreadyExists) {
+          groups[targetGroupKey].children.push({
+            value: productRefUuid,
+            comment: `${EXTENSION_NAME}.appex`,
+          })
         }
       }
     }

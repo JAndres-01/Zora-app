@@ -1144,6 +1144,84 @@ function ensurePbxprojGroupConsistency(dir) {
     }
   }
 }
+// 10. expo-share-intent safe fallback for free Apple IDs without App Groups
+function patchExpoShareIntent() {
+  const shareViewControllerPath = path.join(process.cwd(), 'node_modules', 'expo-share-intent', 'plugin', 'build', 'ios', 'ShareExtensionViewController.swift')
+  if (fs.existsSync(shareViewControllerPath)) {
+    let content = fs.readFileSync(shareViewControllerPath, 'utf8')
+    const orig = content
+
+    // Safe fallback for containerURL: if AppGroup is not provisioned, fallback to temporaryDirectory
+    content = content.replace(
+      /FileManager\.default\s*\.containerURL\(\s*forSecurityApplicationGroupIdentifier:\s*self\.hostAppGroupIdentifier\s*\)!/g,
+      '(FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) ?? FileManager.default.temporaryDirectory)'
+    )
+    content = content.replace(
+      /FileManager\.default\s*\.containerURL\(\s*forSecurityApplicationGroupIdentifier:\s*self\.hostAppGroupIdentifier\s*\)/g,
+      '(FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) ?? FileManager.default.temporaryDirectory)'
+    )
+
+    // Safe fallback for UserDefaults
+    content = content.replace(
+      /let userDefaults = UserDefaults\(suiteName: self\.hostAppGroupIdentifier\)/g,
+      'let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier) ?? UserDefaults.standard'
+    )
+
+    // Safe responder redirection with openURL selector in Share Extension
+    const origRedirect = `    while responder != nil {
+      if let application = responder as? UIApplication {
+        if application.canOpenURL(url) {
+          application.open(url)
+        } else {
+          NSLog("redirectToHostApp canOpenURL KO: \\(shareProtocol)")
+          self.dismissWithError(
+            message: "Application not found, invalid url scheme \\(shareProtocol)")
+          return
+        }
+      }
+      responder = responder!.next
+    }`
+
+    const patchedRedirect = `    while responder != nil {
+      if let application = responder as? UIApplication {
+        if application.canOpenURL(url) {
+          application.open(url)
+          break
+        }
+      }
+      let selector = NSSelectorFromString("openURL:")
+      if responder?.responds(to: selector) == true {
+        responder?.perform(selector, with: url)
+        break
+      }
+      responder = responder?.next
+    }`
+
+    if (content.includes('while responder != nil {')) {
+      content = content.replace(origRedirect, patchedRedirect)
+    }
+
+    if (content !== orig) {
+      fs.writeFileSync(shareViewControllerPath, content, 'utf8')
+      console.log('[patch-swift-packages] Successfully patched ShareExtensionViewController.swift for safe AppGroup fallback & URL redirection')
+    }
+  }
+
+  // Also patch native module if exists
+  const moduleSwiftPath = path.join(process.cwd(), 'node_modules', 'expo-share-intent', 'ios', 'ExpoShareIntentModule.swift')
+  if (fs.existsSync(moduleSwiftPath)) {
+    let content = fs.readFileSync(moduleSwiftPath, 'utf8')
+    const orig = content
+    content = content.replace(/let userDefaults = UserDefaults\(suiteName: appGroupIdentifier\)/g, 'let userDefaults = (appGroupIdentifier != nil ? UserDefaults(suiteName: appGroupIdentifier) : nil) ?? UserDefaults.standard')
+    content = content.replace(/return encodedData!/g, 'return encodedData ?? []')
+    if (content !== orig) {
+      fs.writeFileSync(moduleSwiftPath, content, 'utf8')
+      console.log('[patch-swift-packages] Successfully patched ExpoShareIntentModule.swift')
+    }
+  }
+}
+patchExpoShareIntent()
+
 ensurePbxprojGroupConsistency(path.join(process.cwd(), 'ios'))
 
 console.log('[patch-swift-packages] All Swift and C++ compatibility patches applied successfully.')

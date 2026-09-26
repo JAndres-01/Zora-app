@@ -216,16 +216,19 @@ export function MinimalistTaskModal({
     }
   }, [modalVisible])
 
-  // Sincronizar visibilidad de inmediato durante render si mode !== 'none'
-  if (mode !== 'none' && !modalVisible) {
-    setModalVisible(true)
-  }
+  const prevModeRef = useRef<TaskModalMode>('none')
+  const prevTaskIdRef = useRef<string | null>(null)
 
   // Apertura y Cierre controlados
   useEffect(() => {
     let focusTimer: ReturnType<typeof setTimeout> | undefined
+    const isTransitioningToOpen = mode !== 'none' && (prevModeRef.current === 'none' || (task?.id && task.id !== prevTaskIdRef.current))
+    const isTransitioningToClosed = mode === 'none' && prevModeRef.current !== 'none'
+    prevModeRef.current = mode
+    prevTaskIdRef.current = task?.id || null
 
-    if (mode !== 'none') {
+    if (isTransitioningToOpen) {
+      setModalVisible(true)
       playModalOpenSound()
       const isCompleted = task?.status === 'completed'
       setCurrentView(mode === 'detail' || (mode === 'edit' && isCompleted) ? 'detail' : 'form')
@@ -273,7 +276,7 @@ export function MinimalistTaskModal({
           useNativeDriver: true,
         }),
       ]).start()
-    } else if (modalVisible) {
+    } else if (isTransitioningToClosed && modalVisible) {
       playModalCloseSound()
       Keyboard.dismiss()
       Animated.parallel([
@@ -298,7 +301,7 @@ export function MinimalistTaskModal({
     return () => {
       if (focusTimer) clearTimeout(focusTimer)
     }
-  }, [mode, modalVisible, task, initialTitle, initialDescription, initialAttachments])
+  }, [mode, task?.id])
 
   const handleSmoothClose = (options?: { velocity?: number; silent?: boolean }) => {
     if (!options?.silent) {

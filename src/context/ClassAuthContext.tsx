@@ -250,7 +250,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    // 4. Suscripción en tiempo real a cambios de la clase
+    // 4. Suscripción en tiempo real a cambios de la clase y tareas
     const channel = supabase
       .channel('class-realtime-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_tasks' }, () => {
@@ -261,6 +261,9 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_schedules' }, () => {
         syncClassSchedule().catch(() => {})
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        syncPersonalTasks().catch(() => {})
       })
       .subscribe()
 

@@ -203,15 +203,16 @@ async function syncData() {
       })
     })
 
-    // C) Tareas locales configuradas en Linux (~/.config/synapse/local_tasks.json)
+    // C) Tareas locales configuradas en Linux y filtro de completadas
     const localOverridesFile = path.join(CONFIG_DIR, 'local_tasks.json')
+    let completedSet = new Set()
     if (fs.existsSync(localOverridesFile)) {
       try {
         const localOverrides = JSON.parse(fs.readFileSync(localOverridesFile, 'utf8'))
-        const completedSet = new Set(localOverrides.completedTaskIds || [])
+        completedSet = new Set(localOverrides.completedTaskIds || [])
         if (Array.isArray(localOverrides.localTasks)) {
           localOverrides.localTasks.forEach((lt) => {
-            if (completedSet.has(lt.id) || lt.status === 'completed') return
+            if (completedSet.has(lt.id) || completedSet.has(lt.id.replace('class_', '')) || lt.status === 'completed') return
             if (processedTasks.some((pt) => pt.id === lt.id)) return // Ya existe
 
             const sub = subjectMap.get(lt.subject_id) || (lt.subject_name ? subjectMap.get(lt.subject_name.trim().toLowerCase()) : null) || { name: 'Personal', color: '#1e66f5' }
@@ -238,8 +239,14 @@ async function syncData() {
       } catch (err) {}
     }
 
+    // Filtrar tareas que hayan sido marcadas como completadas localmente
+    const activeTasks = processedTasks.filter((t) => {
+      const rawId = t.id.startsWith('class_') ? t.id.replace('class_', '') : t.id
+      return !completedSet.has(t.id) && !completedSet.has(rawId) && t.status !== 'completed'
+    })
+
     // Ordenar solo tareas pendientes por fecha
-    const pendingTasks = processedTasks.sort((a, b) => {
+    const pendingTasks = activeTasks.sort((a, b) => {
       if (!a.due_date) return 1
       if (!b.due_date) return -1
       return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
@@ -413,15 +420,41 @@ async function addTask(title, subjectName = null, dueDate = null) {
 async function toggleTask(taskId) {
   await restoreSession()
   const user = (await supabase.auth.getUser())?.data?.user
-  if (user) {
-    // Si es personal, actualizar en Supabase
-    await supabase.from('tasks').update({
+
+  // 1. Guardar en local_tasks.json para persistencia instantánea en Linux
+  const localOverridesFile = path.join(CONFIG_DIR, 'local_tasks.json')
+  let localData = { completedTaskIds: [] }
+  try {
+    if (fs.existsSync(localOverridesFile)) {
+      localData = JSON.parse(fs.readFileSync(localOverridesFile, 'utf8'))
+      if (!Array.isArray(localData.completedTaskIds)) localData.completedTaskIds = []
+    }
+  } catch {}
+
+  const rawId = taskId.startsWith('class_') ? taskId.replace('class_', '') : taskId
+  if (!localData.completedTaskIds.includes(taskId)) {
+    localData.completedTaskIds.push(taskId)
+  }
+  if (!localData.completedTaskIds.includes(rawId)) {
+    localData.completedTaskIds.push(rawId)
+  }
+  fs.writeFileSync(localOverridesFile, JSON.stringify(localData, null, 2), 'utf8')
+
+  // 2. Si es tarea personal y hay sesión, actualizar en Supabase
+  if (user && !taskId.startsWith('class_')) {
+    const { error: updErr } = await supabase.from('tasks').update({
       status: 'completed',
       updated_at: new Date().toISOString()
-    }).eq('id', taskId).eq('user_id', user.id)
+    }).eq('id', rawId).eq('user_id', user.id)
+    if (updErr) {
+      console.error('[Synapse] Error actualizando tarea en Supabase:', updErr.message)
+    }
   }
+
+  console.log(`[Synapse] ✅ Tarea ${taskId} marcada como completada`)
   return syncData()
 }
+
 
 // ==========================================
 // CLI HANDLER

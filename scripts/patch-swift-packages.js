@@ -1151,20 +1151,16 @@ function patchExpoShareIntent() {
     let content = fs.readFileSync(shareViewControllerPath, 'utf8')
     const orig = content
 
-    // Safe fallback for containerURL: if AppGroup is not provisioned, fallback to temporaryDirectory
+    // Safe fallback for containerURL: only where force unwrap '!' is used
     content = content.replace(
       /FileManager\.default\s*\.containerURL\(\s*forSecurityApplicationGroupIdentifier:\s*self\.hostAppGroupIdentifier\s*\)!/g,
       '(FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) ?? FileManager.default.temporaryDirectory)'
     )
-    content = content.replace(
-      /FileManager\.default\s*\.containerURL\(\s*forSecurityApplicationGroupIdentifier:\s*self\.hostAppGroupIdentifier\s*\)/g,
-      '(FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) ?? FileManager.default.temporaryDirectory)'
-    )
 
-    // Safe fallback for UserDefaults
+    // Safe fallback for UserDefaults keeping it as optional UserDefaults? for optional chaining (userDefaults?.set)
     content = content.replace(
-      /let userDefaults = UserDefaults\(suiteName: self\.hostAppGroupIdentifier\)/g,
-      'let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier) ?? UserDefaults.standard'
+      /let userDefaults\s*=\s*UserDefaults\(suiteName:\s*self\.hostAppGroupIdentifier\)/g,
+      'let userDefaults: UserDefaults? = UserDefaults(suiteName: self.hostAppGroupIdentifier) ?? UserDefaults.standard'
     )
 
     // Safe responder redirection with openURL selector in Share Extension
@@ -1212,7 +1208,10 @@ function patchExpoShareIntent() {
   if (fs.existsSync(moduleSwiftPath)) {
     let content = fs.readFileSync(moduleSwiftPath, 'utf8')
     const orig = content
-    content = content.replace(/let userDefaults = UserDefaults\(suiteName: appGroupIdentifier\)/g, 'let userDefaults = (appGroupIdentifier != nil ? UserDefaults(suiteName: appGroupIdentifier) : nil) ?? UserDefaults.standard')
+    content = content.replace(
+      /let userDefaults\s*=\s*UserDefaults\(suiteName:\s*appGroupIdentifier\)/g,
+      'let userDefaults: UserDefaults? = (appGroupIdentifier != nil ? UserDefaults(suiteName: appGroupIdentifier) : nil) ?? UserDefaults.standard'
+    )
     content = content.replace(/return encodedData!/g, 'return encodedData ?? []')
     if (content !== orig) {
       fs.writeFileSync(moduleSwiftPath, content, 'utf8')

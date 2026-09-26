@@ -1,0 +1,1221 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import type {
+  Subject,
+  Schedule,
+  Task,
+  PersonalProfile,
+  AppPreferences,
+  ClassTask,
+  TaskStatus,
+  ClassTaskLocalState,
+  PendingClassAction,
+} from '@/types/personal'
+import { sortTasksByDueDate } from './taskSort'
+import {
+  DEFAULT_USER_ID,
+  DEFAULT_STUDENT_NAME,
+  DEFAULT_ADVANCE_REMINDER_TIME,
+} from '@/constants/defaults'
+import { logger } from './logger'
+import { setGlobalSoundEnabled } from './personalAudio'
+import { syncWidgetData } from './widgetSync'
+import { supabase } from './supabase'
+
+const KEYS = {
+  SUBJECTS: 'zora_personal_subjects_v2',
+  SCHEDULES: 'zora_personal_schedules_v2',
+  TASKS: 'zora_personal_tasks_v2',
+  PROFILE: 'zora_personal_profile_v2',
+  PREFERENCES: 'zora_personal_prefs_v2',
+  CLASS_TASKS: 'zora_class_tasks_cache_v2',
+  CLASS_TASK_STATUSES: 'zora_class_task_statuses_v2',
+  CLASS_TASK_STATES: 'zora_class_task_states_v2',
+  CLASS_SUBJECTS: 'zora_class_subjects_v2',
+  CLASS_SCHEDULES: 'zora_class_schedules_v2',
+  PENDING_CLASS_ACTIONS: 'zora_pending_class_actions_v2',
+}
+
+// ==========================================
+// CACHÉ EN MEMORIA (REACTIVA Y SIN LATENCIA)
+// ==========================================
+let _subjectsCache: Subject[] | null = null
+let _schedulesCache: Schedule[] | null = null
+let _tasksCache: Task[] | null = null
+let _profileCache: PersonalProfile | null = null
+let _preferencesCache: AppPreferences | null = null
+let _classTasksCache: ClassTask[] | null = null
+let _classTaskStatusesCache: Record<string, TaskStatus> | null = null
+let _classTaskStatesCache: Record<string, ClassTaskLocalState> | null = null
+let _classSubjectsCache: Subject[] | null = null
+let _classSchedulesCache: Schedule[] | null = null
+let _pendingClassActionsCache: PendingClassAction[] | null = null
+
+const listeners = new Set<() => void>()
+
+export function subscribeToPersonalStorage(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+function notifyListeners() {
+  listeners.forEach((cb) => {
+    try {
+      cb()
+    } catch (e) {
+      logger.error('[personalStorage] Error en listener:', e)
+    }
+  })
+  try {
+    const tasks = personalStorage.getCachedTasksWithSubjects()
+    syncWidgetData(tasks).catch(() => {})
+  } catch (err) {
+    // Ignorar en precarga temprana
+  }
+}
+
+function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[] | null): Subject[] {
+  const cList = classSubjects || []
+  const lList = localSubjects || []
+  if (cList.length === 0) return [...lList]
+  if (lList.length === 0) return [...cList]
+
+  const result: Subject[] = [...cList]
+  const seenIds = new Set(cList.map((s) => s.id))
+  const seenNames = new Set(cList.map((s) => s.name.trim().toLowerCase()))
+
+  for (const ls of lList) {
+    if (!seenIds.has(ls.id) && !seenNames.has(ls.name.trim().toLowerCase())) {
+      result.push(ls)
+      seenIds.add(ls.id)
+      seenNames.add(ls.name.trim().toLowerCase())
+    }
+  }
+
+  return result
+}
+
+function extractUniqueSubjects(existingSubjects: Subject[], tasks: Task[]): Subject[] {
+  const merged = [...existingSubjects]
+  const seenIds = new Set(existingSubjects.map((s) => s.id))
+  const seenNames = new Set(existingSubjects.map((s) => s.name.trim().toLowerCase()))
+
+  for (const t of tasks) {
+    if (t.subject && t.subject.name && t.subject.name.trim().toLowerCase() !== 'general') {
+      const nameKey = t.subject.name.trim().toLowerCase()
+      if (!seenNames.has(nameKey) && (!t.subject.id || !seenIds.has(t.subject.id))) {
+        merged.push(t.subject)
+        if (t.subject.id) seenIds.add(t.subject.id)
+        seenNames.add(nameKey)
+      }
+    }
+  }
+  return merged
+}
+
+export function mapClassTasksToTaskObjects(
+  classTasks: ClassTask[],
+  subjects: Subject[],
+  classStatuses: Record<string, TaskStatus> = {},
+  classStates?: Record<string, ClassTaskLocalState>
+): Task[] {
+  const result: Task[] = []
+
+  for (const ct of classTasks) {
+    const rawClassId = ct.id.startsWith('class_') ? ct.id.replace('class_', '') : ct.id
+    const finalId = `class_${rawClassId}`
+
+    const localState = classStates?.[rawClassId] || classStates?.[finalId] || classStates?.[ct.id]
+    if (localState?.deleted_locally) continue
+
+    const isOfficialUpdated = Boolean(
+      ct.updated_at &&
+      ct.created_at &&
+      new Date(ct.updated_at).getTime() - new Date(ct.created_at).getTime() > 30000
+    )
+
+    const matchingSubject = subjects.find(
+      (s) => s.name.trim().toLowerCase() === (ct.subject_name || '').trim().toLowerCase()
+    ) || null
+
+    const resolvedSubject = matchingSubject || {
+      id: ct.subject_name ? `virtual_${ct.subject_name}` : `virtual_${ct.id}`,
+      name: ct.subject_name || 'General',
+      color: '#3B82F6',
+    }
+
+    const status: TaskStatus = localState
+      ? (localState.completed ? 'completed' : 'pending')
+      : (classStatuses[rawClassId] || classStatuses[finalId] || classStatuses[ct.id] || 'pending')
+
+    const completedAt = localState?.completed_at || (status === 'completed' ? ct.updated_at || ct.created_at : null)
+
+    const isPendingSync = Boolean(
+      ct.is_pending_sync ||
+      _pendingClassActionsCache?.some(
+        (a) =>
+          a.class_task_id === rawClassId ||
+          a.class_task_id === finalId ||
+          a.class_task_id === ct.id
+      )
+    )
+
+    result.push({
+      id: finalId,
+      title: ct.title,
+      description: ct.description || null,
+      type: ct.type,
+      status,
+      due_date: ct.due_date,
+      completed_at: completedAt,
+      attachments: ct.attachments || [],
+      is_class_task: true,
+      class_task_id: rawClassId,
+      publisher_name: ct.publisher_name,
+      publisher_id: ct.publisher_id,
+      has_class_update: isOfficialUpdated,
+      is_pending_sync: isPendingSync,
+      official_class_task: ct,
+      class_updated_at: ct.updated_at,
+      created_at: ct.created_at,
+      updated_at: ct.updated_at,
+      subject_id: matchingSubject ? matchingSubject.id : resolvedSubject.id,
+      subject: resolvedSubject,
+    })
+  }
+
+  return result
+}
+
+export const personalStorage = {
+  // ==========================================
+  // MÉTODOS DE ACCESO DIRECTO A CACHÉ EN MEMORIA
+  // ==========================================
+  getCachedSubjects(): Subject[] {
+    const base = mergeSubjects(_classSubjectsCache, _subjectsCache)
+    return extractUniqueSubjects(base, _tasksCache || [])
+  },
+
+  getCachedLocalSubjects(): Subject[] {
+    return _subjectsCache ? [..._subjectsCache] : []
+  },
+
+  getCachedSchedules(): Schedule[] {
+    return _schedulesCache ? [..._schedulesCache] : []
+  },
+
+  getCachedTasks(): Task[] {
+    return _tasksCache ? [..._tasksCache] : []
+  },
+
+  getCachedSchedulesWithSubjects(): Schedule[] {
+    const subjects = this.getCachedSubjects()
+    const schedules = _schedulesCache || []
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: sch.subject || subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
+  },
+
+  getCachedTasksWithSubjects(): Task[] {
+    const subjects = this.getCachedSubjects()
+    const tasks = _tasksCache || []
+    const classTasks = _classTasksCache || []
+    const classStatuses = _classTaskStatusesCache || {}
+    const classStates = _classTaskStatesCache || {}
+
+    const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses, classStates)
+
+    const localTasksWithSub = tasks.map((t) => {
+      const matched = (t.subject_id && subjects.find((s) => s.id === t.subject_id)) ||
+        (t.subject?.name && subjects.find((s) => s.name.trim().toLowerCase() === t.subject!.name.trim().toLowerCase())) ||
+        t.subject ||
+        null
+      return {
+        ...t,
+        subject: matched,
+      }
+    })
+
+    return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])
+  },
+
+  getCachedProfile(): PersonalProfile | null {
+    return _profileCache ? { ..._profileCache } : null
+  },
+
+  getCachedPreferences(): AppPreferences | null {
+    return _preferencesCache ? { ..._preferencesCache } : null
+  },
+
+  getCachedClassSubjects(): Subject[] {
+    return _classSubjectsCache ? [..._classSubjectsCache] : []
+  },
+
+  getCachedClassSchedules(): Schedule[] {
+    return _classSchedulesCache ? [..._classSchedulesCache] : []
+  },
+
+  getCachedClassSchedulesWithSubjects(): Schedule[] {
+    const subjects = this.getCachedSubjects()
+    const schedules = _classSchedulesCache || []
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: sch.subject || subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
+  },
+
+  // ==========================================
+  // PRECARGA INICIAL (INVOCAR EN SPLASH SCREEN)
+  // ==========================================
+  async preloadAll(): Promise<void> {
+    try {
+      await Promise.all([
+        this.getLocalSubjects(),
+        this.getSchedules(),
+        this.getTasks(),
+        this.getProfile(),
+        this.getPreferences(),
+        this.getClassTasksCache(),
+        this.getClassTaskStatuses(),
+        this.getClassSubjectsCache(),
+        this.getClassSchedulesCache(),
+      ])
+      const activeTasks = this.getCachedTasksWithSubjects()
+      syncWidgetData(activeTasks).catch(() => {})
+      this.syncPersonalTasksFromRemote().catch(() => {})
+    } catch (err) {
+      logger.error('[personalStorage] Error en preloadAll:', err)
+    }
+  },
+
+  // ==========================================
+  // MATERIAS (SUBJECTS)
+  // ==========================================
+  async getLocalSubjects(): Promise<Subject[]> {
+    if (_subjectsCache !== null) {
+      return [..._subjectsCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.SUBJECTS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _subjectsCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.error('[personalStorage] Error leyendo materias locales:', err)
+    }
+    _subjectsCache = []
+    return []
+  },
+
+  async getSubjects(): Promise<Subject[]> {
+    const [local, classSubs, tasks] = await Promise.all([
+      this.getLocalSubjects(),
+      this.getClassSubjectsCache(),
+      this.getTasks(),
+    ])
+    const base = mergeSubjects(classSubs, local)
+    return extractUniqueSubjects(base, tasks)
+  },
+
+  async setSubjects(subjects: Subject[]): Promise<void> {
+    _subjectsCache = Array.isArray(subjects) ? [...subjects] : []
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.SUBJECTS, JSON.stringify(_subjectsCache))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando materias:', err)
+    }
+  },
+
+  async saveSubject(subject: Subject): Promise<Subject[]> {
+    const list = await this.getLocalSubjects()
+    const index = list.findIndex((s) => s.id === subject.id)
+    let updated: Subject[]
+    if (index >= 0) {
+      updated = [...list]
+      updated[index] = subject
+    } else {
+      updated = [...list, subject]
+    }
+    await this.setSubjects(updated)
+    return mergeSubjects(_classSubjectsCache, updated)
+  },
+
+  async removeSubject(subjectId: string): Promise<Subject[]> {
+    const list = await this.getLocalSubjects()
+    const updated = list.filter((s) => s.id !== subjectId)
+    await this.setSubjects(updated)
+
+    // Limpiar asociaciones en horarios y tareas de forma transaccional
+    const schedules = await this.getSchedules()
+    const updatedSchedules = schedules.map((sch) =>
+      sch.subject_id === subjectId ? { ...sch, subject_id: null } : sch
+    )
+    await this.setSchedules(updatedSchedules)
+
+    const tasks = await this.getTasks()
+    const updatedTasks = tasks.map((t) =>
+      t.subject_id === subjectId ? { ...t, subject_id: null } : t
+    )
+    await this.setTasks(updatedTasks)
+
+    return mergeSubjects(_classSubjectsCache, updated)
+  },
+
+  // ==========================================
+  // HORARIOS (SCHEDULES)
+  // ==========================================
+  async getSchedules(): Promise<Schedule[]> {
+    if (_schedulesCache !== null) {
+      return [..._schedulesCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.SCHEDULES)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _schedulesCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.error('[personalStorage] Error leyendo horarios:', err)
+    }
+    _schedulesCache = []
+    return []
+  },
+
+  async getSchedulesWithSubjects(): Promise<Schedule[]> {
+    const [schedules, subjects] = await Promise.all([this.getSchedules(), this.getSubjects()])
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
+  },
+
+  async setSchedules(schedules: Schedule[]): Promise<void> {
+    _schedulesCache = Array.isArray(schedules) ? [...schedules] : []
+    notifyListeners()
+    try {
+      const storageList = _schedulesCache.map((s) => {
+        const { subject, ...rest } = s
+        return rest
+      })
+      await AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(storageList))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando horarios:', err)
+    }
+  },
+
+  async saveScheduleSlot(schedule: Schedule): Promise<Schedule[]> {
+    const list = await this.getSchedules()
+    const index = list.findIndex(
+      (s) => s.day_of_week === schedule.day_of_week && s.block_number === schedule.block_number
+    )
+    let updated: Schedule[]
+    if (index >= 0) {
+      updated = [...list]
+      updated[index] = schedule
+    } else {
+      updated = [...list, schedule]
+    }
+    await this.setSchedules(updated)
+    return updated
+  },
+
+  async clearScheduleSlot(dayOfWeek: number, blockNumber: number): Promise<Schedule[]> {
+    const list = await this.getSchedules()
+    const updated = list.filter(
+      (s) => !(s.day_of_week === dayOfWeek && s.block_number === blockNumber)
+    )
+    await this.setSchedules(updated)
+    return updated
+  },
+
+  // ==========================================
+  // TAREAS (TASKS)
+  // ==========================================
+  async getTasks(): Promise<Task[]> {
+    if (_tasksCache !== null) {
+      return [..._tasksCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.TASKS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _tasksCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.error('[personalStorage] Error leyendo tareas:', err)
+    }
+    _tasksCache = []
+    return []
+  },
+
+  async getTasksWithSubjects(): Promise<Task[]> {
+    const [tasks, subjects, classTasks, classStatuses, classStates] = await Promise.all([
+      this.getTasks(),
+      this.getSubjects(),
+      this.getClassTasksCache(),
+      this.getClassTaskStatuses(),
+      this.getClassTaskLocalStates(),
+    ])
+
+    const mappedClassTasks = mapClassTasksToTaskObjects(
+      classTasks,
+      subjects,
+      classStatuses,
+      classStates
+    )
+
+    const localTasksWithSub = tasks.map((t) => {
+      const matched = (t.subject_id && subjects.find((s) => s.id === t.subject_id)) ||
+        (t.subject?.name && subjects.find((s) => s.name.trim().toLowerCase() === t.subject!.name.trim().toLowerCase())) ||
+        t.subject ||
+        null
+      return {
+        ...t,
+        subject: matched,
+      }
+    })
+
+    // Fusionar de forma transparente tareas locales + tareas de clase
+    return sortTasksByDueDate([...localTasksWithSub, ...mappedClassTasks])
+  },
+
+  async setTasks(tasks: Task[], options?: { notify?: boolean }): Promise<void> {
+    // Filtrar tareas de clase para guardar solo tareas locales en KEYS.TASKS
+    const onlyLocalTasks = tasks.filter((t) => !t.is_class_task)
+    const normalizedTasks = onlyLocalTasks.map((t) => {
+      if (t.status === 'completed' && !t.completed_at) {
+        return { ...t, completed_at: t.updated_at || new Date().toISOString() }
+      }
+      if (t.status === 'pending' && t.completed_at) {
+        return { ...t, completed_at: null }
+      }
+      return t
+    })
+    const safeList = sortTasksByDueDate(Array.isArray(normalizedTasks) ? normalizedTasks : [])
+    _tasksCache = [...safeList]
+    if (options?.notify !== false) {
+      notifyListeners()
+    }
+    try {
+      await AsyncStorage.setItem(KEYS.TASKS, JSON.stringify(safeList))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando tareas:', err)
+    }
+  },
+
+  async saveTask(task: Task, options?: { notify?: boolean }): Promise<Task[]> {
+    if (task.is_class_task) {
+      const classId = task.class_task_id || (task.id.startsWith('class_') ? task.id.replace('class_', '') : task.id)
+      await this.setClassTaskStatus(classId, task.status)
+      return this.getTasksWithSubjects()
+    }
+    const list = await this.getTasks()
+    const index = list.findIndex((t) => t.id === task.id)
+    const normalizedTask: Task = {
+      ...task,
+      completed_at:
+        task.status === 'completed'
+          ? task.completed_at || new Date().toISOString()
+          : null,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (normalizedTask.subject && normalizedTask.subject.name && normalizedTask.subject.name.trim().toLowerCase() !== 'general') {
+      const localSubs = await this.getLocalSubjects()
+      const exists = localSubs.some(
+        (s) =>
+          s.id === normalizedTask.subject?.id ||
+          s.name.trim().toLowerCase() === normalizedTask.subject?.name.trim().toLowerCase()
+      )
+      if (!exists) {
+        await this.saveSubject(normalizedTask.subject)
+      }
+    }
+
+    let updated: Task[]
+    if (index >= 0) {
+      updated = [...list]
+      updated[index] = normalizedTask
+    } else {
+      updated = [normalizedTask, ...list]
+    }
+    const sorted = sortTasksByDueDate(updated)
+    await this.setTasks(sorted, options)
+
+    // Sincronización en segundo plano con Supabase si el usuario está autenticado
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user || (await supabase.auth.getUser()).data?.user
+      if (user && !normalizedTask.is_class_task) {
+        const encDesc = normalizedTask.subject_id
+          ? `[subj_id:${normalizedTask.subject_id}]${normalizedTask.description || ''}`
+          : (normalizedTask.description || null)
+
+        const nowIso = new Date().toISOString()
+        supabase.from('tasks').upsert({
+          id: normalizedTask.id,
+          user_id: user.id,
+          title: normalizedTask.title,
+          description: encDesc,
+          due_date: normalizedTask.due_date || null,
+          subject_id: null,
+          status: normalizedTask.status || 'pending',
+          type: normalizedTask.type || 'individual',
+          attachments: normalizedTask.attachments || [],
+          created_at: normalizedTask.created_at || nowIso,
+          updated_at: normalizedTask.updated_at || nowIso,
+        }).then(({ error }) => {
+          if (error) logger.warn('[personalStorage] Error sincronizando tarea en Supabase:', error.message)
+        })
+      }
+    }).catch((err) => {
+      logger.warn('[personalStorage] Error obteniendo sesión para saveTask:', err)
+    })
+
+    return sorted
+  },
+
+  async toggleTaskStatus(taskId: string, targetStatus?: TaskStatus): Promise<Task[]> {
+    if (taskId.startsWith('class_')) {
+      const classTaskId = taskId.replace('class_', '')
+      const states = await this.getClassTaskLocalStates()
+      const currentState = (states[classTaskId]?.completed || states[`class_${classTaskId}`]?.completed) ? 'completed' : 'pending'
+      const newStatus: TaskStatus = targetStatus
+        ? targetStatus
+        : currentState === 'completed'
+        ? 'pending'
+        : 'completed'
+      await this.setClassTaskStatus(classTaskId, newStatus)
+      return this.getTasksWithSubjects()
+    }
+
+    const tasks = await this.getTasks()
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return this.getTasksWithSubjects()
+
+    const newStatus: TaskStatus = targetStatus
+      ? targetStatus
+      : task.status === 'completed'
+      ? 'pending'
+      : 'completed'
+
+    const nowIso = new Date().toISOString()
+    const updatedTask: Task = {
+      ...task,
+      status: newStatus,
+      completed_at: newStatus === 'completed' ? nowIso : null,
+      updated_at: nowIso,
+    }
+    return this.saveTask(updatedTask)
+  },
+
+  async removeTask(taskId: string): Promise<Task[]> {
+    if (taskId.startsWith('class_')) {
+      const classTaskId = taskId.replace('class_', '')
+      await this.setClassTaskLocalState(classTaskId, { deleted_locally: true })
+      return this.getTasksWithSubjects()
+    }
+    const list = await this.getTasks()
+    const updated = list.filter((t) => t.id !== taskId)
+    await this.setTasks(updated)
+
+    // Eliminar de Supabase en segundo plano si el usuario está autenticado
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user || (await supabase.auth.getUser()).data?.user
+      if (user) {
+        supabase.from('tasks').delete().eq('id', taskId).eq('user_id', user.id).then(({ error }) => {
+          if (error) logger.warn('[personalStorage] Error eliminando tarea en Supabase:', error.message)
+        })
+      }
+    }).catch((err) => {
+      logger.warn('[personalStorage] Error obteniendo sesión para removeTask:', err)
+    })
+
+    return updated
+  },
+
+  async syncPersonalTasksFromRemote(): Promise<Task[]> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user || (await supabase.auth.getUser()).data?.user
+      if (!user) return this.getTasksWithSubjects()
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (error) {
+        logger.warn('[personalStorage] Error al obtener tareas personales de Supabase:', error.message)
+        return this.getTasksWithSubjects()
+      }
+
+      if (Array.isArray(data)) {
+        const localTasks = await this.getTasks()
+        const remoteIds = new Set(data.map((d: any) => d.id))
+        
+        // 1. Subir a Supabase cualquier tarea local que aún no esté en la nube
+        const unuploaded = localTasks.filter((lt) => !lt.is_class_task && !remoteIds.has(lt.id))
+        if (unuploaded.length > 0) {
+          const nowIso = new Date().toISOString()
+          const payloads = unuploaded.map((ut) => {
+            const encDesc = ut.subject_id
+              ? `[subj_id:${ut.subject_id}]${ut.description || ''}`
+              : (ut.description || null)
+
+            return {
+              id: ut.id,
+              user_id: user.id,
+              title: ut.title,
+              description: encDesc,
+              due_date: ut.due_date || null,
+              subject_id: null,
+              status: ut.status || 'pending',
+              type: ut.type || 'individual',
+              attachments: ut.attachments || [],
+              created_at: ut.created_at || nowIso,
+              updated_at: ut.updated_at || nowIso,
+            }
+          })
+          const { error: upsertErr } = await supabase.from('tasks').upsert(payloads)
+          if (upsertErr) {
+            logger.warn('[personalStorage] Error al subir tareas locales a Supabase:', upsertErr.message)
+          }
+        }
+
+        const remoteMap = new Map<string, Task>()
+        data.forEach((rt: any) => {
+          let cleanDesc = rt.description || null
+          let recoveredSubjId = rt.subject_id || null
+
+          if (cleanDesc && cleanDesc.startsWith('[subj_id:')) {
+            const endIdx = cleanDesc.indexOf(']')
+            if (endIdx > 9) {
+              recoveredSubjId = cleanDesc.substring(9, endIdx)
+              cleanDesc = cleanDesc.substring(endIdx + 1) || null
+            }
+          }
+
+          remoteMap.set(rt.id, {
+            id: rt.id,
+            title: rt.title,
+            description: cleanDesc,
+            due_date: rt.due_date || null,
+            subject_id: recoveredSubjId,
+            status: (rt.status as TaskStatus) || 'pending',
+            type: rt.type || 'individual',
+            attachments: rt.attachments || [],
+            created_at: rt.created_at,
+            updated_at: rt.updated_at,
+            is_class_task: false,
+          })
+        })
+
+        // Fusionar manteniendo tareas locales más recientes si se editaron offline
+        const mergedList = [...localTasks]
+        const newerLocalPayloads: any[] = []
+
+        remoteMap.forEach((rTask, rId) => {
+          const idx = mergedList.findIndex((lt) => lt.id === rId)
+          if (idx >= 0) {
+            const local = mergedList[idx]
+            if (
+              local &&
+              local.updated_at &&
+              rTask.updated_at &&
+              new Date(local.updated_at).getTime() > new Date(rTask.updated_at).getTime()
+            ) {
+              // La versión local es más reciente: conservarla y programar subida a Supabase
+              const encDesc = local.subject_id
+                ? `[subj_id:${local.subject_id}]${local.description || ''}`
+                : (local.description || null)
+
+              newerLocalPayloads.push({
+                id: local.id,
+                user_id: user.id,
+                title: local.title,
+                description: encDesc,
+                due_date: local.due_date || null,
+                subject_id: null,
+                status: local.status || 'pending',
+                type: local.type || 'individual',
+                attachments: local.attachments || [],
+                created_at: local.created_at || local.updated_at,
+                updated_at: local.updated_at,
+              })
+            } else {
+              mergedList[idx] = rTask
+            }
+          } else {
+            mergedList.push(rTask)
+          }
+        })
+
+        if (newerLocalPayloads.length > 0) {
+          supabase.from('tasks').upsert(newerLocalPayloads).then(({ error: newerErr }) => {
+            if (newerErr) logger.warn('[personalStorage] Error actualizando tareas locales más recientes en Supabase:', newerErr.message)
+          })
+        }
+
+        await this.setTasks(mergedList, { notify: true })
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error inesperado en syncPersonalTasksFromRemote:', err)
+    }
+    return this.getTasksWithSubjects()
+  },
+
+  // ==========================================
+  // TAREAS DE CLASE (CACHE & ESTADOS LOCALES)
+  // ==========================================
+  async getClassTasksCache(): Promise<ClassTask[]> {
+    if (_classTasksCache !== null) {
+      return [..._classTasksCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_TASKS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _classTasksCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo caché de class_tasks:', err)
+    }
+    _classTasksCache = []
+    return []
+  },
+
+  async setClassTasksCache(classTasks: ClassTask[], options?: { notify?: boolean }): Promise<void> {
+    _classTasksCache = Array.isArray(classTasks) ? [...classTasks] : []
+    if (options?.notify !== false) {
+      notifyListeners()
+    }
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_TASKS, JSON.stringify(_classTasksCache))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando caché de class_tasks:', err)
+    }
+  },
+
+  async getClassTaskLocalStates(): Promise<Record<string, ClassTaskLocalState>> {
+    if (_classTaskStatesCache !== null) {
+      return { ..._classTaskStatesCache }
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_TASK_STATES)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (parsed && typeof parsed === 'object') {
+          _classTaskStatesCache = parsed
+          return { ...parsed }
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo estados de class_tasks:', err)
+    }
+    _classTaskStatesCache = {}
+    return {}
+  },
+
+  async setClassTaskLocalState(
+    classTaskId: string,
+    partial: Partial<ClassTaskLocalState>
+  ): Promise<void> {
+    const rawId = classTaskId.startsWith('class_') ? classTaskId.replace('class_', '') : classTaskId
+    const prefixedId = `class_${rawId}`
+    const current = await this.getClassTaskLocalStates()
+    const existing: ClassTaskLocalState = current[rawId] || current[prefixedId] || current[classTaskId] || {
+      completed: false,
+      deleted_locally: false,
+      is_locally_edited: false,
+    }
+    const updatedState: ClassTaskLocalState = {
+      ...existing,
+      ...partial,
+      local_overrides:
+        partial.local_overrides !== undefined ? partial.local_overrides : existing.local_overrides,
+    }
+    const updated = {
+      ...current,
+      [rawId]: updatedState,
+      [prefixedId]: updatedState,
+    }
+    _classTaskStatesCache = updated
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_TASK_STATES, JSON.stringify(updated))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando estado local de class_task:', err)
+    }
+  },
+
+  async acceptOfficialClassUpdate(classTaskId: string): Promise<void> {
+    const classTasks = await this.getClassTasksCache()
+    const official = classTasks.find((ct) => ct.id === classTaskId)
+    await this.setClassTaskLocalState(classTaskId, {
+      is_locally_edited: false,
+      local_overrides: undefined,
+      last_seen_version: official?.updated_at || new Date().toISOString(),
+    })
+  },
+
+  async dismissClassUpdate(classTaskId: string): Promise<void> {
+    const classTasks = await this.getClassTasksCache()
+    const official = classTasks.find((ct) => ct.id === classTaskId)
+    await this.setClassTaskLocalState(classTaskId, {
+      last_seen_version: official?.updated_at || new Date().toISOString(),
+    })
+  },
+
+  async getClassTaskStatuses(): Promise<Record<string, TaskStatus>> {
+    const states = await this.getClassTaskLocalStates()
+    const statuses: Record<string, TaskStatus> = {}
+    for (const [id, s] of Object.entries(states)) {
+      const status: TaskStatus = s.completed ? 'completed' : 'pending'
+      statuses[id] = status
+      const rawId = id.startsWith('class_') ? id.replace('class_', '') : id
+      statuses[rawId] = status
+      statuses[`class_${rawId}`] = status
+    }
+    return statuses
+  },
+
+  async setClassTaskStatus(classTaskId: string, status: TaskStatus): Promise<void> {
+    const isCompleted = status === 'completed'
+    await this.setClassTaskLocalState(classTaskId, {
+      completed: isCompleted,
+      completed_at: isCompleted ? new Date().toISOString() : null,
+    })
+  },
+
+  // ==========================================
+  // HORARIO Y MATERIAS DE CLASE (UNIVERSAL)
+  // ==========================================
+  async getClassSubjectsCache(): Promise<Subject[]> {
+    if (_classSubjectsCache !== null) {
+      return [..._classSubjectsCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_SUBJECTS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _classSubjectsCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo caché de class_subjects:', err)
+    }
+    _classSubjectsCache = []
+    return []
+  },
+
+  async setClassSubjectsCache(subjects: Subject[]): Promise<void> {
+    _classSubjectsCache = Array.isArray(subjects) ? [...subjects] : []
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_SUBJECTS, JSON.stringify(_classSubjectsCache))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando caché de class_subjects:', err)
+    }
+  },
+
+  async getClassSchedulesCache(): Promise<Schedule[]> {
+    if (_classSchedulesCache !== null) {
+      return [..._classSchedulesCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CLASS_SCHEDULES)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _classSchedulesCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo caché de class_schedules:', err)
+    }
+    _classSchedulesCache = []
+    return []
+  },
+
+  async setClassSchedulesCache(schedules: Schedule[]): Promise<void> {
+    _classSchedulesCache = Array.isArray(schedules) ? [...schedules] : []
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.CLASS_SCHEDULES, JSON.stringify(_classSchedulesCache))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando caché de class_schedules:', err)
+    }
+  },
+
+  async getClassSchedulesWithSubjects(): Promise<Schedule[]> {
+    const [schedules, subjects] = await Promise.all([
+      this.getClassSchedulesCache(),
+      this.getSubjects(),
+    ])
+    return schedules.map((sch) => ({
+      ...sch,
+      subject: sch.subject || subjects.find((s) => s.id === sch.subject_id) || null,
+    }))
+  },
+
+  // ==========================================
+  // PERFIL LOCAL (PROFILE)
+  // ==========================================
+  async getProfile(): Promise<PersonalProfile> {
+    if (_profileCache !== null) {
+      return { ..._profileCache }
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.PROFILE)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (parsed && typeof parsed === 'object') {
+          _profileCache = parsed
+          return { ...parsed }
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo perfil, usando valor por defecto:', err)
+    }
+    const defaultProfile: PersonalProfile = {
+      id: DEFAULT_USER_ID,
+      full_name: DEFAULT_STUDENT_NAME,
+      created_at: new Date().toISOString(),
+    }
+    await this.setProfile(defaultProfile)
+    return defaultProfile
+  },
+
+  async setProfile(profile: PersonalProfile): Promise<void> {
+    _profileCache = { ...profile }
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(profile))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando perfil:', err)
+    }
+  },
+
+  // ==========================================
+  // PREFERENCIAS (PREFERENCES)
+  // ==========================================
+  async getPreferences(): Promise<AppPreferences> {
+    if (_preferencesCache !== null) {
+      return { ..._preferencesCache }
+    }
+    try {
+      const currentYear = new Date().getFullYear()
+      const data = await AsyncStorage.getItem(KEYS.PREFERENCES)
+      const parsed = data ? JSON.parse(data) : {}
+      const prefs: AppPreferences = {
+        haptics_enabled: parsed.haptics_enabled ?? true,
+        confetti_enabled: parsed.confetti_enabled ?? true,
+        sound_enabled: parsed.sound_enabled ?? true,
+        advance_reminder_enabled: parsed.advance_reminder_enabled ?? true,
+        advance_reminder_time: parsed.advance_reminder_time || DEFAULT_ADVANCE_REMINDER_TIME,
+        class_reminder_enabled: parsed.class_reminder_enabled ?? true,
+        semester_fall_start: parsed.semester_fall_start || `${currentYear}-08-01`,
+        semester_fall_end: parsed.semester_fall_end || `${currentYear}-12-31`,
+        semester_spring_start: parsed.semester_spring_start || `${currentYear}-02-01`,
+        semester_spring_end: parsed.semester_spring_end || `${currentYear}-06-30`,
+      }
+      _preferencesCache = prefs
+      setGlobalSoundEnabled(prefs.sound_enabled ?? true)
+      return prefs
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo preferencias, usando valores por defecto:', err)
+      const currentYear = new Date().getFullYear()
+      const defaultPrefs: AppPreferences = {
+        haptics_enabled: true,
+        confetti_enabled: true,
+        sound_enabled: true,
+        advance_reminder_enabled: true,
+        advance_reminder_time: DEFAULT_ADVANCE_REMINDER_TIME,
+        class_reminder_enabled: true,
+        semester_fall_start: `${currentYear}-08-01`,
+        semester_fall_end: `${currentYear}-12-31`,
+        semester_spring_start: `${currentYear}-02-01`,
+        semester_spring_end: `${currentYear}-06-30`,
+      }
+      _preferencesCache = defaultPrefs
+      setGlobalSoundEnabled(true)
+      return defaultPrefs
+    }
+  },
+
+  async setPreferences(prefs: AppPreferences): Promise<void> {
+    _preferencesCache = { ...prefs }
+    setGlobalSoundEnabled(prefs.sound_enabled ?? true)
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.PREFERENCES, JSON.stringify(prefs))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando preferencias:', err)
+    }
+  },
+
+  // ==========================================
+  // COLA OFFLINE DE ACCIONES DE CLASE
+  // ==========================================
+  getCachedPendingClassActions(): PendingClassAction[] {
+    return _pendingClassActionsCache ? [..._pendingClassActionsCache] : []
+  },
+
+  async getPendingClassActions(): Promise<PendingClassAction[]> {
+    if (_pendingClassActionsCache !== null) {
+      return [..._pendingClassActionsCache]
+    }
+    try {
+      const data = await AsyncStorage.getItem(KEYS.PENDING_CLASS_ACTIONS)
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (Array.isArray(parsed)) {
+          _pendingClassActionsCache = parsed
+          return [...parsed]
+        }
+      }
+    } catch (err) {
+      logger.warn('[personalStorage] Error leyendo cola de pending_class_actions:', err)
+    }
+    _pendingClassActionsCache = []
+    return []
+  },
+
+  async addPendingClassAction(action: PendingClassAction): Promise<PendingClassAction[]> {
+    const current = await this.getPendingClassActions()
+    // Si ya existe una acción del mismo tipo para la misma tarea, consolidarla/actualizarla
+    const filtered = current.filter(
+      (a) => !(a.class_task_id === action.class_task_id && a.type === action.type)
+    )
+    const updated = [...filtered, action]
+    _pendingClassActionsCache = updated
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.PENDING_CLASS_ACTIONS, JSON.stringify(updated))
+    } catch (err) {
+      logger.error('[personalStorage] Error guardando pending_class_action:', err)
+    }
+    return updated
+  },
+
+  async removePendingClassAction(actionId: string): Promise<PendingClassAction[]> {
+    const current = await this.getPendingClassActions()
+    const updated = current.filter((a) => a.id !== actionId && a.class_task_id !== actionId)
+    _pendingClassActionsCache = updated
+    notifyListeners()
+    try {
+      await AsyncStorage.setItem(KEYS.PENDING_CLASS_ACTIONS, JSON.stringify(updated))
+    } catch (err) {
+      logger.error('[personalStorage] Error eliminando pending_class_action:', err)
+    }
+    return updated
+  },
+
+  async clearPendingClassActions(): Promise<void> {
+    _pendingClassActionsCache = []
+    notifyListeners()
+    try {
+      await AsyncStorage.removeItem(KEYS.PENDING_CLASS_ACTIONS)
+    } catch (err) {
+      logger.error('[personalStorage] Error limpiando pending_class_actions:', err)
+    }
+  },
+
+  async hasPendingClassActions(): Promise<boolean> {
+    const actions = await this.getPendingClassActions()
+    return actions.length > 0
+  },
+
+  // ==========================================
+  // COPIAS DE SEGURIDAD (BACKUP / RESTORE)
+  // ==========================================
+  async exportBackup(): Promise<string> {
+    const [subjects, schedules, tasks, profile, preferences] = await Promise.all([
+      this.getSubjects(),
+      this.getSchedules(),
+      this.getTasks(),
+      this.getProfile(),
+      this.getPreferences(),
+    ])
+    return JSON.stringify(
+      {
+        app: 'Zora',
+        version: '2.0-local',
+        exported_at: new Date().toISOString(),
+        subjects,
+        schedules,
+        tasks,
+        profile,
+        preferences,
+      },
+      null,
+      2
+    )
+  },
+
+  async importBackup(jsonString: string): Promise<boolean> {
+    try {
+      const data = JSON.parse(jsonString)
+      if (Array.isArray(data.subjects)) await this.setSubjects(data.subjects)
+      if (Array.isArray(data.schedules)) await this.setSchedules(data.schedules)
+      if (Array.isArray(data.tasks)) await this.setTasks(data.tasks)
+      if (data.profile) await this.setProfile(data.profile)
+      if (data.preferences) await this.setPreferences(data.preferences)
+      return true
+    } catch (err) {
+      logger.error('[personalStorage] Error procesando backup JSON:', err)
+      return false
+    }
+  },
+
+  async clearAll(): Promise<void> {
+    _subjectsCache = []
+    _schedulesCache = []
+    _tasksCache = []
+    _profileCache = null
+    _preferencesCache = null
+    _classTasksCache = []
+    _classTaskStatusesCache = {}
+    _classTaskStatesCache = {}
+    _classSubjectsCache = []
+    _classSchedulesCache = []
+    _pendingClassActionsCache = []
+    notifyListeners()
+    try {
+      await AsyncStorage.multiRemove([
+        KEYS.SUBJECTS,
+        KEYS.SCHEDULES,
+        KEYS.TASKS,
+        KEYS.PROFILE,
+        KEYS.PREFERENCES,
+        KEYS.CLASS_TASKS,
+        KEYS.CLASS_TASK_STATUSES,
+        KEYS.CLASS_TASK_STATES,
+        KEYS.CLASS_SUBJECTS,
+        KEYS.CLASS_SCHEDULES,
+        KEYS.PENDING_CLASS_ACTIONS,
+      ])
+    } catch (err) {
+      logger.error('[personalStorage] Error limpiando storage:', err)
+    }
+  },
+}

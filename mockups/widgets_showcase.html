@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zora Widgets Showcase — Maquetas Numeradas</title>
+  <style>
+    :root {
+      --bg: #09090B;
+      --card-bg: #121215;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-border-active: rgba(255, 255, 255, 0.4);
+      --text-main: #FFFFFF;
+      --text-muted: #A1A1AA;
+      --text-sub: #71717A;
+      --accent-green: #10B981;
+      --accent-purple: #A855F7;
+      --accent-blue: #3B82F6;
+      --accent-pink: #EC4899;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      padding: 40px 24px 130px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .header-container {
+      max-width: 1100px;
+      margin: 0 auto 36px;
+      text-align: center;
+    }
+
+    .brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: #18181D;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 12px;
+      letter-spacing: 2px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+      max-width: 650px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 28px auto 40px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: #141418;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover {
+      color: #FFFFFF;
+      background: #1E1E24;
+    }
+
+    .filter-btn.active {
+      background: #FFFFFF;
+      color: #09090B;
+      border-color: #FFFFFF;
+    }
+
+    /* Section Title */
+    .section-title {
+      max-width: 1100px;
+      margin: 44px auto 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+    }
+
+    .section-title.featured-title {
+      color: #10B981;
+    }
+
+    .section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .widgets-grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Card Box */
+    .widget-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .widget-box:hover {
+      transform: translateY(-3px);
+    }
+
+    .widget-number-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: #141418;
+      padding: 5px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .widget-box.selected .widget-number-tag {
+      background: #FFFFFF;
+      color: #09090B;
+      border-color: #FFFFFF;
+    }
+
+    .widget-box.selected .widget-card {
+      border-color: rgba(255, 255, 255, 0.45);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+    }
+
+    /* Base Widget Card */
+    .widget-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      user-select: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    /* Sizes */
+    .size-small {
+      width: 160px;
+      height: 160px;
+    }
+
+    .size-medium {
+      width: 340px;
+      height: 160px;
+    }
+
+    .size-large {
+      width: 340px;
+      height: 340px;
+    }
+
+    .size-lock-rect {
+      width: 170px;
+      height: 72px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 10px 12px;
+    }
+
+    .size-lock-circ {
+      width: 72px;
+      height: 72px;
+      border-radius: 36px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Micro Components */
+    .badge-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #10B981;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .dot-live {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 6px #10B981;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .tag-sub {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .title-primary {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.25;
+    }
+
+    .meta-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .dot-color {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #202026;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #FFFFFF;
+      border-radius: 2px;
+    }
+
+    /* Floating selection banner */
+    .selection-banner {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #18181D;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+      padding: 14px 24px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+    }
+
+    .selection-text {
+      font-size: 14px;
+      color: #FFFFFF;
+      font-weight: 500;
+    }
+
+    .selection-text strong {
+      color: #10B981;
+    }
+
+    .copy-btn {
+      background: #FFFFFF;
+      color: #09090B;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-container">
+    <div class="brand-pill">ZORA APP · WIDGETS</div>
+    <h1>Catálogo de Maquetas de Widgets</h1>
+    <p class="subtitle">
+      Haz clic sobre los widgets que más te gusten para seleccionarlos, o anota los números correspondientes para indicarme cuáles implementar en la app.
+    </p>
+
+    <!-- Filtros de tamaño -->
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterWidgets('all', this)">Todos</button>
+      <button class="filter-btn" onclick="filterWidgets('featured', this)">★ Pedido Especial (#3)</button>
+      <button class="filter-btn" onclick="filterWidgets('small', this)">Pequeños (Small)</button>
+      <button class="filter-btn" onclick="filterWidgets('medium', this)">Medianos (Medium)</button>
+      <button class="filter-btn" onclick="filterWidgets('large', this)">Grandes (Large)</button>
+      <button class="filter-btn" onclick="filterWidgets('lock', this)">Lock Screen</button>
+    </div>
+  </div>
+
+  <!-- SECCIÓN DESTACADA: VARIACIONES DEL #3 (PENDIENTES TOTALES + ENTREGADAS) -->
+  <div class="section-title featured-title group-featured">★ Tu Petición: Variaciones del #3 (Pendientes Totales + Entregadas)</div>
+  <div class="widgets-grid group-featured">
+
+    <!-- #3A Dual Column Balance (Small) -->
+    <div class="widget-box" onclick="toggleSelect('3A', this)">
+      <div class="widget-card size-small" style="justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="tag-sub">Balance General</span>
+          <span style="font-size: 10px; color: #10B981; font-weight: 700;">74%</span>
+        </div>
+        <!-- Dos Columnas Métricas -->
+        <div style="display: flex; justify-content: space-around; align-items: baseline; text-align: center;">
+          <div>
+            <div style="font-size: 34px; font-weight: 800; line-height: 1; color: #FFFFFF;">5</div>
+            <div style="font-size: 9.5px; color: var(--text-sub); text-transform: uppercase; font-weight: 600; margin-top: 4px;">Pendientes</div>
+          </div>
+          <div style="width: 1px; height: 32px; background: rgba(255,255,255,0.08);"></div>
+          <div>
+            <div style="font-size: 34px; font-weight: 800; line-height: 1; color: #10B981;">14</div>
+            <div style="font-size: 9.5px; color: var(--text-sub); text-transform: uppercase; font-weight: 600; margin-top: 4px;">Entregadas</div>
+          </div>
+        </div>
+        <!-- Barra de progreso segmentada -->
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); margin-bottom: 4px;">
+            <span>19 tareas en total</span>
+            <span>2 para hoy</span>
+          </div>
+          <div style="width: 100%; height: 5px; background: #27272A; border-radius: 2.5px; overflow: hidden; display: flex;">
+            <div style="width: 74%; background: #10B981;"></div>
+            <div style="width: 26%; background: #52525B;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#3A · Dual Balance (Small 2x2) ★</div>
+    </div>
+
+    <!-- #3B Circular Progress Focus (Small) -->
+    <div class="widget-box" onclick="toggleSelect('3B', this)">
+      <div class="widget-card size-small" style="align-items: center; justify-content: space-between; padding: 14px;">
+        <div style="width: 100%; display: flex; justify-content: space-between;">
+          <span class="tag-sub">Mis Tareas</span>
+          <span style="font-size: 10px; color: var(--text-sub);">Semana 4</span>
+        </div>
+        <!-- Anillo Central -->
+        <div style="position: relative; width: 74px; height: 74px; display: flex; align-items: center; justify-content: center;">
+          <svg width="74" height="74" viewBox="0 0 36 36">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#22222A" stroke-width="3" />
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-dasharray="74, 100" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          <div style="position: absolute; text-align: center;">
+            <div style="font-size: 26px; font-weight: 800; line-height: 1;">5</div>
+            <div style="font-size: 8px; color: var(--text-sub); text-transform: uppercase; font-weight: 700;">POR HACER</div>
+          </div>
+        </div>
+        <!-- Badge Inferior Entregadas -->
+        <div style="width: 100%; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 4px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px;">
+          <span style="color: #10B981; font-weight: 600;">✓ Entregadas</span>
+          <span style="color: #FFFFFF; font-weight: 700;">14</span>
+        </div>
+      </div>
+      <div class="widget-number-tag">#3B · Anillo de Progreso (Small 2x2)</div>
+    </div>
+
+    <!-- #3C Contador Grande + Badge Entregadas (Small) -->
+    <div class="widget-box" onclick="toggleSelect('3C', this)">
+      <div class="widget-card size-small" style="justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="tag-sub">Pendientes</span>
+          <span style="background: #18181F; border: 1px solid rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 8px; font-size: 10px; color: #10B981; font-weight: 600;">14 listas ✓</span>
+        </div>
+        <div>
+          <div style="font-size: 52px; font-weight: 900; line-height: 0.95; letter-spacing: -1.5px;">5</div>
+          <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 4px;">tareas por entregar</div>
+        </div>
+        <div style="font-size: 10.5px; color: var(--text-sub); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">
+          2 vencen hoy · 3 esta semana
+        </div>
+      </div>
+      <div class="widget-number-tag">#3C · Contador Hero (Small 2x2)</div>
+    </div>
+
+    <!-- #3D Dual Balance Extendido (Medium 4x2) -->
+    <div class="widget-box" onclick="toggleSelect('3D', this)">
+      <div class="widget-card size-medium" style="flex-direction: row; gap: 14px; padding: 14px;">
+        <!-- Lado Izquierdo: Métricas -->
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid rgba(255,255,255,0.06); padding-right: 12px;">
+          <div>
+            <span class="tag-sub">Estado de Tareas</span>
+            <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 6px;">
+              <div>
+                <div style="font-size: 32px; font-weight: 800; line-height: 1;">5</div>
+                <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">Pendientes</div>
+              </div>
+              <div>
+                <div style="font-size: 32px; font-weight: 800; line-height: 1; color: #10B981;">14</div>
+                <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">Entregadas</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-sub); margin-bottom: 4px;">
+              <span>Tasa de entrega</span>
+              <span style="color: #10B981; font-weight: 700;">74%</span>
+            </div>
+            <div style="width: 100%; height: 5px; background: #27272A; border-radius: 2.5px; overflow: hidden; display: flex;">
+              <div style="width: 74%; background: #10B981;"></div>
+              <div style="width: 26%; background: #52525B;"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Lado Derecho: Próximas a Entregar -->
+        <div style="flex: 1.1; display: flex; flex-direction: column; justify-content: space-between;">
+          <span class="tag-sub">Próximos Vencimientos</span>
+          <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 4px;">
+            <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 10px; display: flex; align-items: center; gap: 7px;">
+              <span class="dot-color" style="background: var(--accent-green);"></span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Infografía 3D</div>
+                <div style="font-size: 10px; color: var(--text-sub);">Hoy 10:00 AM · Diseño 3D</div>
+              </div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 10px; display: flex; align-items: center; gap: 7px;">
+              <span class="dot-color" style="background: var(--accent-purple);"></span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Expo de modelo</div>
+                <div style="font-size: 10px; color: var(--text-sub);">Mañana 7:00 AM · Grupal</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 10px; color: var(--text-sub); text-align: right;">+3 pendientes más</div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#3D · Dual Balance + Lista (Medium 4x2) ★ Recomendado</div>
+    </div>
+
+  </div>
+
+  <!-- SECCIÓN: NUEVAS IDEAS CREATIVAS (#14 - #18) -->
+  <div class="section-title group-creative">Nuevas Ideas Creativas (#14 - #18)</div>
+  <div class="widgets-grid group-creative">
+
+    <!-- #14 Radar Semanal de Entregas (Medium 4x2) -->
+    <div class="widget-box" onclick="toggleSelect('14', this)">
+      <div class="widget-card size-medium" style="justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span class="tag-sub">Progreso Semanal</span>
+            <div style="font-size: 15px; font-weight: 700; margin-top: 2px;">14 entregadas · 5 pendientes</div>
+          </div>
+          <span style="font-size: 11px; color: #10B981; font-weight: 600;">Semana 4</span>
+        </div>
+        <!-- Columnas Lun-Vie -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; height: 60px; padding: 0 10px;">
+          <!-- LUN -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="width: 24px; height: 38px; background: #10B981; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #09090B;">4</div>
+            <span style="font-size: 10px; color: var(--text-sub);">L</span>
+          </div>
+          <!-- MAR (Hoy) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="width: 24px; height: 48px; background: #10B981; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #09090B; border: 2px solid #FFFFFF;">5</div>
+            <span style="font-size: 10px; color: #FFFFFF; font-weight: 700;">M</span>
+          </div>
+          <!-- MIE -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="width: 24px; height: 26px; background: #10B981; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #09090B;">2</div>
+            <span style="font-size: 10px; color: var(--text-sub);">X</span>
+          </div>
+          <!-- JUE (Pendientes) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="width: 24px; height: 32px; background: #27272A; border: 1px dashed #52525B; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #A1A1AA;">2</div>
+            <span style="font-size: 10px; color: var(--text-sub);">J</span>
+          </div>
+          <!-- VIE (Pendientes) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="width: 24px; height: 20px; background: #27272A; border: 1px dashed #52525B; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #A1A1AA;">1</div>
+            <span style="font-size: 10px; color: var(--text-sub);">V</span>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">
+          <span>Verde = Entregadas</span>
+          <span>Línea punteada = Por vencer</span>
+        </div>
+      </div>
+      <div class="widget-number-tag">#14 · Radar de Entregas Semanales (Medium 4x2)</div>
+    </div>
+
+    <!-- #15 Semáforo por Materia (Small 2x2) -->
+    <div class="widget-box" onclick="toggleSelect('15', this)">
+      <div class="widget-card size-small" style="justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="tag-sub">Por Materia</span>
+          <span style="font-size: 10px; color: #10B981; font-weight: 700;">14 listas</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="dot-color" style="background: var(--accent-green);"></span>
+              <span>Diseño 3D</span>
+            </div>
+            <span style="font-weight: 700; color: #FFFFFF;">2 pend</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="dot-color" style="background: var(--accent-purple);"></span>
+              <span>Ing Software</span>
+            </div>
+            <span style="font-weight: 700; color: #FFFFFF;">1 pend</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="dot-color" style="background: var(--accent-pink);"></span>
+              <span>Base Datos II</span>
+            </div>
+            <span style="font-weight: 700; color: #FFFFFF;">2 pend</span>
+          </div>
+        </div>
+        <div style="font-size: 10.5px; color: var(--text-sub); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 5px; text-align: center;">
+          Total: 5 pendientes
+        </div>
+      </div>
+      <div class="widget-number-tag">#15 · Semáforo por Materia (Small 2x2)</div>
+    </div>
+
+    <!-- #16 Enfoque / Tarea Activa (Small 2x2) -->
+    <div class="widget-box" onclick="toggleSelect('16', this)">
+      <div class="widget-card size-small" style="justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="badge-live"><span class="dot-live"></span> Enfoque</div>
+          <span style="font-size: 10px; color: var(--text-sub);">5 rest</span>
+        </div>
+        <div>
+          <div class="title-primary" style="font-size: 14px;">Infografía 3D</div>
+          <div class="meta-line" style="margin-top: 4px;">
+            <span class="dot-color" style="background: var(--accent-green);"></span>
+            <span>Diseño 3D</span>
+          </div>
+        </div>
+        <div>
+          <div style="background: #FFFFFF; color: #09090B; border-radius: 12px; padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 700;">
+            ✓ Marcar Entregada
+          </div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#16 · Tarea en Foco (Small 2x2)</div>
+    </div>
+
+    <!-- #17 Tareas con Tachado Interactivo (Medium 4x2) -->
+    <div class="widget-box" onclick="toggleSelect('17', this)">
+      <div class="widget-card size-medium" style="justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="tag-sub">Estado de Entregas Hoy</span>
+          <span style="font-size: 11px; color: var(--text-muted);"><strong style="color: #10B981;">14</strong> entregadas · <strong style="color: #FFFFFF;">5</strong> pendientes</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Tarea Entregada -->
+          <div style="display: flex; align-items: center; gap: 8px; opacity: 0.5;">
+            <div style="width: 15px; height: 15px; border-radius: 50%; background: #10B981; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #09090B; font-weight: 800;">✓</div>
+            <div style="flex: 1; font-size: 12px; text-decoration: line-through;">Resumen de Lectura Cap. 4</div>
+            <div style="font-size: 10.5px; color: #10B981;">Entregada</div>
+          </div>
+          <!-- Tarea Pendiente 1 -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid #52525B;"></div>
+            <div style="flex: 1; font-size: 12px; font-weight: 600;">Infografía 3D (Diseño 3D)</div>
+            <div style="font-size: 10.5px; color: var(--text-sub);">Hoy 10:00 AM</div>
+          </div>
+          <!-- Tarea Pendiente 2 -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid #52525B;"></div>
+            <div style="flex: 1; font-size: 12px; font-weight: 600;">Expo de modelo (Grupal)</div>
+            <div style="font-size: 10.5px; color: var(--text-sub);">Mañana 7:00 AM</div>
+          </div>
+        </div>
+        <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px; display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-sub);">
+          <span>Próxima entrega en 2 horas</span>
+          <span style="color: #FFFFFF; font-weight: 600;">Abrir Zora →</span>
+        </div>
+      </div>
+      <div class="widget-number-tag">#17 · Check & Tachado en Vivo (Medium 4x2)</div>
+    </div>
+
+    <!-- #18 Lock Screen Dual (Lock Screen Rectangular) -->
+    <div class="widget-box" onclick="toggleSelect('18', this)">
+      <div class="widget-card size-lock-rect" style="justify-content: center; gap: 4px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-muted); font-weight: 700;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>14 ENTREGADAS</span>
+          </div>
+          <span style="font-size: 10px; color: #FFFFFF; font-weight: 800;">74%</span>
+        </div>
+        <div style="font-size: 13.5px; font-weight: 800; color: #FFFFFF;">5 pendientes (2 hoy)</div>
+        <div style="font-size: 10px; color: var(--text-muted);">Próxima: Infografía 10:00 AM</div>
+      </div>
+      <div class="widget-number-tag">#18 · Bloqueo Dual (Entregadas + Pendientes)</div>
+    </div>
+
+  </div>
+
+  <!-- SECCIÓN 1 ORIGINAL: WIDGETS PEQUEÑOS (160x160) -->
+  <div class="section-title group-small">Widgets Pequeños Originales · Small (2x2)</div>
+  <div class="widgets-grid group-small">
+
+    <!-- #1 Small: Clase Activa en Vivo -->
+    <div class="widget-box" onclick="toggleSelect('1', this)">
+      <div class="widget-card size-small">
+        <div>
+          <div class="badge-live"><span class="dot-live"></span> En Vivo</div>
+          <div class="title-primary" style="margin-top: 6px;">Ing de software</div>
+          <div class="meta-line" style="margin-top: 4px;">Aula 204 · C1</div>
+        </div>
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-sub);">
+            <span>07:00 - 08:30</span>
+            <span>42m rest</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width: 55%;"></div></div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#1 · Clase en Vivo</div>
+    </div>
+
+    <!-- #2 Small: Siguiente Entrega Urgente -->
+    <div class="widget-box" onclick="toggleSelect('2', this)">
+      <div class="widget-card size-small">
+        <div>
+          <div class="tag-sub">Próxima Entrega</div>
+          <div class="title-primary" style="margin-top: 6px;">Infografía 3D</div>
+          <div class="meta-line" style="margin-top: 4px;">
+            <span class="dot-color" style="background: var(--accent-green);"></span>
+            <span>Diseño 3D</span>
+          </div>
+        </div>
+        <div>
+          <div style="background: rgba(255,255,255,0.06); padding: 6px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; text-align: center;">
+            Hoy · 10:00 AM
+          </div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#2 · Entrega Urgente</div>
+    </div>
+
+    <!-- #3 Small Original: Contador Tareas -->
+    <div class="widget-box" onclick="toggleSelect('3', this)">
+      <div class="widget-card size-small" style="justify-content: space-between;">
+        <div class="tag-sub">Pendientes Hoy</div>
+        <div style="display: flex; align-items: baseline; gap: 4px;">
+          <span style="font-size: 46px; font-weight: 800; line-height: 1;">3</span>
+          <span style="font-size: 13px; color: var(--text-muted);">tareas</span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+          <div>• Infografía</div>
+          <div style="color: var(--text-sub);">• Expo de modelo</div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#3 · Contador Original</div>
+    </div>
+
+    <!-- #4 Small: Estado Libre / Próxima Clase -->
+    <div class="widget-box" onclick="toggleSelect('4', this)">
+      <div class="widget-card size-small">
+        <div>
+          <div class="tag-sub">Estado Actual</div>
+          <div style="font-size: 22px; font-weight: 700; color: #FFFFFF; margin-top: 4px;">Libre</div>
+          <div class="meta-line" style="margin-top: 4px;">Hasta las 10:00 AM</div>
+        </div>
+        <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+          <div style="font-size: 9.5px; color: var(--text-sub); text-transform: uppercase;">Siguiente</div>
+          <div style="font-size: 12px; font-weight: 600; margin-top: 2px;">Redes II · Lab 3</div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#4 · Modo Descanso</div>
+    </div>
+
+  </div>
+
+  <!-- SECCIÓN 2: WIDGETS MEDIANOS (340x160) -->
+  <div class="section-title group-medium">Widgets Medianos Originales · Medium (4x2)</div>
+  <div class="widgets-grid group-medium">
+
+    <!-- #5 Medium: Híbrido Diario (Clase Actual + 2 Tareas) -->
+    <div class="widget-box" onclick="toggleSelect('5', this)">
+      <div class="widget-card size-medium" style="flex-direction: row; gap: 14px; padding: 14px;">
+        <!-- Izquierda: Horario -->
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid rgba(255,255,255,0.06); padding-right: 12px;">
+          <div>
+            <div class="badge-live"><span class="dot-live"></span> Ahora</div>
+            <div class="title-primary" style="margin-top: 6px; font-size: 14.5px;">Ing de software</div>
+            <div class="meta-line" style="margin-top: 3px; font-size: 11px;">Aula 204 · C1</div>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-sub);">
+              <span>07:00 - 08:30</span>
+              <span>42m</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width: 55%;"></div></div>
+          </div>
+        </div>
+        <!-- Derecha: Tareas -->
+        <div style="flex: 1.1; display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="tag-sub">Entregas de Hoy (2)</div>
+          <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 6px;">
+            <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 10px; display: flex; align-items: center; gap: 7px;">
+              <span class="dot-color" style="background: var(--accent-green);"></span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Infografía</div>
+                <div style="font-size: 10px; color: var(--text-sub);">10:00 AM · Diseño 3D</div>
+              </div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 10px; display: flex; align-items: center; gap: 7px;">
+              <span class="dot-color" style="background: var(--accent-purple);"></span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Expo modelo</div>
+                <div style="font-size: 10px; color: var(--text-sub);">02:00 PM · Grupal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#5 · Híbrido Diario (Horario + Entregas)</div>
+    </div>
+
+    <!-- #6 Medium: Cronograma del Día Horizontal -->
+    <div class="widget-box" onclick="toggleSelect('6', this)">
+      <div class="widget-card size-medium">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="tag-sub">Horario de Hoy</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Martes, 15 Sep</span>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <!-- Bloque 1 (Pasado) -->
+          <div style="flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 12px; padding: 8px; opacity: 0.4;">
+            <div style="font-size: 10px; color: var(--text-sub);">07:00</div>
+            <div style="font-size: 12px; font-weight: 600; margin-top: 4px;">C1 Soft</div>
+            <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">Aula 204</div>
+          </div>
+          <!-- Bloque 2 (Activo / Destacado) -->
+          <div style="flex: 1.1; background: #1C1C24; border: 1px solid rgba(255,255,255,0.22); border-radius: 12px; padding: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 10px; color: #10B981; font-weight: 700;">08:30</span>
+              <span class="dot-live"></span>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">C2 Redes II</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Lab 3</div>
+          </div>
+          <!-- Bloque 3 (Próximo) -->
+          <div style="flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 8px;">
+            <div style="font-size: 10px; color: var(--text-sub);">10:00</div>
+            <div style="font-size: 12px; font-weight: 600; margin-top: 4px;">C3 BD II</div>
+            <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">Aula 102</div>
+          </div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#6 · Cronograma Horizontal del Día</div>
+    </div>
+
+    <!-- #7 Medium: Lista Prioritaria de Tareas -->
+    <div class="widget-box" onclick="toggleSelect('7', this)">
+      <div class="widget-card size-medium" style="justify-content: flex-start; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span class="tag-sub">Entregas Pendientes</span>
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">3 pendientes</span>
+        </div>
+        <!-- Tarea 1 -->
+        <div style="display: flex; align-items: center; gap: 9px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <div style="width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid #52525B;"></div>
+          <div style="flex: 1; font-size: 12.5px; font-weight: 600;">Infografía 3D</div>
+          <span class="dot-color" style="background: var(--accent-green);"></span>
+          <div style="font-size: 11px; color: var(--text-sub);">Hoy 10:00 AM</div>
+        </div>
+        <!-- Tarea 2 -->
+        <div style="display: flex; align-items: center; gap: 9px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <div style="width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid #52525B;"></div>
+          <div style="flex: 1; font-size: 12.5px; font-weight: 600;">Expo de modelo</div>
+          <span class="dot-color" style="background: var(--accent-purple);"></span>
+          <div style="font-size: 11px; color: var(--text-sub);">Mar 7:00 AM</div>
+        </div>
+        <!-- Tarea 3 -->
+        <div style="display: flex; align-items: center; gap: 9px; padding: 5px 0;">
+          <div style="width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid #52525B;"></div>
+          <div style="flex: 1; font-size: 12.5px; font-weight: 600;">10 Consultas</div>
+          <span class="dot-color" style="background: var(--accent-pink);"></span>
+          <div style="font-size: 11px; color: var(--text-sub);">Vie 10:00 AM</div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#7 · Lista de Tareas con Checkbox</div>
+    </div>
+
+    <!-- #8 Medium: Balance Académico & Heatmap -->
+    <div class="widget-box" onclick="toggleSelect('8', this)">
+      <div class="widget-card size-medium" style="flex-direction: row; gap: 14px; padding: 14px;">
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid rgba(255,255,255,0.06); padding-right: 12px;">
+          <div>
+            <div class="tag-sub">Rendimiento</div>
+            <div style="font-size: 28px; font-weight: 800; margin-top: 4px; color: #FFFFFF;">14</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">entregas completadas</div>
+          </div>
+          <div style="font-size: 10.5px; color: #10B981; font-weight: 600;">100% a tiempo</div>
+        </div>
+        <div style="flex: 1.2; display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="tag-sub">Actividad Reciente</div>
+          <div style="display: grid; grid-template-columns: repeat(7, 12px); gap: 4px; justify-content: center; margin-top: 6px;">
+            <div style="width:12px;height:12px;background:#1E1E24;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:rgba(52,211,153,0.35);border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#34D399;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#1E1E24;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:rgba(52,211,153,0.7);border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#34D399;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#1E1E24;border-radius:3px;"></div>
+
+            <div style="width:12px;height:12px;background:rgba(52,211,153,0.35);border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#1E1E24;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#34D399;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:rgba(52,211,153,0.7);border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#1E1E24;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:#34D399;border-radius:3px;"></div>
+            <div style="width:12px;height:12px;background:rgba(52,211,153,0.35);border-radius:3px;"></div>
+          </div>
+          <div style="font-size: 10px; color: var(--text-sub); text-align: right;">Últimos 14 días</div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#8 · Balance & Mapa de Actividad</div>
+    </div>
+
+  </div>
+
+  <!-- SECCIÓN 3: WIDGETS GRANDES (340x340) -->
+  <div class="section-title group-large">Widgets Grandes · Large (4x4)</div>
+  <div class="widgets-grid group-large">
+
+    <!-- #9 Large: Centro de Control Diario Completo -->
+    <div class="widget-box" onclick="toggleSelect('9', this)">
+      <div class="widget-card size-large" style="padding: 18px; gap: 14px;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 10px;">
+          <div>
+            <div class="tag-sub">Hoy en Zora</div>
+            <div style="font-size: 18px; font-weight: 800; margin-top: 2px;">Martes, 15 Sep</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+            Semana 4
+          </div>
+        </div>
+
+        <!-- Bloque 1: Clase Activa -->
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="badge-live"><span class="dot-live"></span> Clase en Curso</div>
+            <span style="font-size: 11px; color: var(--text-muted);">Aula 204</span>
+          </div>
+          <div style="font-size: 15px; font-weight: 700; margin-top: 4px;">Ing de software</div>
+          <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-sub); margin-top: 8px;">
+            <span>07:00 - 08:30</span>
+            <span>42 min restantes</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width: 55%;"></div></div>
+        </div>
+
+        <!-- Bloque 2: Entregas del Día -->
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="tag-sub">Entregas de Hoy</div>
+          <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 6px;">
+            <div style="display: flex; align-items: center; gap: 9px; padding: 5px 0;">
+              <span class="dot-color" style="background: var(--accent-green);"></span>
+              <div style="flex: 1; font-size: 12px; font-weight: 600;">Infografía 3D</div>
+              <div style="font-size: 11px; color: var(--text-sub);">10:00 AM</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 9px; padding: 5px 0;">
+              <span class="dot-color" style="background: var(--accent-purple);"></span>
+              <div style="flex: 1; font-size: 12px; font-weight: 600;">Expo de modelo (Grupal)</div>
+              <div style="font-size: 11px; color: var(--text-sub);">02:00 PM</div>
+            </div>
+          </div>
+          <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <span>Próxima clase: Redes II (08:30)</span>
+            <span style="font-weight: 600; color: #FFFFFF;">Ver más →</span>
+          </div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#9 · Centro de Control Diario Completo</div>
+    </div>
+
+    <!-- #10 Large: Organizador Semanal & Tareas -->
+    <div class="widget-box" onclick="toggleSelect('10', this)">
+      <div class="widget-card size-large" style="padding: 18px; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 10px;">
+          <div>
+            <div class="tag-sub">Vista Semanal</div>
+            <div style="font-size: 17px; font-weight: 800; margin-top: 2px;">14 - 18 Septiembre</div>
+          </div>
+          <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;">6 tareas</span>
+        </div>
+
+        <!-- Días de la semana -->
+        <div style="display: flex; justify-content: space-between; gap: 6px;">
+          <div style="flex: 1; background: rgba(255,255,255,0.03); padding: 8px 4px; border-radius: 10px; text-align: center;">
+            <div style="font-size: 10px; color: var(--text-sub);">LUN</div>
+            <div style="font-size: 13px; font-weight: 700; margin-top: 2px;">14</div>
+            <div style="width: 4px; height: 4px; background: #10B981; border-radius: 50%; margin: 4px auto 0;"></div>
+          </div>
+          <div style="flex: 1; background: #FFFFFF; color: #09090B; padding: 8px 4px; border-radius: 10px; text-align: center;">
+            <div style="font-size: 10px; font-weight: 700;">MAR</div>
+            <div style="font-size: 13px; font-weight: 800; margin-top: 2px;">15</div>
+            <div style="width: 4px; height: 4px; background: #09090B; border-radius: 50%; margin: 4px auto 0;"></div>
+          </div>
+          <div style="flex: 1; background: rgba(255,255,255,0.03); padding: 8px 4px; border-radius: 10px; text-align: center;">
+            <div style="font-size: 10px; color: var(--text-sub);">MIÉ</div>
+            <div style="font-size: 13px; font-weight: 700; margin-top: 2px;">16</div>
+            <div style="width: 4px; height: 4px; background: transparent; border-radius: 50%; margin: 4px auto 0;"></div>
+          </div>
+          <div style="flex: 1; background: rgba(255,255,255,0.03); padding: 8px 4px; border-radius: 10px; text-align: center;">
+            <div style="font-size: 10px; color: var(--text-sub);">JUE</div>
+            <div style="font-size: 13px; font-weight: 700; margin-top: 2px;">17</div>
+            <div style="width: 4px; height: 4px; background: #3B82F6; border-radius: 50%; margin: 4px auto 0;"></div>
+          </div>
+          <div style="flex: 1; background: rgba(255,255,255,0.03); padding: 8px 4px; border-radius: 10px; text-align: center;">
+            <div style="font-size: 10px; color: var(--text-sub);">VIE</div>
+            <div style="font-size: 13px; font-weight: 700; margin-top: 2px;">18</div>
+            <div style="width: 4px; height: 4px; background: #EC4899; border-radius: 50%; margin: 4px auto 0;"></div>
+          </div>
+        </div>
+
+        <!-- Tareas destacadas -->
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="tag-sub">Prioridades</div>
+          <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 6px;">
+            <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 600;">Infografía 3D</span>
+              <span style="font-size: 11px; color: #10B981; font-weight: 600;">Hoy 10:00 AM</span>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 600;">Expo de modelo</span>
+              <span style="font-size: 11px; color: var(--text-muted);">Mañana 7:00 AM</span>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--text-sub); text-align: center;">3 clases programadas para hoy</div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#10 · Mini Calendario & Agenda Semanal</div>
+    </div>
+
+  </div>
+
+  <!-- SECCIÓN 4: LOCK SCREEN WIDGETS -->
+  <div class="section-title group-lock">Widgets Pantalla de Bloqueo (Lock Screen / iOS 16+)</div>
+  <div class="widgets-grid group-lock">
+
+    <!-- #11 Lock Screen: Siguiente Clase Rectangular -->
+    <div class="widget-box" onclick="toggleSelect('11', this)">
+      <div class="widget-card size-lock-rect">
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-muted); font-weight: 600;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>EN 25 MIN</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; color: #FFFFFF; margin-top: 3px;">08:30 Redes II</div>
+        <div style="font-size: 10.5px; color: var(--text-muted);">Lab 3 · Prof. Morales</div>
+      </div>
+      <div class="widget-number-tag">#11 · Bloqueo Rectangular (Clase)</div>
+    </div>
+
+    <!-- #12 Lock Screen: Tarea Urgente Rectangular -->
+    <div class="widget-box" onclick="toggleSelect('12', this)">
+      <div class="widget-card size-lock-rect">
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-muted); font-weight: 600;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>HOY 10:00 AM</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; color: #FFFFFF; margin-top: 3px;">Infografía 3D</div>
+        <div style="font-size: 10.5px; color: var(--text-muted);">Diseño 3D · 1 adjunto</div>
+      </div>
+      <div class="widget-number-tag">#12 · Bloqueo Rectangular (Tarea)</div>
+    </div>
+
+    <!-- #13 Lock Screen: Anillo Circular de Tareas -->
+    <div class="widget-box" onclick="toggleSelect('13', this)">
+      <div class="widget-card size-lock-circ">
+        <svg width="56" height="56" viewBox="0 0 36 36">
+          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3.5" />
+          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#FFFFFF" stroke-dasharray="65, 100" stroke-width="3.5" stroke-linecap="round" />
+        </svg>
+        <div style="position: absolute; text-align: center;">
+          <div style="font-size: 13px; font-weight: 800;">3/5</div>
+          <div style="font-size: 8px; color: var(--text-muted); font-weight: 600;">HOY</div>
+        </div>
+      </div>
+      <div class="widget-number-tag">#13 · Bloqueo Circular (Anillo)</div>
+    </div>
+
+  </div>
+
+  <!-- Barra Flotante de Selección -->
+  <div class="selection-banner" id="selectionBanner" style="display: none;">
+    <div class="selection-text">
+      Seleccionados: <strong id="selectedList">Ninguno</strong>
+    </div>
+    <button class="copy-btn" onclick="copySelection()">Copiar Selección</button>
+  </div>
+
+  <script>
+    const selected = new Set();
+
+    function toggleSelect(id, element) {
+      if (selected.has(id)) {
+        selected.delete(id);
+        element.classList.remove('selected');
+      } else {
+        selected.add(id);
+        element.classList.add('selected');
+      }
+      updateBanner();
+    }
+
+    function updateBanner() {
+      const banner = document.getElementById('selectionBanner');
+      const listEl = document.getElementById('selectedList');
+      if (selected.size > 0) {
+        banner.style.display = 'flex';
+        const sorted = Array.from(selected);
+        listEl.innerText = sorted.map(s => '#' + s).join(', ');
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    function copySelection() {
+      const sorted = Array.from(selected);
+      const text = sorted.map(s => '#' + s).join(', ');
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Copiado: ' + text);
+      }).catch(() => {
+        prompt('Copia tus números seleccionados:', text);
+      });
+    }
+
+    function filterWidgets(category, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const groups = ['featured', 'creative', 'small', 'medium', 'large', 'lock'];
+      groups.forEach(g => {
+        const title = document.querySelector('.section-title.group-' + g);
+        const grid = document.querySelector('.widgets-grid.group-' + g);
+        if (category === 'all' || category === g) {
+          if (title) title.style.display = 'flex';
+          if (grid) grid.style.display = 'flex';
+        } else {
+          if (title) title.style.display = 'none';
+          if (grid) grid.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

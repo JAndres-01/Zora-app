@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zora UI Sounds — Catálogo Interactivo de 27 Micro-Sonidos</title>
+  <style>
+    :root {
+      --bg: #09090B;
+      --card-bg: #121215;
+      --card-hover: #18181B;
+      --card-selected: #1E1E24;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-active: #10B981;
+      --emerald: #10B981;
+      --emerald-glow: rgba(16, 185, 129, 0.18);
+      --text-main: #FFFFFF;
+      --text-sub: #A1A1AA;
+      --text-muted: #71717A;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding: 40px 20px 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 980px;
+      width: 100%;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: var(--emerald);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+    }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin-top: 10px;
+      margin-bottom: 8px;
+    }
+
+    p.subtitle {
+      color: var(--text-sub);
+      font-size: 15px;
+      line-height: 1.5;
+      max-width: 720px;
+    }
+
+    /* Barra de filtros */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 24px 0 28px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-btn {
+      background: #18181B;
+      color: var(--text-sub);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+
+    .filter-btn:hover {
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .filter-btn.active {
+      background: var(--emerald);
+      color: #09090B;
+      border-color: var(--emerald);
+    }
+
+    /* Contador de seleccionados */
+    .selection-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #18181B;
+      border: 1px solid var(--emerald);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px var(--emerald-glow);
+      padding: 14px 20px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      z-index: 100;
+      font-size: 13.5px;
+    }
+
+    .selection-toast b {
+      color: var(--emerald);
+    }
+
+    /* Grid de sonidos */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 32px 0 16px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 12px;
+    }
+
+    .sound-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      position: relative;
+    }
+
+    .sound-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(255, 255, 255, 0.18);
+      transform: translateY(-2px);
+    }
+
+    .sound-card.playing {
+      border-color: var(--emerald);
+      box-shadow: 0 0 16px var(--emerald-glow);
+    }
+
+    .sound-card.favorited {
+      border-color: var(--emerald);
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .sound-card-left {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+      padding-right: 12px;
+    }
+
+    .sound-top-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sound-number {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.12);
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-family: ui-monospace, monospace;
+    }
+
+    .sound-name {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .sound-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.35;
+      margin-top: 2px;
+    }
+
+    .sound-spec {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 4px;
+    }
+
+    .sound-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .play-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 19px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--emerald);
+      font-size: 12px;
+      transition: all 0.18s;
+      flex-shrink: 0;
+    }
+
+    .sound-card:hover .play-btn {
+      background: var(--emerald);
+      color: #09090B;
+      border-color: var(--emerald);
+    }
+
+    .fav-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px;
+      transition: color 0.15s;
+    }
+
+    .fav-btn:hover {
+      color: #F59E0B;
+    }
+
+    .sound-card.favorited .fav-btn {
+      color: #F59E0B;
+    }
+
+    /* Directorio de recursos online */
+    .links-box {
+      margin-top: 50px;
+      background: #141417;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 26px;
+    }
+
+    .links-box h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .link-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      gap: 14px;
+    }
+
+    .link-item:last-child {
+      border-bottom: none;
+    }
+
+    .link-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .link-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .btn-visit {
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--emerald);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.18s;
+      white-space: nowrap;
+    }
+
+    .btn-visit:hover {
+      background: var(--emerald);
+      color: #09090B;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div>
+        <div class="brand-pill">ZORA APP · AUDIO DESIGN</div>
+        <h1>Catálogo de 27 Micro-Sonidos UI</h1>
+        <p class="subtitle">
+          Haz clic en cualquier tarjeta para escuchar su sonido en tiempo real. Marca con la estrella (★) los que más te gusten y anota los números (ej. <i>#1, #8, #16</i>) para indicarme cuáles incorporar a la app.
+        </p>
+      </div>
+    </div>
+
+    <!-- Filtros por categoría -->
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterCategory('all', this)">Todos (27)</button>
+      <button class="filter-btn" onclick="filterCategory('complete', this)">Completar y Éxito (7)</button>
+      <button class="filter-btn" onclick="filterCategory('clicks', this)">Clicks y Taps (8)</button>
+      <button class="filter-btn" onclick="filterCategory('navigation', this)">Navegación y Modales (6)</button>
+      <button class="filter-btn" onclick="filterCategory('rewards', this)">Celebración y Alertas (6)</button>
+    </div>
+
+    <!-- SECCIÓN 1: COMPLETAR TAREAS -->
+    <div class="cat-group cat-complete">
+      <div class="section-header">
+        <span class="section-title">1. Variaciones para Completar Tareas</span>
+      </div>
+      <div class="grid">
+        <!-- #1 -->
+        <div class="sound-card" id="card-1" onclick="handleCardClick(1, 'task_zen')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#1</span>
+              <span class="sound-name">Campana Zen Apple</span>
+            </div>
+            <div class="sound-desc">Armónico dual suave y redondo. Estilo Things 3 / Reminders.</div>
+            <div class="sound-spec">587Hz + 880Hz · Warm Chime</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 1)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #2 -->
+        <div class="sound-card" id="card-2" onclick="handleCardClick(2, 'task_crystal')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#2</span>
+              <span class="sound-name">Cristal Nórdico</span>
+            </div>
+            <div class="sound-desc">Agudo, puro y cortísimo. Sensación de vidrio ligero.</div>
+            <div class="sound-spec">1320Hz · Pure Sine · 70ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 2)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #3 -->
+        <div class="sound-card" id="card-3" onclick="handleCardClick(3, 'task_marimba')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#3</span>
+              <span class="sound-name">Marimba de Madera</span>
+            </div>
+            <div class="sound-desc">Resonancia de madera cálida, nada invasiva ni estridente.</div>
+            <div class="sound-spec">Wood Bar · 523Hz (C5)</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 3)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #4 -->
+        <div class="sound-card" id="card-4" onclick="handleCardClick(4, 'task_waterdrop')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#4</span>
+              <span class="sound-name">Gota de Agua (Plop)</span>
+            </div>
+            <div class="sound-desc">Gota acuática hiper-satisfactoria con caída y eco sutil.</div>
+            <div class="sound-spec">Acoustic Drop · Modulated Pitch</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 4)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #5 -->
+        <div class="sound-card" id="card-5" onclick="handleCardClick(5, 'task_harp')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#5</span>
+              <span class="sound-name">Mini Arpa Dorada</span>
+            </div>
+            <div class="sound-desc">Glisando suave de 3 notas ascendentes etéreas.</div>
+            <div class="sound-spec">3-Tone Harp · G5-B5-E6</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 5)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #6 -->
+        <div class="sound-card" id="card-6" onclick="handleCardClick(6, 'task_duotone')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#6</span>
+              <span class="sound-name">Doble Tono Chime</span>
+            </div>
+            <div class="sound-desc">Ding-Dong rápido de intervalo de quinta. Sensación de misión lograda.</div>
+            <div class="sound-spec">F#5 → B5 · Instant Affirmation</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 6)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #7 -->
+        <div class="sound-card" id="card-7" onclick="handleCardClick(7, 'task_bowl')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#7</span>
+              <span class="sound-name">Cuenco Tibetano</span>
+            </div>
+            <div class="sound-desc">Campana de meditación zen con decadencia suave envolvente.</div>
+            <div class="sound-spec">784Hz · Slow Harmonic Fade</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 7)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2: CLICKS, TAPS Y SELECCIÓN -->
+    <div class="cat-group cat-clicks">
+      <div class="section-header">
+        <span class="section-title">2. Micro-Clicks, Taps y Switches Táctiles</span>
+      </div>
+      <div class="grid">
+        <!-- #8 -->
+        <div class="sound-card" id="card-8" onclick="handleCardClick(8, 'click_pop')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#8</span>
+              <span class="sound-name">Micro Pop Seco</span>
+            </div>
+            <div class="sound-desc">Pop breve y limpio de 40ms. Perfecto para checkboxes rápidos.</div>
+            <div class="sound-spec">Transient Pop · 40ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 8)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #9 -->
+        <div class="sound-card" id="card-9" onclick="handleCardClick(9, 'click_switch')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#9</span>
+              <span class="sound-name">Switch Dieter Rams</span>
+            </div>
+            <div class="sound-desc">Click mecánico de interruptor de alta precisión estilo Braun.</div>
+            <div class="sound-spec">Mechanical Click · 20ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 9)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #10 -->
+        <div class="sound-card" id="card-10" onclick="handleCardClick(10, 'click_pencil')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#10</span>
+              <span class="sound-name">Lápiz en Cuaderno</span>
+            </div>
+            <div class="sound-desc">Trazo analógico de grafito sobre papel rugoso al marcar una tarea.</div>
+            <div class="sound-spec">Filtered Noise · Paper Scratch</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 10)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #11 -->
+        <div class="sound-card" id="card-11" onclick="handleCardClick(11, 'click_watch')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#11</span>
+              <span class="sound-name">Tick de Reloj Suizo</span>
+            </div>
+            <div class="sound-desc">Impulso acústico de 12ms hiper-sutil para navegación o scroll.</div>
+            <div class="sound-spec">Watch Tick · 12ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 11)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #12 -->
+        <div class="sound-card" id="card-12" onclick="handleCardClick(12, 'click_chip')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#12</span>
+              <span class="sound-name">Snap de Ficha / Materia</span>
+            </div>
+            <div class="sound-desc">Toque plástico de baja masa al seleccionar una materia o filtro.</div>
+            <div class="sound-spec">Plastic Snap · 30ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 12)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #13 -->
+        <div class="sound-card" id="card-13" onclick="handleCardClick(13, 'click_rubber')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#13</span>
+              <span class="sound-name">Golpe Gomoso</span>
+            </div>
+            <div class="sound-desc">Toque con cuerpo acolchado para la barra flotante y tabs.</div>
+            <div class="sound-spec">Rubber Tap · Low Dampened</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 13)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #14 -->
+        <div class="sound-card" id="card-14" onclick="handleCardClick(14, 'click_haptic')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#14</span>
+              <span class="sound-name">Click Háptico Apple</span>
+            </div>
+            <div class="sound-desc">Imita la frecuencia del Taptic Engine (combinación auditiva + háptica).</div>
+            <div class="sound-spec">Taptic Sine Pulse · 160Hz</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 14)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #15 -->
+        <div class="sound-card" id="card-15" onclick="handleCardClick(15, 'click_bubble')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#15</span>
+              <span class="sound-name">Burbuja Ascendente</span>
+            </div>
+            <div class="sound-desc">Pop jovial y simpático con barrido rápido de frecuencia.</div>
+            <div class="sound-spec">Bubble Pop · 250Hz → 850Hz</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 15)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 3: NAVEGACIÓN Y GESTOS -->
+    <div class="cat-group cat-navigation">
+      <div class="section-header">
+        <span class="section-title">3. Gestos UI, Modales y Transiciones</span>
+      </div>
+      <div class="grid">
+        <!-- #16 -->
+        <div class="sound-card" id="card-16" onclick="handleCardClick(16, 'nav_modal_open')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#16</span>
+              <span class="sound-name">Suspiro al Abrir Modal</span>
+            </div>
+            <div class="sound-desc">Inspiración suave de aire ascendente cuando sube la hoja modal.</div>
+            <div class="sound-spec">Soft Air Up · 90ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 16)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #17 -->
+        <div class="sound-card" id="card-17" onclick="handleCardClick(17, 'nav_modal_close')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#17</span>
+              <span class="sound-name">Exhalación al Descartar</span>
+            </div>
+            <div class="sound-desc">Descenso de aire suave al deslizar un modal hacia abajo.</div>
+            <div class="sound-spec">Soft Air Down · 80ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 17)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #18 -->
+        <div class="sound-card" id="card-18" onclick="handleCardClick(18, 'nav_swipe_velvet')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#18</span>
+              <span class="sound-name">Swipe de Terciopelo</span>
+            </div>
+            <div class="sound-desc">Rozamiento de tela al deslizar entre días en el Horario o Tareas.</div>
+            <div class="sound-spec">Velvet Swoosh · 60ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 18)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #19 -->
+        <div class="sound-card" id="card-19" onclick="handleCardClick(19, 'nav_pull_refresh')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#19</span>
+              <span class="sound-name">Resorte Pull-to-Refresh</span>
+            </div>
+            <div class="sound-desc">Efecto elástico de rebote gomoso al refrescar la lista de tareas.</div>
+            <div class="sound-spec">Elastic Spring · Dual Bounce</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 19)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #20 -->
+        <div class="sound-card" id="card-20" onclick="handleCardClick(20, 'nav_shutter_save')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#20</span>
+              <span class="sound-name">Obturador Guardar</span>
+            </div>
+            <div class="sound-desc">Doble tick sutil (cla-ck) al crear una tarea o agregar materia.</div>
+            <div class="sound-spec">Camera Shutter Soft · 50ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 20)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #21 -->
+        <div class="sound-card" id="card-21" onclick="handleCardClick(21, 'nav_undo')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#21</span>
+              <span class="sound-name">Deshacer Acción</span>
+            </div>
+            <div class="sound-desc">Sonido reverso suave cuando tocas "Deshacer" o recuperas algo.</div>
+            <div class="sound-spec">Reverse Filtered Sweep · 120ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 21)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 4: CELEBRACIÓN, LOGROS Y AVISOS -->
+    <div class="cat-group cat-rewards">
+      <div class="section-header">
+        <span class="section-title">4. Celebración, Rachas y Avisos</span>
+      </div>
+      <div class="grid">
+        <!-- #22 -->
+        <div class="sound-card" id="card-22" onclick="handleCardClick(22, 'reward_confetti')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#22</span>
+              <span class="sound-name">Confetti Fanfarria</span>
+            </div>
+            <div class="sound-desc">Arpegio brillante de 4 notas que acompaña a la lluvia de confeti.</div>
+            <div class="sound-spec">Major 7th · C5-E5-G5-C6</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 22)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #23 -->
+        <div class="sound-card" id="card-23" onclick="handleCardClick(23, 'reward_sweep')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#23</span>
+              <span class="sound-name">Día Limpio (Zero Inbox)</span>
+            </div>
+            <div class="sound-desc">Acorde celestial relajante cuando terminas todas las tareas del día.</div>
+            <div class="sound-spec">Clean Sweep · Warm Pad Chime</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 23)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #24 -->
+        <div class="sound-card" id="card-24" onclick="handleCardClick(24, 'reward_streak')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#24</span>
+              <span class="sound-name">Subida de Racha</span>
+            </div>
+            <div class="sound-desc">Acorde ascendente con reverberación que premia la constancia.</div>
+            <div class="sound-spec">Level Up Tone · 300ms</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 24)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #25 -->
+        <div class="sound-card" id="card-25" onclick="handleCardClick(25, 'alert_class_reminder')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#25</span>
+              <span class="sound-name">Aviso de Clase Próxima</span>
+            </div>
+            <div class="sound-desc">3 tonos suaves de vibráfono discreto para recordar que la clase inicia.</div>
+            <div class="sound-spec">Vibraphone Triad · A4-C#5-E5</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 25)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #26 -->
+        <div class="sound-card" id="card-26" onclick="handleCardClick(26, 'action_trash')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#26</span>
+              <span class="sound-name">Eliminar / Desvanecer</span>
+            </div>
+            <div class="sound-desc">Burbuja hueca descendente al borrar una tarea o materia.</div>
+            <div class="sound-spec">Hollow Fade · 320Hz → 90Hz</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 26)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+
+        <!-- #27 -->
+        <div class="sound-card" id="card-27" onclick="handleCardClick(27, 'alert_warning')">
+          <div class="sound-card-left">
+            <div class="sound-top-line">
+              <span class="sound-number">#27</span>
+              <span class="sound-name">Aviso Suave / Límite</span>
+            </div>
+            <div class="sound-desc">Doble tono grave apagado al intentar una acción no permitida.</div>
+            <div class="sound-spec">Soft Thud · 280Hz</div>
+          </div>
+          <div class="sound-controls">
+            <button class="fav-btn" onclick="toggleFav(event, 27)">☆</button>
+            <div class="play-btn">▶</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Directorio de Recursos Online -->
+    <div class="links-box">
+      <h2>Páginas Gratuitas para Descargar Sonidos Listos</h2>
+      <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 16px;">
+        Si además quieres explorar grabaciones de estudio profesionales en formato MP3 o WAV listos para descargar gratis:
+      </p>
+
+      <div class="link-item">
+        <div>
+          <div class="link-name">1. Mixkit · UI Sound Effects (Muy recomendada)</div>
+          <div class="link-sub">100% gratis, sin registro, descargas en 1 clic en .mp3 y .wav. Busca: pop, chime, ding, click.</div>
+        </div>
+        <a href="https://mixkit.co/free-sound-effects/ui/" target="_blank" class="btn-visit">Abrir Mixkit ↗</a>
+      </div>
+
+      <div class="link-item">
+        <div>
+          <div class="link-name">2. Kenney UI Audio Pack</div>
+          <div class="link-sub">Dominio público CC0. Más de 100 micro-sonidos hiper-limpios diseñados para interfaces táctiles.</div>
+        </div>
+        <a href="https://kenney.nl/assets/ui-audio" target="_blank" class="btn-visit">Abrir Kenney ↗</a>
+      </div>
+
+      <div class="link-item">
+        <div>
+          <div class="link-name">3. ZapSplat · Mobile UI & Buttons</div>
+          <div class="link-sub">Miles de efectos de sonido profesionales categorizados para aplicaciones móviles.</div>
+        </div>
+        <a href="https://www.zapsplat.com/sound-effect-categories/buttons/" target="_blank" class="btn-visit">Abrir ZapSplat ↗</a>
+      </div>
+
+      <div class="link-item">
+        <div>
+          <div class="link-name">4. Freesound.org</div>
+          <div class="link-sub">Comunidad abierta con miles de efectos. Ideal para sonidos orgánicos (lápiz, papel, campanas tibetanas).</div>
+        </div>
+        <a href="https://freesound.org/search/?q=ui+click" target="_blank" class="btn-visit">Abrir Freesound ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra flotante de favoritos -->
+  <div class="selection-toast" id="toastBar" style="display: none;">
+    <span>Tus sonidos favoritos: <b id="favCount">0</b></span>
+    <span id="favList" style="color: var(--emerald); font-weight: 700;"></span>
+  </div>
+
+  <script>
+    // Sintetizador de Audio Web (Cero dependencias)
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let actx = null;
+    const favorites = new Set();
+
+    function getAudioContext() {
+      if (!actx) actx = new AudioContext();
+      if (actx.state === 'suspended') actx.resume();
+      return actx;
+    }
+
+    function toggleFav(e, num) {
+      e.stopPropagation();
+      const card = document.getElementById('card-' + num);
+      const favBtn = card.querySelector('.fav-btn');
+
+      if (favorites.has(num)) {
+        favorites.delete(num);
+        card.classList.remove('favorited');
+        favBtn.textContent = '☆';
+      } else {
+        favorites.add(num);
+        card.classList.add('favorited');
+        favBtn.textContent = '★';
+      }
+
+      updateToast();
+    }
+
+    function updateToast() {
+      const toast = document.getElementById('toastBar');
+      const count = document.getElementById('favCount');
+      const list = document.getElementById('favList');
+
+      if (favorites.size > 0) {
+        toast.style.display = 'flex';
+        count.textContent = favorites.size;
+        const sorted = Array.from(favorites).sort((a,b) => a - b);
+        list.textContent = sorted.map(n => '#' + n).join(', ');
+      } else {
+        toast.style.display = 'none';
+      }
+    }
+
+    function filterCategory(cat, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const allGroups = document.querySelectorAll('.cat-group');
+      if (cat === 'all') {
+        allGroups.forEach(g => g.style.display = 'block');
+      } else {
+        allGroups.forEach(g => {
+          if (g.classList.contains('cat-' + cat)) {
+            g.style.display = 'block';
+          } else {
+            g.style.display = 'none';
+          }
+        });
+      }
+    }
+
+    function handleCardClick(num, type) {
+      const card = document.getElementById('card-' + num);
+      card.classList.add('playing');
+      setTimeout(() => card.classList.remove('playing'), 250);
+      playSynthSound(type);
+    }
+
+    function playSynthSound(type) {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      switch(type) {
+        // --- CATEGORÍA 1: COMPLETAR ---
+        case 'task_zen': {
+          playTone(ctx, 587.33, 'sine', now, 0.45, 0.28);
+          playTone(ctx, 880, 'sine', now + 0.08, 0.5, 0.35);
+          break;
+        }
+        case 'task_crystal': {
+          playTone(ctx, 1320, 'sine', now, 0.07, 0.22);
+          playTone(ctx, 2640, 'sine', now, 0.04, 0.08);
+          break;
+        }
+        case 'task_marimba': {
+          playTone(ctx, 523.25, 'triangle', now, 0.22, 0.35);
+          playTone(ctx, 1046.5, 'sine', now, 0.09, 0.15);
+          break;
+        }
+        case 'task_waterdrop': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(450, now);
+          osc.frequency.exponentialRampToValueAtTime(1150, now + 0.06);
+          osc.frequency.exponentialRampToValueAtTime(700, now + 0.15);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.3, now + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.22);
+          break;
+        }
+        case 'task_harp': {
+          playTone(ctx, 783.99, 'sine', now, 0.3, 0.2); // G5
+          playTone(ctx, 987.77, 'sine', now + 0.06, 0.35, 0.25); // B5
+          playTone(ctx, 1318.51, 'sine', now + 0.12, 0.45, 0.3); // E6
+          break;
+        }
+        case 'task_duotone': {
+          playTone(ctx, 739.99, 'sine', now, 0.14, 0.25); // F#5
+          playTone(ctx, 987.77, 'sine', now + 0.09, 0.28, 0.3); // B5
+          break;
+        }
+        case 'task_bowl': {
+          playTone(ctx, 784, 'sine', now, 0.8, 0.25);
+          playTone(ctx, 1568, 'sine', now, 0.5, 0.08);
+          break;
+        }
+
+        // --- CATEGORÍA 2: CLICKS & TAPS ---
+        case 'click_pop': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(750, now);
+          osc.frequency.exponentialRampToValueAtTime(130, now + 0.04);
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.04);
+          break;
+        }
+        case 'click_switch': {
+          playTone(ctx, 1800, 'square', now, 0.015, 0.08);
+          playTone(ctx, 350, 'triangle', now + 0.01, 0.02, 0.2);
+          break;
+        }
+        case 'click_pencil': {
+          // Generador de ruido filtrado (scratch)
+          const bufferSize = ctx.sampleRate * 0.05;
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.value = 2400;
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          noise.start(now);
+          break;
+        }
+        case 'click_watch': {
+          playTone(ctx, 2200, 'triangle', now, 0.012, 0.12);
+          break;
+        }
+        case 'click_chip': {
+          playTone(ctx, 1100, 'sine', now, 0.025, 0.2);
+          playTone(ctx, 420, 'triangle', now + 0.008, 0.02, 0.18);
+          break;
+        }
+        case 'click_rubber': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.035);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.035);
+          break;
+        }
+        case 'click_haptic': {
+          playTone(ctx, 160, 'sine', now, 0.028, 0.4);
+          break;
+        }
+        case 'click_bubble': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.06);
+          break;
+        }
+
+        // --- CATEGORÍA 3: NAVEGACIÓN & MODALES ---
+        case 'nav_modal_open': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(260, now);
+          osc.frequency.exponentialRampToValueAtTime(540, now + 0.09);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.16, now + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.09);
+          break;
+        }
+        case 'nav_modal_close': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+          break;
+        }
+        case 'nav_swipe_velvet': {
+          playTone(ctx, 320, 'sine', now, 0.06, 0.1);
+          playTone(ctx, 420, 'sine', now + 0.02, 0.05, 0.08);
+          break;
+        }
+        case 'nav_pull_refresh': {
+          playTone(ctx, 380, 'sine', now, 0.05, 0.18);
+          playTone(ctx, 520, 'sine', now + 0.05, 0.07, 0.22);
+          break;
+        }
+        case 'nav_shutter_save': {
+          playTone(ctx, 1200, 'triangle', now, 0.015, 0.15);
+          playTone(ctx, 1600, 'triangle', now + 0.03, 0.02, 0.2);
+          break;
+        }
+        case 'nav_undo': {
+          playTone(ctx, 620, 'sine', now, 0.06, 0.18);
+          playTone(ctx, 440, 'sine', now + 0.05, 0.09, 0.14);
+          break;
+        }
+
+        // --- CATEGORÍA 4: CELEBRACIÓN & ALERTAS ---
+        case 'reward_confetti': {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            playTone(ctx, freq, 'triangle', now + (idx * 0.065), 0.35, 0.25);
+          });
+          break;
+        }
+        case 'reward_sweep': {
+          playTone(ctx, 440, 'sine', now, 0.6, 0.2);
+          playTone(ctx, 554.37, 'sine', now + 0.05, 0.6, 0.2);
+          playTone(ctx, 659.25, 'sine', now + 0.1, 0.65, 0.25);
+          playTone(ctx, 880, 'sine', now + 0.15, 0.7, 0.3);
+          break;
+        }
+        case 'reward_streak': {
+          playTone(ctx, 392, 'triangle', now, 0.25, 0.2);
+          playTone(ctx, 523.25, 'triangle', now + 0.08, 0.25, 0.25);
+          playTone(ctx, 783.99, 'triangle', now + 0.16, 0.35, 0.3);
+          break;
+        }
+        case 'alert_class_reminder': {
+          playTone(ctx, 440, 'sine', now, 0.3, 0.25); // A4
+          playTone(ctx, 554.37, 'sine', now + 0.12, 0.35, 0.25); // C#5
+          playTone(ctx, 659.25, 'sine', now + 0.24, 0.45, 0.3); // E5
+          break;
+        }
+        case 'action_trash': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(90, now + 0.08);
+          gain.gain.setValueAtTime(0.26, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+          break;
+        }
+        case 'alert_warning': {
+          playTone(ctx, 280, 'sine', now, 0.08, 0.22);
+          playTone(ctx, 240, 'sine', now + 0.09, 0.1, 0.2);
+          break;
+        }
+      }
+    }
+
+    function playTone(ctx, freq, type, startTime, duration, volume = 0.2) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(volume, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    }
+  </script>
+</body>
+</html>

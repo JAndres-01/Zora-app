@@ -1,0 +1,1150 @@
+const fs = require('fs')
+const path = require('path')
+
+// 0. expo-notifications: remove iOS 26 API (isRepeatedDay) that fails on Swift 6.1.x runners
+const dateComponentsSerializerPath = path.join(process.cwd(), 'node_modules', 'expo-notifications', 'ios', 'ExpoNotifications', 'Notifications', 'DateComponentsSerializer.swift')
+if (fs.existsSync(dateComponentsSerializerPath)) {
+  let content = fs.readFileSync(dateComponentsSerializerPath, 'utf8')
+  const orig = content
+  // Remove isRepeatedDay block which uses iOS 26+ SDK not available in Swift 6.1.x
+  content = content.replace(/\s*if #available\(iOS 26\.0,\s*\*\)\s*\{[^}]*\}/g, '')
+  if (content !== orig) {
+    fs.writeFileSync(dateComponentsSerializerPath, content, 'utf8')
+    console.log('[patch-swift-packages] Removed iOS 26 isRepeatedDay block from DateComponentsSerializer.swift')
+  }
+}
+
+// 1. ExpoModulesJSI Package.swift
+const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
+if (fs.existsSync(jsiPackagePath)) {
+  const content = `// swift-tools-version: 6.0
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import Foundation
+import PackageDescription
+
+let packageDir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
+let podsRoot = resolvePodsRoot()
+
+let publicHeaders = "\\(podsRoot)/Headers/Public"
+let reactNative =
+  ProcessInfo.processInfo.environment["RN_ROOT"]
+  ?? ProcessInfo.processInfo.environment["REACT_NATIVE_PATH"]
+  ?? "\\(podsRoot)/../../node_modules/react-native"
+let headerSearchPaths = [
+  publicHeaders,
+  "\\(publicHeaders)/React-jsi",
+  "\\(publicHeaders)/hermes-engine",
+  "\\(publicHeaders)/React-runtimescheduler",
+  "\\(publicHeaders)/React-rendererconsistency",
+  "\\(publicHeaders)/React-performancetimeline",
+  "\\(publicHeaders)/React-timing",
+  "\\(publicHeaders)/React-debug",
+  "\\(publicHeaders)/React-callinvoker",
+  "\\(publicHeaders)/React-runtimeexecutor",
+  "\\(publicHeaders)/RCT-Folly",
+  "\\(publicHeaders)/ReactNativeDependencies",
+  "\\(publicHeaders)/glog",
+  "\\(publicHeaders)/DoubleConversion",
+  "\\(publicHeaders)/fmt",
+  "\\(publicHeaders)/fast_float",
+  "\\(reactNative)/ReactCommon",
+  "\\(reactNative)/ReactCommon/jsi",
+  "\\(reactNative)/ReactCommon/runtimeexecutor",
+  "\\(reactNative)/ReactCommon/callinvoker",
+  "\\(podsRoot)/RCT-Folly",
+  "\\(podsRoot)/fmt/include",
+  "\\(podsRoot)/glog/src",
+  "\\(podsRoot)/DoubleConversion"
+]
+
+let generatedModuleMap = "\\(packageDir)/.generated/module.modulemap"
+let apiNotesPath = "\\(packageDir)/APINotes"
+
+let cxxIncludeFlags = headerSearchPaths.map({ "-I\\($0)" })
+let swiftIncludeFlags = headerSearchPaths.flatMap({ ["-Xcc", "-I\\($0)"] })
+
+let testFrameworks = resolveTestFrameworks()
+
+let package = Package(
+  name: "ExpoModulesJSI",
+  platforms: [
+    .iOS("16.4"),
+    .tvOS("16.4"),
+    .macOS("13.4")
+  ],
+  products: [
+    .library(
+      name: "ExpoModulesJSI",
+      type: .dynamic,
+      targets: ["ExpoModulesJSI"]
+    )
+  ],
+  dependencies: [],
+  targets: [
+    // Swift target (public)
+    .target(
+      name: "ExpoModulesJSI",
+      dependencies: [
+        "ExpoModulesJSI-Cxx"
+      ],
+      swiftSettings: [
+        .interoperabilityMode(.Cxx),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        .enableUpcomingFeature("InferIsolatedConformances"),
+        .unsafeFlags([
+          "-enable-library-evolution",
+          "-emit-module-interface",
+          "-no-verify-emitted-module-interface",
+          "-Xfrontend",
+          "-clang-header-expose-decls=has-expose-attr",
+          "-Xcc", "-fmodule-map-file=\\(generatedModuleMap)",
+          "-Xcc", "-iapinotes-modules",
+          "-Xcc", apiNotesPath
+        ]),
+        .unsafeFlags(swiftIncludeFlags)
+      ],
+      linkerSettings: [
+        .unsafeFlags([
+          "-Xlinker", "-undefined", "-Xlinker", "dynamic_lookup"
+        ])
+      ]
+    ),
+
+    // C++ target (internal)
+    .target(
+      name: "ExpoModulesJSI-Cxx",
+      dependencies: [],
+      cxxSettings: [
+        .headerSearchPath("include/Public"),
+        .unsafeFlags(cxxIncludeFlags)
+      ]
+    ),
+
+    // Tests
+    .testTarget(
+      name: "Tests",
+      dependencies: testFrameworks.dependencies,
+      path: "Tests"
+    ),
+
+    // Benchmarks
+    .testTarget(
+      name: "Benchmarks",
+      dependencies: testFrameworks.dependencies,
+      path: "Benchmarks"
+    )
+  ] + testFrameworks.binaryTargets,
+  swiftLanguageModes: [.v6],
+  cxxLanguageStandard: .cxx20
+)
+
+func resolvePodsRoot() -> String {
+  let env = ProcessInfo.processInfo.environment
+  if let explicit = env["PODS_ROOT"] {
+    return explicit
+  }
+  let repoRoot =
+    env["EXPO_ROOT_DIR"]
+    ?? URL(fileURLWithPath: packageDir)
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .path
+  return "\\(repoRoot)/apps/bare-expo/ios/Pods"
+}
+
+func resolveTestFrameworks() -> (binaryTargets: [Target], dependencies: [Target.Dependency]) {
+  let names = ["React", "hermesvm", "ReactNativeDependencies"]
+  let available = names.filter({
+    FileManager.default.fileExists(atPath: "\\(packageDir)/.test-frameworks/\\($0).xcframework")
+  })
+  let binaryTargets: [Target] = available.map({
+    .binaryTarget(name: $0, path: ".test-frameworks/\\($0).xcframework")
+  })
+  let dependencies: [Target.Dependency] =
+    ["ExpoModulesJSI"]
+    + available.map({ .target(name: $0) })
+  return (binaryTargets, dependencies)
+}
+`
+  fs.writeFileSync(jsiPackagePath, content, 'utf8')
+  console.log('[patch-swift-packages] Successfully wrote Swift 6.0 ExpoModulesJSI Package.swift')
+}
+
+// 2. expo-modules-macros-plugin Package.swift
+const macrosPackagePath = path.join(process.cwd(), 'node_modules', '@expo', 'expo-modules-macros-plugin', 'apple', 'Package.swift')
+if (fs.existsSync(macrosPackagePath)) {
+  let macrosContent = fs.readFileSync(macrosPackagePath, 'utf8')
+  macrosContent = macrosContent.replace(/swift-tools-version:\s*6\.\d+/g, 'swift-tools-version: 6.0')
+  macrosContent = macrosContent.replace(/602\.0\.0(-latest)?/g, '600.0.1')
+  fs.writeFileSync(macrosPackagePath, macrosContent, 'utf8')
+  console.log('[patch-swift-packages] Successfully patched expo-modules-macros-plugin Package.swift')
+}
+
+// 2.5. Walk and sanitize all Package.swift manifests for Swift 6.0 compatibility
+function walkPackageSwift(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.DerivedData' && entry.name !== '.build') {
+        walkPackageSwift(full)
+      }
+    } else if (entry.name === 'Package.swift') {
+      let content = fs.readFileSync(full, 'utf8')
+      let orig = content
+      content = content.replace(/swift-tools-version:\s*6\.\d+(\.\d+)?/gi, 'swift-tools-version: 6.0')
+      content = content.replace(/602\.0\.0(-latest)?/gi, '600.0.1')
+      let prev
+      do {
+        prev = content
+        content = content.replace(/,(\s*[\)\]])/g, '$1')
+      } while (content !== prev)
+      if (content !== orig) {
+        fs.writeFileSync(full, content, 'utf8')
+        console.log(`[patch-swift-packages] Sanitized Package.swift: ${full}`)
+      }
+    }
+  }
+}
+walkPackageSwift(path.join(process.cwd(), 'node_modules'))
+walkPackageSwift(path.join(process.cwd(), 'ios'))
+
+// 3. RuntimeScheduler.h
+const schedulerHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'RuntimeScheduler.h')
+if (fs.existsSync(schedulerHeader)) {
+  let headerContent = fs.readFileSync(schedulerHeader, 'utf8')
+  
+  // Define SWIFT_RETURNS_RETAINED attribute if not present
+  if (!headerContent.includes('#define SWIFT_RETURNS_RETAINED')) {
+    headerContent = headerContent.replace(
+      '#include <swift/bridging>',
+      '#include <swift/bridging>\n\n#ifndef SWIFT_RETURNS_RETAINED\n#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))\n#endif'
+    )
+  } else {
+    headerContent = headerContent.replace(
+      /#define SWIFT_RETURNS_RETAINED\s*$/m,
+      '#define SWIFT_RETURNS_RETAINED __attribute__((swift_attr("returns_retained")))'
+    )
+  }
+
+  // Remove SWIFT_RETURNS_RETAINED from constructor declarations
+  headerContent = headerContent.replace(/SWIFT_RETURNS_RETAINED\s+RuntimeScheduler/g, 'RuntimeScheduler')
+
+  // Add static factory methods if not already added
+  if (!headerContent.includes('RuntimeScheduler *_Nonnull create(')) {
+    const factoryMethods = `
+  static inline RuntimeScheduler *_Nonnull create(void *scheduler, ScheduleFn fn) noexcept SWIFT_RETURNS_RETAINED {
+    return new RuntimeScheduler(scheduler, fn);
+  }
+
+  static inline RuntimeScheduler *_Nonnull create() noexcept SWIFT_RETURNS_RETAINED {
+    return new RuntimeScheduler();
+  }
+`
+    headerContent = headerContent.replace('RuntimeScheduler(void *scheduler, ScheduleFn fn)', factoryMethods + '\n  RuntimeScheduler(void *scheduler, ScheduleFn fn)')
+  }
+
+  fs.writeFileSync(schedulerHeader, headerContent, 'utf8')
+  console.log('[patch-swift-packages] Successfully patched RuntimeScheduler.h with factory methods')
+}
+
+// 4. HostFunctionClosure.h
+const closureHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'HostFunctionClosure.h')
+if (fs.existsSync(closureHeader)) {
+  let headerContent = fs.readFileSync(closureHeader, 'utf8')
+
+  // Remove any previous SWIFT_RETURNS_RETAINED on create
+  headerContent = headerContent.replace(/\s*SWIFT_RETURNS_RETAINED\s*\{/g, ' {')
+
+  if (!headerContent.includes('HostFunctionClosure *_Nonnull create(')) {
+    const factoryMethod = `
+  static inline HostFunctionClosure *_Nonnull create(Context context, Closure closure, Deallocator deallocator) noexcept {
+    return new HostFunctionClosure(context, closure, deallocator);
+  }
+`
+    headerContent = headerContent.replace('virtual ~HostFunctionClosure()', factoryMethod + '\n  virtual ~HostFunctionClosure()')
+  }
+
+  fs.writeFileSync(closureHeader, headerContent, 'utf8')
+  console.log('[patch-swift-packages] Successfully patched HostFunctionClosure.h with factory method')
+}
+
+// 5. HostObjectCallbacks.h
+const hostObjectCallbacksHeader = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI-Cxx', 'include', 'HostObjectCallbacks.h')
+if (fs.existsSync(hostObjectCallbacksHeader)) {
+  let headerContent = fs.readFileSync(hostObjectCallbacksHeader, 'utf8')
+  if (!headerContent.includes('addPropNameId(')) {
+    const helperMethod = `
+  static inline void addPropNameId(PropNameIds &vector, facebook::jsi::IRuntime &rt, const char *_Nonnull name) {
+    vector.push_back(facebook::jsi::PropNameID::forUtf8(rt, name));
+  }
+`
+    headerContent = headerContent.replace('using PropNameIds = std::vector<facebook::jsi::PropNameID>;', 'using PropNameIds = std::vector<facebook::jsi::PropNameID>;\n' + helperMethod)
+    fs.writeFileSync(hostObjectCallbacksHeader, headerContent, 'utf8')
+    console.log('[patch-swift-packages] Successfully added addPropNameId to HostObjectCallbacks.h')
+  }
+}
+
+// 5.5. Clean and patch .swiftinterface files in Pods and node_modules
+function cleanAndPatchSwiftinterfaces(dir) {
+  if (!fs.existsSync(dir)) return
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      cleanAndPatchSwiftinterfaces(fullPath)
+    } else if (entry.name.endsWith('.private.swiftinterface') || entry.name.endsWith('.package.swiftinterface')) {
+      try {
+        fs.unlinkSync(fullPath)
+        console.log(`[patch-swift-packages] Deleted private/package interface: ${entry.name}`)
+      } catch (e) {}
+    } else if (entry.name.endsWith('.swiftinterface')) {
+      let content = fs.readFileSync(fullPath, 'utf8')
+      const orig = content
+      // Remove actor attribute from protocol conformances (e.g. extension UIKit.UIView : @_Concurrency.MainActor AnyArgument)
+      content = content.replace(/:\s*@_Concurrency\.MainActor\s+/g, ': ')
+      content = content.replace(/:\s*@MainActor\s+/g, ': ')
+      if (content !== orig) {
+        fs.writeFileSync(fullPath, content, 'utf8')
+        console.log(`[patch-swift-packages] Patched swiftinterface: ${entry.name}`)
+      }
+    }
+  }
+}
+
+// 5.6. Patch replace-xcframework.js to sanitize swiftinterfaces automatically whenever XCFrameworks are extracted
+const replaceXcframeworkPath = path.join(process.cwd(), 'node_modules', 'expo-modules-autolinking', 'scripts', 'ios', 'replace-xcframework.js')
+if (fs.existsSync(replaceXcframeworkPath)) {
+  let rContent = fs.readFileSync(replaceXcframeworkPath, 'utf8')
+  if (!rContent.includes('function patchSwiftinterfacesInDir(')) {
+    const helperFunc = `
+function patchSwiftinterfacesInDir(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      patchSwiftinterfacesInDir(fullPath);
+    } else if (entry.name.endsWith('.private.swiftinterface') || entry.name.endsWith('.package.swiftinterface')) {
+      try {
+        fs.unlinkSync(fullPath);
+        console.log(\`\${LOG_PREFIX} Deleted private interface: \${entry.name}\`);
+      } catch (e) {}
+    } else if (entry.name.endsWith('.swiftinterface')) {
+      let c = fs.readFileSync(fullPath, 'utf8');
+      const o = c;
+      c = c.replace(/:\\s*@_Concurrency\\.MainActor\\s+/g, ': ');
+      c = c.replace(/:\\s*@MainActor\\s+/g, ': ');
+      if (c !== o) {
+        fs.writeFileSync(fullPath, c, 'utf8');
+        console.log(\`\${LOG_PREFIX} Patched swiftinterface: \${entry.name}\`);
+      }
+    }
+  }
+}
+`
+    rContent = rContent.replace("const LOG_PREFIX = '[Expo XCFramework]';", "const LOG_PREFIX = '[Expo XCFramework]';\n" + helperFunc)
+    rContent = rContent.replace("fs.writeFileSync(lastConfigFile, configLower);", "fs.writeFileSync(lastConfigFile, configLower);\n  patchSwiftinterfacesInDir(xcframeworksDir);")
+    rContent = rContent.replace("if (lastConfig === configLower) {", "if (lastConfig === configLower) {\n    patchSwiftinterfacesInDir(xcframeworksDir);")
+    fs.writeFileSync(replaceXcframeworkPath, rContent, 'utf8')
+    console.log('[patch-swift-packages] Successfully patched replace-xcframework.js with auto swiftinterface sanitization')
+  }
+}
+
+// 5.7. Patch prebuilt xcframework tarballs in node_modules and ios/Pods
+function patchTarball(tarballPath) {
+  const tmpDir = path.join(process.cwd(), 'tmp_tar_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))
+  try {
+    fs.mkdirSync(tmpDir, { recursive: true })
+    const { execSync } = require('child_process')
+    execSync(`tar -xzf "${tarballPath}" -C "${tmpDir}"`)
+    let patchedAny = false
+    function walk(dir) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          walk(full)
+        } else if (entry.name.endsWith('.private.swiftinterface') || entry.name.endsWith('.package.swiftinterface')) {
+          try {
+            fs.unlinkSync(full)
+            patchedAny = true
+          } catch (e) {}
+        } else if (entry.name.endsWith('.swiftinterface')) {
+          let c = fs.readFileSync(full, 'utf8')
+          const orig = c
+          c = c.replace(/:\s*@_Concurrency\.MainActor\s+/g, ': ')
+          c = c.replace(/:\s*@MainActor\s+/g, ': ')
+          if (c !== orig) {
+            fs.writeFileSync(full, c, 'utf8')
+            patchedAny = true
+          }
+        }
+      }
+    }
+    walk(tmpDir)
+    if (patchedAny) {
+      const topItems = fs.readdirSync(tmpDir).join(' ')
+      execSync(`tar -czf "${tarballPath}" -C "${tmpDir}" ${topItems}`)
+      console.log(`[patch-swift-packages] Patched and repacked tarball: ${path.basename(tarballPath)}`)
+    }
+  } catch (e) {
+    console.warn(`[patch-swift-packages] Warning: Could not patch tarball ${tarballPath}: ${e.message}`)
+  } finally {
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    } catch (e) {}
+  }
+}
+
+function findAndPatchTarballs(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchTarballs(fullPath)
+      }
+    } else if (entry.name.endsWith('.tar.gz')) {
+      patchTarball(fullPath)
+    }
+  }
+}
+
+findAndPatchTarballs(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+findAndPatchTarballs(path.join(process.cwd(), 'node_modules', 'expo-file-system'))
+findAndPatchTarballs(path.join(process.cwd(), 'node_modules', 'expo-font'))
+findAndPatchTarballs(path.join(process.cwd(), 'ios', 'Pods'))
+cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'ios', 'Pods'))
+cleanAndPatchSwiftinterfaces(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+
+
+// 5.8. Patch JSIUtils.h to ensure direct IRuntime calls and count == 0 / invalid pointer safety
+function patchSingleJSIUtils(filePath) {
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (!content.includes('callAsConstructor')) return
+  const original = content
+
+  if (!content.includes('#include <cstdint>')) {
+    content = content.replace('#include <new>', '#include <new>\n#include <cstdint>')
+  }
+
+  const safeCall = `inline jsi::Value callFunction(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Value *_Nullable args, size_t count) {
+  return expo::CppError::tryCatch(runtime, [&] {
+    if ((uintptr_t)args <= 0x1000 || count == 0) {
+      return runtime.call(function, jsi::Value::undefined(), nullptr, 0);
+    }
+    return runtime.call(function, jsi::Value::undefined(), args, count);
+  });
+}`
+
+  const safeCallWithThis = `inline jsi::Value callFunctionWithThis(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Object &jsThis, const jsi::Value *_Nullable args, size_t count) {
+  return expo::CppError::tryCatch(runtime, [&] {
+    if ((uintptr_t)args <= 0x1000 || count == 0) {
+      return runtime.call(function, jsi::Value(runtime, jsThis), nullptr, 0);
+    }
+    return runtime.call(function, jsi::Value(runtime, jsThis), args, count);
+  });
+}`
+
+  const safeCallAsConstructor = `inline jsi::Value callAsConstructor(jsi::IRuntime &runtime, const jsi::Function &function, const jsi::Value *_Nullable args, size_t count) {
+  return expo::CppError::tryCatch(runtime, [&] {
+    if ((uintptr_t)args <= 0x1000 || count == 0) {
+      return runtime.callAsConstructor(function, nullptr, 0);
+    }
+    return runtime.callAsConstructor(function, args, count);
+  });
+}`
+
+  content = content.replace(
+    /inline jsi::Value callFunction\(jsi::(?:I)?Runtime &runtime, const jsi::Function &function, const jsi::Value \*[^\)]*args, size_t count\) \{[\s\S]*?\n\}/g,
+    safeCall
+  )
+  content = content.replace(
+    /inline jsi::Value callFunctionWithThis\(jsi::(?:I)?Runtime &runtime, const jsi::Function &function, const jsi::Object &jsThis, const jsi::Value \*[^\)]*args, size_t count\) \{[\s\S]*?\n\}/g,
+    safeCallWithThis
+  )
+  content = content.replace(
+    /inline jsi::Value callAsConstructor\(jsi::(?:I)?Runtime &runtime, const jsi::Function &function, const jsi::Value \*[^\)]*args, size_t count\) \{[\s\S]*?\n\}/g,
+    safeCallAsConstructor
+  )
+
+  content = content.replace(
+    /const jsi::Value \*_Nonnull args,\s*size_t count/g,
+    'const jsi::Value *_Nullable args, size_t count'
+  )
+  content = content.replace(
+    /closurePtr->call\(thisValue,\s*args,\s*count,\s*result\)/g,
+    'closurePtr->call(thisValue, ((uintptr_t)args <= 0x1000 || count == 0) ? nullptr : args, ((uintptr_t)args <= 0x1000) ? 0 : count, result)'
+  )
+  content = content.replace(
+    /closurePtr->call\(thisValue,\s*count == 0 \? nullptr : args,\s*count,\s*result\)/g,
+    'closurePtr->call(thisValue, ((uintptr_t)args <= 0x1000 || count == 0) ? nullptr : args, ((uintptr_t)args <= 0x1000) ? 0 : count, result)'
+  )
+
+  if (content !== original) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched JSIUtils.h at: ${filePath}`)
+  }
+}
+
+function findAndPatchJSIUtils(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchJSIUtils(fullPath)
+      }
+    } else if (entry.name === 'JSIUtils.h') {
+      patchSingleJSIUtils(fullPath)
+    }
+  }
+}
+
+findAndPatchJSIUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-jsi'))
+findAndPatchJSIUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+findAndPatchJSIUtils(path.join(process.cwd(), 'ios', 'Pods'))
+
+// 5.9. Patch RCTAssert.m to intercept RCTFatal and prevent SIGABRT abort() in Release mode
+function patchRCTAssert(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (!content.includes('RCTFatalHandler fatalHandler = RCTGetFatalHandler();')) return
+  const original = content
+
+  if (!content.includes('#import <UIKit/UIKit.h>')) {
+    content = content.replace('#import "RCTAssert.h"', '#import "RCTAssert.h"\n#import <UIKit/UIKit.h>')
+  }
+
+  const oldBlock = /void RCTFatal\(NSError \*error\)[\s\S]*?\n\}/
+  const newBlock = `void RCTFatal(NSError *error)
+{
+  _RCTLogNativeInternal(RCTLogLevelFatal, NULL, 0, @"%@", error.localizedDescription);
+
+  RCTFatalHandler fatalHandler = RCTGetFatalHandler();
+  if (fatalHandler) {
+    fatalHandler(error);
+    return;
+  }
+
+  @try {
+    NSString *message = RCTFormatError(error.localizedDescription, error.userInfo[RCTJSStackTraceKey], -1);
+    NSLog(@"[Zora RCTFatal Intercepted] Prevented SIGABRT crash:\\n%@", message);
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+      UIWindow *window = nil;
+      for (id scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            if (w.isKeyWindow) { window = w; break; }
+          }
+        }
+        if (window) break;
+      }
+      if (!window) window = [UIApplication sharedApplication].keyWindow;
+      UIViewController *rootVC = window.rootViewController;
+      if (rootVC) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Aviso de Zora"
+                                                                       message:message
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Entendido" style:UIAlertActionStyleDefault handler:nil]];
+        [rootVC presentViewController:alert animated:YES completion:nil];
+      }
+    });
+  } @catch (NSException *) {
+  }
+}`
+
+  if (!content.includes('[Zora RCTFatal Intercepted]')) {
+    content = content.replace(oldBlock, newBlock)
+    if (content !== original) {
+      fs.writeFileSync(filePath, content, 'utf8')
+      console.log(`[patch-swift-packages] Successfully patched RCTAssert.m at: ${filePath}`)
+    }
+  }
+}
+
+function findAndPatchRCTAssert(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchRCTAssert(fullPath)
+      }
+    } else if (entry.name === 'RCTAssert.m') {
+      patchRCTAssert(fullPath)
+    }
+  }
+}
+
+findAndPatchRCTAssert(path.join(process.cwd(), 'node_modules', 'react-native'))
+findAndPatchRCTAssert(path.join(process.cwd(), 'ios', 'Pods'))
+
+// 5.10. Native Fatal Handler Registration in EXAppDelegatesLoader and RCTAppDelegate
+function patchEXAppDelegatesLoader(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (content.includes('Zora Native Fatal Interceptor')) return
+  const original = content
+
+  const headers = `#import <UIKit/UIKit.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef void (^RCTFatalHandler)(NSError *error);
+void RCTSetFatalHandler(RCTFatalHandler fatalHandler);
+#ifdef __cplusplus
+}
+#endif
+`
+
+  const interceptorBlock = `
+  RCTSetFatalHandler(^(NSError *error) {
+    NSString *desc = error.localizedDescription ?: @"Error en JavaScript";
+    NSLog(@"[Zora Native Fatal Interceptor EXAppDelegatesLoader] Intercepted RCTFatal: %@", desc);
+    dispatch_async(dispatch_get_main_queue(), ^{
+      UIWindow *window = nil;
+      for (id scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            if (w.isKeyWindow) { window = w; break; }
+          }
+        }
+        if (window) break;
+      }
+      if (!window) {
+        window = [UIApplication sharedApplication].keyWindow ?: [UIApplication sharedApplication].windows.firstObject;
+      }
+      UIViewController *rootVC = window.rootViewController;
+      while (rootVC.presentedViewController) {
+        rootVC = rootVC.presentedViewController;
+      }
+      if (rootVC) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Aviso de Zora"
+                                                                       message:desc
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Continuar" style:UIAlertActionStyleDefault handler:nil]];
+        [rootVC presentViewController:alert animated:YES completion:nil];
+      }
+    });
+  });
+`
+
+  if (!content.includes('RCTSetFatalHandler')) {
+    content = headers + '\n' + content
+    content = content.replace(
+      /(\+\s*\(void\)\s*load\s*\{)/,
+      '$1' + interceptorBlock
+    )
+    if (content !== original) {
+      fs.writeFileSync(filePath, content, 'utf8')
+      console.log(`[patch-swift-packages] Successfully injected RCTSetFatalHandler into EXAppDelegatesLoader: ${filePath}`)
+    }
+  }
+}
+
+function patchRCTAppDelegate(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (content.includes('Zora Native Fatal Interceptor')) return
+  const original = content
+
+  const headers = `#import <UIKit/UIKit.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef void (^RCTFatalHandler)(NSError *error);
+void RCTSetFatalHandler(RCTFatalHandler fatalHandler);
+#ifdef __cplusplus
+}
+#endif
+`
+
+  const interceptorBlock = `
+  RCTSetFatalHandler(^(NSError *error) {
+    NSString *desc = error.localizedDescription ?: @"Error en JavaScript";
+    NSLog(@"[Zora Native Fatal Interceptor AppDelegate] Intercepted RCTFatal: %@", desc);
+    dispatch_async(dispatch_get_main_queue(), ^{
+      UIWindow *window = nil;
+      for (id scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            if (w.isKeyWindow) { window = w; break; }
+          }
+        }
+        if (window) break;
+      }
+      if (!window) {
+        window = [UIApplication sharedApplication].keyWindow ?: [UIApplication sharedApplication].windows.firstObject;
+      }
+      UIViewController *rootVC = window.rootViewController;
+      while (rootVC.presentedViewController) {
+        rootVC = rootVC.presentedViewController;
+      }
+      if (rootVC) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Aviso de Zora"
+                                                                       message:desc
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Continuar" style:UIAlertActionStyleDefault handler:nil]];
+        [rootVC presentViewController:alert animated:YES completion:nil];
+      }
+    });
+  });
+`
+
+  content = headers + '\n' + content
+  content = content.replace(
+    /(- \(BOOL\)application:\(UIApplication \*\)application didFinishLaunchingWithOptions:[^\{]*\{)/,
+    '$1' + interceptorBlock
+  )
+  if (content !== original) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully injected RCTSetFatalHandler into: ${filePath}`)
+  }
+}
+
+function findAndPatchAppDelegates(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchAppDelegates(fullPath)
+      }
+    } else if (entry.name === 'EXAppDelegatesLoader.m') {
+      patchEXAppDelegatesLoader(fullPath)
+    } else if (entry.name === 'RCTAppDelegate.mm' || entry.name === 'AppDelegate.mm' || entry.name === 'AppDelegate.m') {
+      patchRCTAppDelegate(fullPath)
+    }
+  }
+}
+
+findAndPatchAppDelegates(path.join(process.cwd(), 'node_modules', 'expo'))
+findAndPatchAppDelegates(path.join(process.cwd(), 'node_modules', 'react-native'))
+findAndPatchAppDelegates(path.join(process.cwd(), 'ios'))
+
+// 5.11. Defensive arguments count validation in JavaScriptUtils.swift
+function patchJavaScriptUtils(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  if (content.includes('let safeReceived =')) return
+  const original = content
+
+  const oldValidation = /if received < requiredArgumentsCount \|\| received > argumentsCount \{[\s\S]*?throw InvalidArgsNumberException\([\s\S]*?\)\s*\}/
+  const newValidation = `let safeReceived = (received < 0 || received > 1000) ? requiredArgumentsCount : received
+  if safeReceived < requiredArgumentsCount {
+    throw InvalidArgsNumberException((
+      received: safeReceived,
+      expected: argumentsCount,
+      required: requiredArgumentsCount
+    ))
+  }`
+
+  content = content.replace(oldValidation, newValidation)
+  if (content !== original) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched JavaScriptUtils.swift at: ${filePath}`)
+  }
+}
+
+function findAndPatchJavaScriptUtils(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchJavaScriptUtils(fullPath)
+      }
+    } else if (entry.name === 'JavaScriptUtils.swift') {
+      patchJavaScriptUtils(fullPath)
+    }
+  }
+}
+
+findAndPatchJavaScriptUtils(path.join(process.cwd(), 'node_modules', 'expo-modules-core'))
+findAndPatchJavaScriptUtils(path.join(process.cwd(), 'ios', 'Pods'))
+
+// 5.12. Defensively wrap getLinkingURL in expo-linking and expo-router to prevent startup crashes
+function patchExpoLinkingJS(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  const orig = content
+  content = content.replace(
+    /export function getLinkingURL\(\) \{\s*return ExpoLinking\.getLinkingURL\(\);\s*\}/g,
+    'export function getLinkingURL() {\n    try {\n        return ExpoLinking.getLinkingURL();\n    } catch (e) {\n        return null;\n    }\n}'
+  )
+  content = content.replace(
+    /const \[url, setLink\] = useState\(ExpoLinking\.getLinkingURL\);/g,
+    'const [url, setLink] = useState(() => {\n        try {\n            return ExpoLinking.getLinkingURL();\n        } catch (e) {\n            return null;\n        }\n    });'
+  )
+  if (content !== orig) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched expo-linking at: ${filePath}`)
+  }
+}
+
+function findAndPatchLinkingFiles(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchLinkingFiles(fullPath)
+      }
+    } else if (entry.name === 'Linking.js' && fullPath.includes('expo-linking')) {
+      patchExpoLinkingJS(fullPath)
+    } else if (entry.name === 'useLinking.native.js') {
+      let content = fs.readFileSync(fullPath, 'utf8')
+      const orig = content
+      content = content.replace(
+        /return ExpoLinking\.getLinkingURL\(\);/g,
+        'try { return ExpoLinking.getLinkingURL(); } catch { return null; }'
+      )
+      if (content !== orig) {
+        fs.writeFileSync(fullPath, content, 'utf8')
+        console.log(`[patch-swift-packages] Successfully patched useLinking.native.js at: ${fullPath}`)
+      }
+    }
+  }
+}
+
+findAndPatchLinkingFiles(path.join(process.cwd(), 'node_modules', 'expo-linking'))
+findAndPatchLinkingFiles(path.join(process.cwd(), 'node_modules', 'expo-router'))
+findAndPatchLinkingFiles(path.join(process.cwd(), 'node_modules', 'expo-share-intent'))
+
+
+// 6. build-xcframework.sh
+const buildXcframeworkScript = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'scripts', 'build-xcframework.sh')
+if (fs.existsSync(buildXcframeworkScript)) {
+  let scriptContent = fs.readFileSync(buildXcframeworkScript, 'utf8')
+  scriptContent = scriptContent.replace(/^\s*-disableAutomaticPackageResolution\s*\\?\r?\n/gm, '')
+  scriptContent = scriptContent.replace(/^\s*-quiet\s*\\?\r?\n/gm, '')
+  scriptContent = scriptContent.replace(/-disableAutomaticPackageResolution\s*\\?/g, '')
+  scriptContent = scriptContent.replace(/-quiet\s*\\?/g, '')
+  if (!scriptContent.includes('OTHER_SWIFTFLAGS=')) {
+    scriptContent = scriptContent.replace(
+      'CLANG_COVERAGE_MAPPING=NO \\',
+      'CLANG_COVERAGE_MAPPING=NO \\\n    OTHER_SWIFTFLAGS="-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-upcoming-feature InferIsolatedConformances" \\'
+    )
+  }
+  // Clean up any empty lines between backslash continuations so bash commands are not prematurely terminated
+  scriptContent = scriptContent.replace(/\\\r?\n(\s*\r?\n)+/g, '\\\n')
+  fs.writeFileSync(buildXcframeworkScript, scriptContent, 'utf8')
+  console.log('[patch-swift-packages] Successfully patched build-xcframework.sh')
+}
+
+// 7. Patch all Swift source files in ExpoModulesJSI
+const jsiSourcesDir = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI')
+function patchSwiftSources(dir) {
+  if (!fs.existsSync(dir)) return
+  const files = fs.readdirSync(dir, { withFileTypes: true })
+  for (const file of files) {
+    const fullPath = path.join(dir, file.name)
+    if (file.isDirectory()) {
+      patchSwiftSources(fullPath)
+    } else if (file.name.endsWith('.swift')) {
+      let code = fs.readFileSync(fullPath, 'utf8')
+      const original = code
+
+      // A. weak let -> nonisolated(unsafe) weak var
+      code = code.replace(/weak\s+let\s+/g, 'nonisolated(unsafe) weak var ')
+      // Ensure weak var runtime is marked nonisolated(unsafe) for Sendable classes
+      code = code.replace(/(?<!nonisolated\(unsafe\)\s+)weak\s+var\s+runtime/g, 'nonisolated(unsafe) weak var runtime')
+
+      // B. Trailing commas in function/closure signatures
+      code = code.replace(/consuming JavaScriptValuesBuffer,\s*\)/g, 'consuming JavaScriptValuesBuffer\n    )')
+
+      // C. Task+immediate.swift polyfill (case-insensitive check)
+      if (file.name.toLowerCase() === 'task+immediate.swift') {
+        code = `// swift-format-ignore-file: AlwaysUseLowerCamelCase
+import Foundation
+
+extension Task where Failure == any Error {
+  @discardableResult
+  public static func immediate_polyfill(
+    name: String? = nil,
+    priority: TaskPriority? = nil,
+    @_inheritActorContext @_implicitSelfCapture operation: sending @escaping @isolated(any) () async throws -> Success
+  ) -> Task<Success, any Error> {
+    return Task(priority: priority ?? .high, operation: operation)
+  }
+}
+`
+      }
+
+      // D. JavaScriptRuntime.swift constructor calls & property name push
+      if (file.name === 'JavaScriptRuntime.swift') {
+        // Use factory methods for RuntimeScheduler
+        code = code.replace(/expo\.RuntimeScheduler\(\)/g, 'expo.RuntimeScheduler.create()')
+        code = code.replace(/expo\.RuntimeScheduler\(scheduler,\s*fn\)/g, 'expo.RuntimeScheduler.create(scheduler, fn)')
+
+        // Use factory method for HostFunctionClosure
+        code = code.replace(/expo\.HostFunctionClosure\(context,\s*call,\s*deallocate\)/g, 'expo.HostFunctionClosure.create(context, call, deallocate)')
+
+        // Safe C++ vector push via HostObjectCallbacks.addPropNameId
+        const oldPushBlock = `      for propertyName in propertyNames {
+        let propNameId = facebook.jsi.PropNameID.forUtf8(iRuntime, std.string(propertyName))
+        vector.push_back(propNameId)
+      }`
+        const oldPushBlockConsuming = `      for propertyName in propertyNames {
+        let propNameId = facebook.jsi.PropNameID.forUtf8(iRuntime, std.string(propertyName))
+        vector.push_back(consuming: propNameId)
+      }`
+        const newPushBlock = `      for propertyName in propertyNames {
+        propertyName.withCString { cStr in
+          expo.HostObjectCallbacks.addPropNameId(&vector, iRuntime, cStr)
+        }
+      }`
+        if (code.includes(oldPushBlock)) {
+          code = code.replace(oldPushBlock, newPushBlock)
+        } else if (code.includes(oldPushBlockConsuming)) {
+          code = code.replace(oldPushBlockConsuming, newPushBlock)
+        } else {
+          // Regex fallback
+          code = code.replace(
+            /for\s+propertyName\s+in\s+propertyNames\s*\{[\s\S]*?vector\.push_back[\s\S]*?\}/,
+            `for propertyName in propertyNames {\n        propertyName.withCString { cStr in\n          expo.HostObjectCallbacks.addPropNameId(&vector, iRuntime, cStr)\n        }\n      }`
+          )
+        }
+
+        // Swift 6 data race prevention: convert raw pointers to UInt bitPattern before assumeIsolated
+        // 1. getter in createHostObject (57.0.8)
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*HostObjectContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated[\s\S]*?asJSIValue\(\)\s*\}\s*\}\s*\}/g,
+          `let resultPtrBits = UInt(bitPattern: resultPtr)
+
+      withGuaranteedContext(context) { (context: HostObjectContext, runtime) in
+        JavaScriptActor.assumeIsolated {
+          forwardingSwiftErrorsToJS(runtime: runtime) {
+            let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+            resultPtr.pointee = try context.get(propertyName).asJSIValue()
+          }
+        }
+      }`
+        )
+
+        // 1b. getter in createHostObject (57.1.0)
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr\s*return\s+withGuaranteedContext\(context\)\s*\{\s*\(context:\s*HostObjectContext,\s*runtime\)\s*in\s*return\s+JavaScriptActor\.assumeIsolated\s*\{\s*return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{\s*try\s+context\.get\(propertyName\)\.writeJSIValue\(to:\s*resultPtr\)\s*\}\s*\}\s*\}/g,
+          `let resultPtrBits = UInt(bitPattern: resultPtr)
+
+      return withGuaranteedContext(context) { (context: HostObjectContext, runtime) in
+        return JavaScriptActor.assumeIsolated {
+          return forwardingSwiftErrorsToJS(runtime: runtime) {
+            let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+            try context.get(propertyName).writeJSIValue(to: resultPtr)
+          }
+        }
+      }`
+        )
+
+        // 2. createFunctionClosure (owning) for 57.0.8
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*HostFunctionContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated[\s\S]*?asJSIValue\(\)\s*\}\s*\}\s*\}/g,
+          `let thisPtrBits = UInt(bitPattern: thisPtr)
+    let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
+    let resultPtrBits = UInt(bitPattern: resultPtr)
+
+    withGuaranteedContext(context) { (context: HostFunctionContext, runtime) in
+      JavaScriptActor.assumeIsolated {
+        forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
+          let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+          let this = UnsafeMutablePointer(mutating: thisPtr).move()
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptValue(runtime, this)
+          resultPtr.pointee = try context.call(thisValue, consume arguments).asJSIValue()
+        }
+      }
+    }`
+        )
+
+        // 2b. createFunctionClosure (owning) for 57.1.0
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*HostFunctionContext,\s*runtime\)\s*in\s*return\s+JavaScriptActor\.assumeIsolated\s*\{\s*return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{\s*let\s+this\s*=\s*UnsafeMutablePointer\(mutating:\s*thisPtr\)\.move\(\)\s*let\s+arguments\s*=\s*JavaScriptValuesBuffer\(runtime,\s*start:\s*argumentsPtr,\s*count:\s*argumentsCount\)\s*let\s+thisValue\s*=\s*JavaScriptValue\(runtime,\s*this\)\s*try\s+context\.call\(thisValue,\s*consume\s+arguments\)\.writeJSIValue\(to:\s*resultPtr\)\s*\}\s*\}\s*\}/g,
+          `let thisPtrBits = UInt(bitPattern: thisPtr)
+    let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
+    let resultPtrBits = UInt(bitPattern: resultPtr)
+
+    return withGuaranteedContext(context) { (context: HostFunctionContext, runtime) in
+      return JavaScriptActor.assumeIsolated {
+        return forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
+          let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+          let this = UnsafeMutablePointer(mutating: thisPtr).move()
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptValue(runtime, this)
+          try context.call(thisValue, consume arguments).writeJSIValue(to: resultPtr)
+        }
+      }
+    }`
+        )
+
+        // 3. createFunctionClosure (unowned) for 57.0.8
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*UnownedThisHostFunctionContext,\s*runtime\)\s*in[\s\S]*?resultPtr\.pointee\s*=\s*JavaScriptActor\.assumeIsolated[\s\S]*?asJSIValue\(\)\s*\}\s*\}\s*\}/g,
+          `let thisPtrBits = UInt(bitPattern: thisPtr)
+    let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
+    let resultPtrBits = UInt(bitPattern: resultPtr)
+
+    withGuaranteedContext(context) { (context: UnownedThisHostFunctionContext, runtime) in
+      JavaScriptActor.assumeIsolated {
+        forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
+          let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)
+          resultPtr.pointee = try context.call(thisValue, consume arguments).asJSIValue()
+        }
+      }
+    }`
+        )
+
+        // 3b. createFunctionClosure (unowned) for 57.1.0
+        code = code.replace(
+          /nonisolated\(unsafe\)\s+let\s+thisPtr\s*=\s*thisPtr\s*nonisolated\(unsafe\)\s+let\s+argumentsPtr\s*=\s*argumentsPtr\s*nonisolated\(unsafe\)\s+let\s+resultPtr\s*=\s*resultPtr[\s\S]*?\(context:\s*UnownedThisHostFunctionContext,\s*runtime\)\s*in\s*return\s+JavaScriptActor\.assumeIsolated\s*\{\s*return\s+forwardingSwiftErrorsToJS\(runtime:\s*runtime\)\s*\{\s*let\s+arguments\s*=\s*JavaScriptValuesBuffer\(runtime,\s*start:\s*argumentsPtr,\s*count:\s*argumentsCount\)\s*let\s+thisValue\s*=\s*JavaScriptUnownedValue\(runtime\.pointee,\s*thisPtr\)\s*try\s+context\.call\(thisValue,\s*consume\s+arguments\)\.writeJSIValue\(to:\s*resultPtr\)\s*\}\s*\}\s*\}/g,
+          `let thisPtrBits = UInt(bitPattern: thisPtr)
+    let argumentsPtrBits = UInt(bitPattern: argumentsPtr)
+    let resultPtrBits = UInt(bitPattern: resultPtr)
+
+    return withGuaranteedContext(context) { (context: UnownedThisHostFunctionContext, runtime) in
+      return JavaScriptActor.assumeIsolated {
+        return forwardingSwiftErrorsToJS(runtime: runtime) {
+          let thisPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: thisPtrBits)!
+          let argumentsPtr = UnsafePointer<facebook.jsi.Value>(bitPattern: argumentsPtrBits)
+          let resultPtr = UnsafeMutablePointer<facebook.jsi.Value>(bitPattern: resultPtrBits)!
+          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+          let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)
+          try context.call(thisValue, consume arguments).writeJSIValue(to: resultPtr)
+        }
+      }
+    }`
+        )
+      }
+
+      // F. JavaScriptError.swift - remove public from CppError extension
+      if (file.name === 'JavaScriptError.swift') {
+        code = code.replace('public var message: String {', 'var message: String {')
+      }
+
+      // G. JavaScriptRef.swift & JavaScriptValue.swift - remove Escapable protocol (requires experimental feature)
+      if (file.name === 'JavaScriptRef.swift' || file.name === 'JavaScriptValue.swift') {
+        code = code.replace(/,\s*Escapable/g, '')
+      }
+
+
+
+      if (code !== original) {
+        fs.writeFileSync(fullPath, code, 'utf8')
+        console.log(`[patch-swift-packages] Patched Swift source: ${file.name}`)
+      }
+    }
+  }
+}
+patchSwiftSources(path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI'))
+patchSwiftSources(path.join(process.cwd(), 'node_modules', 'expo-modules-core', 'node_modules', 'expo-modules-jsi', 'apple', 'Sources', 'ExpoModulesJSI'))
+patchSwiftSources(path.join(process.cwd(), 'ios', 'Pods', 'ExpoModulesJSI'))
+patchSwiftSources(path.join(process.cwd(), 'ios', 'Pods', 'ExpoModulesCore'))
+
+// 8. Patch Podfile to ensure expo-symbols is excluded and inject Swift build settings
+const podfilePath = path.join(process.cwd(), 'ios', 'Podfile')
+if (fs.existsSync(podfilePath)) {
+  let podfile = fs.readFileSync(podfilePath, 'utf8')
+  if (!podfile.includes("exclude: ['expo-symbols']")) {
+    podfile = podfile.replace(/use_expo_modules!\((.*?)\)/, (match, p1) => {
+      if (p1.trim()) {
+        return `use_expo_modules!(${p1}, exclude: ['expo-symbols'])`
+      } else {
+        return `use_expo_modules!(exclude: ['expo-symbols'])`
+      }
+    })
+    podfile = podfile.replace(/use_expo_modules!\s*$/m, "use_expo_modules!(exclude: ['expo-symbols'])")
+  }
+
+  // Inject target build settings in post_install if not already present
+  if (!podfile.includes("target.name == 'ExpoModulesJSI'")) {
+    const postInstallHook = `
+    installer.pods_project.targets.each do |target|
+      if target.name == 'ExpoModulesJSI'
+        target.build_configurations.each do |config|
+          config.build_settings['OTHER_SWIFTFLAGS'] ||= '$(inherited) '
+          config.build_settings['OTHER_SWIFTFLAGS'] += '-enable-experimental-feature NonescapableTypes -enable-experimental-feature IsolatedAny -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-upcoming-feature InferIsolatedConformances'
+          config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+          config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
+          config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'
+        end
+      end
+      if target.name == 'RNSVG'
+        target.build_configurations.each do |config|
+          config.build_settings['GCC_WARN_ABOUT_MISSING_PROTOTYPES'] = 'NO'
+          config.build_settings['CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS'] = 'NO'
+        end
+      end
+    end
+`
+    podfile = podfile.replace(/post_install\s+do\s+\|installer\|/, 'post_install do |installer|\n' + postInstallHook)
+  }
+
+  fs.writeFileSync(podfilePath, podfile, 'utf8')
+  console.log('[patch-swift-packages] Successfully configured Podfile settings and exclusions')
+}
+
+// 9. Patch project.pbxproj to ensure appex products belong to Products group (prevents CocoaPods xcodeproj consistency errors)
+function ensurePbxprojGroupConsistency(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.DerivedData') {
+        ensurePbxprojGroupConsistency(fullPath)
+      }
+    } else if (entry.name === 'project.pbxproj') {
+      try {
+        let content = fs.readFileSync(fullPath, 'utf8')
+        const orig = content
+        
+        // Find any .appex file references: <UUID> /* <Name>.appex */ = {isa = PBXFileReference; ...
+        const appexRegex = /([A-F0-9]{24})\s*\/\*\s*([^\*]+\.appex)\s*\*\/\s*=\s*\{isa\s*=\s*PBXFileReference;/g
+        let match
+        const appexFiles = []
+        while ((match = appexRegex.exec(content)) !== null) {
+          appexFiles.push({ uuid: match[1], name: match[2] })
+        }
+
+        if (appexFiles.length > 0) {
+          // Find the Products group: <UUID> /* Products */ = { ... children = ( ... ); ... };
+          const productsGroupRegex = /([A-F0-9]{24}\s*\/\*\s*Products\s*\*\/[\s\S]*?children\s*=\s*\()([\s\S]*?)(\);)/
+          const pMatch = content.match(productsGroupRegex)
+          if (pMatch) {
+            let childrenBlock = pMatch[2]
+            let changed = false
+            for (const appex of appexFiles) {
+              if (!childrenBlock.includes(appex.uuid)) {
+                childrenBlock += `\n\t\t\t\t${appex.uuid} /* ${appex.name} */,`
+                changed = true
+              }
+            }
+            if (changed) {
+              content = content.replace(productsGroupRegex, `$1${childrenBlock}\n\t\t\t$3`)
+              if (content !== orig) {
+                fs.writeFileSync(fullPath, content, 'utf8')
+                console.log(`[patch-swift-packages] Successfully ensured PBXGroup consistency for .appex in: ${fullPath}`)
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[patch-swift-packages] Warning inspecting pbxproj at ${fullPath}:`, e.message)
+      }
+    }
+  }
+}
+ensurePbxprojGroupConsistency(path.join(process.cwd(), 'ios'))
+
+console.log('[patch-swift-packages] All Swift and C++ compatibility patches applied successfully.')
+

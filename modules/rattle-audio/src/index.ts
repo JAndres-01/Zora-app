@@ -1,0 +1,1 @@
+export { isRattleAvailable, prepareRattle, playRattleClicks, stopRattle, syncWidgetDataNative } from './RattleAudio'

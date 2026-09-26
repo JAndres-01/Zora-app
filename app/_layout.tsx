@@ -169,6 +169,7 @@ export default function RootLayout() {
                   <Stack.Screen name="welcome" options={{ animation: 'default' }} />
                   <Stack.Screen name="auth" options={{ animation: 'default' }} />
                   <Stack.Screen name="(tabs)" options={{ animation: 'default' }} />
+                  <Stack.Screen name="+not-found" options={{ headerShown: false }} />
                   <Stack.Screen
                     name="modal"
                     options={{

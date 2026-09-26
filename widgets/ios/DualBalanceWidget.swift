@@ -96,6 +96,20 @@ struct DualBalanceWidgetView: View {
     private let barRemaining = Color(red: 63/255, green: 63/255, blue: 70/255) // #3F3F46
 
     var body: some View {
+        if #available(iOS 17.0, *) {
+            content
+                .padding(13)
+                .containerBackground(bgCard, for: .widget)
+                .widgetURL(URL(string: "zora://tasks"))
+        } else {
+            content
+                .padding(13)
+                .background(bgCard)
+                .widgetURL(URL(string: "zora://tasks"))
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Encabezado con amplio respiro
             HStack(spacing: 8) {
@@ -186,10 +200,6 @@ struct DualBalanceWidgetView: View {
                 .frame(height: 4.5)
             }
         }
-        .padding(13)
-        .background(bgCard)
-        // Redirección directa al pulsar el widget en la pantalla de inicio de iOS
-        .widgetURL(URL(string: "zora://tasks"))
     }
 }
 

@@ -2,6 +2,32 @@
 // This executes before any route or expo-router module is loaded.
 
 if (typeof global !== 'undefined') {
+  // 0. Ensure window.location is safely defined so web polyfills / expo-router components never throw "Cannot read property 'origin' of undefined"
+  const safeLocation = {
+    origin: '',
+    href: '',
+    pathname: '/',
+    search: '',
+    hash: '',
+    hostname: '',
+    protocol: '',
+    port: '',
+    host: '',
+    assign: () => {},
+    replace: () => {},
+    reload: () => {},
+  }
+  if (typeof global.window !== 'undefined') {
+    if (!global.window.location) {
+      global.window.location = safeLocation
+    }
+  } else {
+    global.window = { location: safeLocation }
+  }
+  if (typeof globalThis !== 'undefined' && !globalThis.location) {
+    globalThis.location = safeLocation
+  }
+
   // 1. Intercept Global JavaScript Errors via React Native ErrorUtils
   const originalHandler = global.ErrorUtils?.getGlobalHandler?.();
   if (global.ErrorUtils?.setGlobalHandler) {

@@ -39,10 +39,6 @@ class RattleAudioModule : Module() {
     Function("stop") {
       stopPlayback()
     }
-
-    Function("syncWidgetData") { _: String ->
-      true
-    }
   }
 
   private fun playClicks(offsetsMs: List<Int>): Boolean {

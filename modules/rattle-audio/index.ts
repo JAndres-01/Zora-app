@@ -1,1 +1,1 @@
-export { isRattleAvailable, prepareRattle, playRattleClicks, stopRattle, syncWidgetDataNative } from './src'
+export { isRattleAvailable, prepareRattle, playRattleClicks, stopRattle } from './src'

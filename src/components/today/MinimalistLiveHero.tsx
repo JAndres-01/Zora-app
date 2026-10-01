@@ -122,16 +122,16 @@ export const MinimalistLiveHero = memo(function MinimalistLiveHero({
 
 const styles = StyleSheet.create({
   heroContainer: {
-    backgroundColor: '#000000',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 14,
-    gap: 9,
+    padding: 15,
+    gap: 10,
   },
   heroContainerLive: {
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    backgroundColor: '#000000',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    backgroundColor: 'rgba(16, 185, 129, 0.04)',
   },
   topRow: {
     flexDirection: 'row',

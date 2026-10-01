@@ -18,8 +18,6 @@ interface RattleAudioNative {
   playClicks(offsetsMs: number[]): boolean
   /** Corta cualquier ráfaga en reproducción. */
   stop(): void
-  /** Sincroniza datos con UserDefaults del App Group de iOS y recarga WidgetKit. */
-  syncWidgetData?(jsonString: string): boolean
 }
 
 let nativeModule: RattleAudioNative | null = null
@@ -86,16 +84,5 @@ export function stopRattle(): void {
     nativeModule?.stop()
   } catch {
     // no-op
-  }
-}
-
-/** Sincroniza datos de widgets con el App Group de iOS y refresca WidgetKit. */
-export function syncWidgetDataNative(jsonString: string): boolean {
-  if (!nativeModule || typeof nativeModule.syncWidgetData !== 'function') return false
-  try {
-    return nativeModule.syncWidgetData(jsonString) === true
-  } catch (err) {
-    logger.warn('[RattleAudio] Error sincronizando datos de widget:', err)
-    return false
   }
 }

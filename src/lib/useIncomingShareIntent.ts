@@ -153,13 +153,11 @@ export function useIncomingShareIntent() {
       try {
         const parsed = Linking.parse(event.url)
 
-        // Manejo de Deep Link directo desde widgets o enlaces externos hacia tareas (e.g. zora://tasks o zora://widget/tasks)
+        // Manejo de Deep Link directo hacia tareas (e.g. zora://tasks)
         if (
           parsed.path === 'tasks' ||
           parsed.hostname === 'tasks' ||
-          parsed.path === '(tabs)/tasks' ||
-          parsed.path === 'widget/tasks' ||
-          (parsed.path === 'widget' && parsed.queryParams?.target === 'tasks')
+          parsed.path === '(tabs)/tasks'
         ) {
           triggerHaptic('light')
           router.navigate('/(tabs)/tasks')

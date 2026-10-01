@@ -1,11 +1,7 @@
 import AVFoundation
 import ExpoModulesCore
-#if canImport(WidgetKit)
-import WidgetKit
-#endif
 
-/// Ráfaga de clics de ruleta programada en el reloj del hardware de audio
-/// y utilidades nativas compartidas con iOS WidgetKit.
+/// Ráfaga de clics de ruleta programada en el reloj del hardware de audio.
 public class RattleAudioModule: Module {
   private let engine = AVAudioEngine()
   private var player: AVAudioPlayerNode?
@@ -26,20 +22,6 @@ public class RattleAudioModule: Module {
 
     Function("stop") {
       self.stop()
-    }
-
-    Function("syncWidgetData") { (jsonString: String) -> Bool in
-      guard let userDefaults = UserDefaults(suiteName: "group.com.zora.app") else {
-        return false
-      }
-      userDefaults.set(jsonString, forKey: "@zora_widget_dual_balance_data")
-      userDefaults.synchronize()
-      #if canImport(WidgetKit)
-      if #available(iOS 14.0, *) {
-        WidgetCenter.shared.reloadTimelines(ofKind: "DualBalanceWidget")
-      }
-      #endif
-      return true
     }
   }
 

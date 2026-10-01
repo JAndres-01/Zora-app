@@ -1,4 +1,4 @@
-﻿# AGENTS.md - Workspace Rules & Project Guide
+# AGENTS.md - Workspace Rules & Project Guide
 
 ## Default Mode: Ponytail (Full)
 
@@ -64,7 +64,6 @@ npm run build:ios     # eas build -p ios --profile preview
 - **Native & iOS Build Quirks:**
   - `expo-symbols` is explicitly excluded from autolinking in `package.json` and Podfile.
   - `scripts/patch-swift-packages.js` runs automatically on `postinstall` to patch Swift 6 compatibility (`expo-modules-jsi`, `expo-notifications`, `replace-xcframework`, etc.) and inject native crash interceptors. Re-run manually after running `npx expo prebuild` or `npx pod-install ios`.
-  - iOS WidgetKit extension is managed via custom config plugin `plugins/withZoraWidget.js` using `widgets/ios/DualBalanceWidget.swift`.
 
 ---
 

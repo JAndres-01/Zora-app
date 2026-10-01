@@ -83,8 +83,7 @@
           "androidIntentFilters": ["text/*", "image/*", "*/*"],
           "androidMultiIntentFilters": ["image/*", "*/*"]
         }
-      ],
-      "./plugins/withZoraWidget.js"
+      ]
     ],
     "extra": {
       "eas": {

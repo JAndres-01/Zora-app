@@ -308,8 +308,8 @@ export function MinimalistTodayTasks({
 
       {sortedTasks.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <CheckSquare size={17} color="#52525B" />
-          <Text style={styles.emptyText}>¡Todo al día para los próximos 7 días!</Text>
+          <CheckSquare size={15} color="#10B981" />
+          <Text style={styles.emptyText}>🎉 ¡Todo al día! Sin tareas pendientes para hoy</Text>
         </View>
       ) : (
         <View style={styles.taskLinesGroup}>
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   container: {
-    gap: 4,
+    gap: 6,
     marginTop: 2,
   },
   sectionHeader: {
@@ -367,12 +367,17 @@ const styles = StyleSheet.create({
   emptyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    gap: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginTop: 2,
   },
   emptyText: {
-    color: '#71717A',
+    color: '#A1A1AA',
     fontSize: 12.5,
     fontWeight: '500',
   },

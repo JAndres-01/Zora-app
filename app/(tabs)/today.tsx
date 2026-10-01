@@ -418,133 +418,81 @@ export default function TodayScreen() {
       {/* Confetti Festivo al Completar Tareas */}
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
-      {/* Barra de Navegación Sticky Superior (estilo Apple Notes / WhatsApp) */}
+      {/* Cabecera Superior Externa (Título + Subtítulo de Fecha + Botón Acción) */}
       <View
-        pointerEvents="box-none"
         style={[
-          styles.stickyHeaderBar,
-          {
-            height: insets.top + 56,
-            paddingTop: insets.top,
-          },
+          styles.topHeaderArea,
+          { paddingTop: insets.top + 8 },
         ]}
       >
-        {/* Fondo Translúcido con Transición en Scroll */}
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            { opacity: headerBgOpacity },
-            Platform.OS === 'android' && { backgroundColor: '#000000' },
-          ]}
-          pointerEvents="none"
-        >
-          {Platform.OS === 'ios' && (
-            <BlurView
-              intensity={75}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
-          )}
-          <View style={styles.stickyHeaderBorder} />
-        </Animated.View>
+        <View style={styles.headerTitleGroup}>
+          <Text style={styles.title}>Hoy</Text>
+          <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
+        </View>
 
-        {/* Contenido: Título Compacto Centrado y Acción Principal a la Derecha */}
-        <View style={styles.stickyHeaderContent} pointerEvents="box-none">
-          <View style={styles.stickyHeaderLeft} />
-
-          <Animated.View
-            style={[
-              styles.compactTitleWrapper,
-              {
-                opacity: compactTitleOpacity,
-                transform: [{ translateY: compactTitleTranslateY }],
-              },
-            ]}
-            pointerEvents="none"
-          >
-            <Text style={styles.compactTitle}>Hoy</Text>
-          </Animated.View>
-
-          <View style={styles.stickyHeaderRight}>
-            <GlassStudyPickerButton onPress={() => setShowStudyPicker(true)} />
-          </View>
+        <View style={styles.headerRightActions}>
+          <GlassStudyPickerButton onPress={() => setShowStudyPicker(true)} />
         </View>
       </View>
 
-      <Animated.ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + 60,
-            paddingBottom: insets.bottom + 90,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        bounces
-        alwaysBounceVertical
-        keyboardShouldPersistTaps="handled"
-        onScrollBeginDrag={() => Keyboard.dismiss()}
-        scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-      >
-        {/* Card 0: Cabecera iOS con Large Title y Fecha (entra con la cascada) */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
-          <Animated.View
-            style={[
-              styles.titleCoverBlock,
-              {
-                opacity: largeTitleOpacity,
-                transform: [
-                  { translateY: titleCollapseY },
-                  { scale: titleCollapseScale },
-                ],
-              },
-            ]}
-          >
-            <Text style={styles.title}>Hoy</Text>
-            <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
+      {/* Contenedor Modal/Sheet del Contenido Principal */}
+      <View style={styles.contentSheetContainer}>
+        <Animated.ScrollView
+          style={styles.container}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: 20,
+              paddingBottom: insets.bottom + 90,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          bounces
+          alwaysBounceVertical
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+        >
+          {/* Card 1: Hero Card Dinámica (Clase en Vivo / Próxima) */}
+          <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
+            <MinimalistLiveHero schedulesToday={schedulesToday} />
           </Animated.View>
-        </Animated.View>
 
-        {/* Card 1: Hero Card Dinámica (Clase en Vivo / Próxima) */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
-          <MinimalistLiveHero schedulesToday={schedulesToday} />
-        </Animated.View>
+          {/* Card 2: Bloque de Tareas Próximas (Adaptativo) */}
+          <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
+            <MinimalistTodayTasks
+              tasks={tasks}
+              highlightedTaskId={highlightedTaskId}
+              onToggleTask={handleToggleTaskStatus}
+              onOpenTaskDetail={(t) => {
+                triggerHaptic('light')
+                setActiveTask(t)
+                setTaskModalMode('detail')
+              }}
+              onNavigateToTasks={() => router.navigate('/(tabs)/tasks')}
+            />
+          </Animated.View>
 
-        {/* Card 2: Bloque de Tareas Próximas */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
-          <MinimalistTodayTasks
-            tasks={tasks}
-            highlightedTaskId={highlightedTaskId}
-            onToggleTask={handleToggleTaskStatus}
-            onOpenTaskDetail={(t) => {
-              triggerHaptic('light')
-              setActiveTask(t)
-              setTaskModalMode('detail')
-            }}
-            onNavigateToTasks={() => router.navigate('/(tabs)/tasks')}
-          />
-        </Animated.View>
-
-        {/* Card 3: Timeline Continuo de Clases con Entregas de Tareas */}
-        <Animated.View style={getCardEntranceStyle(cardEntranceAnims[3])}>
-          <MinimalistDayTimeline
-            schedulesToday={schedulesToday}
-            tasks={tasks}
-            onToggleTask={handleToggleTaskStatus}
-            onOpenTaskDetail={(t) => {
-              triggerHaptic('light')
-              setActiveTask(t)
-              setTaskModalMode('detail')
-            }}
-          />
-        </Animated.View>
-      </Animated.ScrollView>
+          {/* Card 3: Timeline Continuo de Clases con Entregas de Tareas */}
+          <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
+            <MinimalistDayTimeline
+              schedulesToday={schedulesToday}
+              tasks={tasks}
+              onToggleTask={handleToggleTaskStatus}
+              onOpenTaskDetail={(t) => {
+                triggerHaptic('light')
+                setActiveTask(t)
+                setTaskModalMode('detail')
+              }}
+            />
+          </Animated.View>
+        </Animated.ScrollView>
+      </View>
 
       {/* Modal Unificado de Tareas (Detalle, Crear y Editar) */}
       <MinimalistTaskModal
@@ -560,9 +508,7 @@ export default function TodayScreen() {
         onTaskSaved={handleTaskSaved}
       />
 
-      {/* Modal "¿Qué estudio?" — ruleta de tareas pendientes
-          (el confetti se dispara DENTRO del modal para quedar por encima de la hoja;
-          la tarea ganadora persiste entre aperturas y solo cambia con un nuevo giro) */}
+      {/* Modal "¿Qué estudio?" — ruleta de tareas pendientes */}
       <StudyPickerModal
         visible={showStudyPicker}
         tasks={tasks}
@@ -589,88 +535,76 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   screenWrapper: {
     flex: 1,
+    backgroundColor: '#090A0E',
+  },
+  topHeaderArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: '#090A0E',
+  },
+  headerTitleGroup: {
+    flex: 1,
+    gap: 3,
+  },
+  headerRightActions: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  contentSheetContainer: {
+    flex: 1,
     backgroundColor: '#000000',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
   },
   container: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 16,
-    gap: 16,
-  },
-  // ─── Barra sticky superior ───
-  stickyHeaderBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    elevation: 20,
-  },
-  stickyHeaderBorder: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  stickyHeaderContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
-  stickyHeaderLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  compactTitleWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 8,
-  },
-  compactTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.4,
-    textAlign: 'center',
-  },
-  stickyHeaderRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    gap: 18,
   },
   glassBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     padding: 6,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
   glassBtnWhite: {
-    // Variante del botón "¿Qué estudio?": material glass CLARO (colorScheme="light")
-    // teñido de blanco, mismo patrón que "+" en Tareas, "Materias" en Horarios y "Ajustes" en Perfil.
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
     borderColor: 'rgba(255, 255, 255, 1)',
   },
   glassBtnInner: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   blurBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
@@ -680,28 +614,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurBtnWhite: {
-    // Fallback sin liquid glass: blanco nítido
     backgroundColor: '#FFFFFF',
     borderColor: 'rgba(255, 255, 255, 0.9)',
-  },
-  // ─── Cabecera Large Title colapsable ───
-  titleCoverBlock: {
-    backgroundColor: '#000000',
-    zIndex: 20,
-    paddingHorizontal: 2,
-    marginBottom: 2,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-  },
-  subtitle: {
-    color: '#A1A1AA',
-    fontSize: 13.5,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-    marginTop: 3,
   },
 })

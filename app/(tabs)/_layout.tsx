@@ -5,10 +5,7 @@ import { View, Text, StyleSheet, Platform } from 'react-native'
 import { Home, Calendar, CheckSquare, User } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
-import { MinimalistTaskModal } from '@/components/tasks/MinimalistTaskModal'
-import { useIncomingShareIntent } from '@/lib/useIncomingShareIntent'
 import { useClassAuth } from '@/context/ClassAuthContext'
-import type { Subject } from '@/types/personal'
 
 export default function TabLayout() {
   const router = useRouter()
@@ -17,21 +14,12 @@ export default function TabLayout() {
   const [pendingCount, setPendingCount] = useState(() => {
     return personalStorage.getCachedTasksWithSubjects().filter((t) => t.status === 'pending').length
   })
-  const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
 
   useEffect(() => {
     if (!isLoading && !isConnected) {
       router.replace('/auth')
     }
   }, [isLoading, isConnected, router])
-
-  const {
-    isShareModalOpen,
-    incomingAttachments,
-    incomingTitle,
-    incomingDescription,
-    closeIncomingShareModal,
-  } = useIncomingShareIntent()
 
   useEffect(() => {
     let isMounted = true
@@ -44,12 +32,6 @@ export default function TabLayout() {
         if (!isMounted) return
         const pending = tasks.filter((t) => t.status === 'pending').length
         setPendingCount(pending)
-      })
-      personalStorage.getSubjects().then((subjs) => {
-        if (!isMounted) return
-        if (subjs && Array.isArray(subjs)) {
-          setSubjects(subjs)
-        }
       })
     }
     updateData()
@@ -166,18 +148,6 @@ export default function TabLayout() {
           />
         </Tabs>
       )}
-
-      {/* Modal reactivo automático para "Compartir con Zora" */}
-      <MinimalistTaskModal
-        mode={isShareModalOpen ? 'create' : 'none'}
-        task={null}
-        subjects={subjects}
-        initialAttachments={incomingAttachments}
-        initialTitle={incomingTitle}
-        initialDescription={incomingDescription}
-        onClose={closeIncomingShareModal}
-        onTaskSaved={closeIncomingShareModal}
-      />
     </View>
   )
 }

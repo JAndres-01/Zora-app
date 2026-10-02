@@ -40,6 +40,7 @@ export function TasksSegmentControl({
 
   const handlePress = (newStatus: 'pending' | 'completed' | 'all') => {
     if (newStatus === statusFilter) return
+    triggerHaptic('selection')
     onStatusChange(newStatus)
   }
 
@@ -79,7 +80,7 @@ export function TasksSegmentControl({
         />
 
         <Pressable
-          onPressIn={() => handlePress('pending')}
+          onPress={() => handlePress('pending')}
           style={styles.segmentButton}
         >
           <Text
@@ -93,7 +94,7 @@ export function TasksSegmentControl({
         </Pressable>
 
         <Pressable
-          onPressIn={() => handlePress('completed')}
+          onPress={() => handlePress('completed')}
           style={styles.segmentButton}
         >
           <Text
@@ -107,7 +108,7 @@ export function TasksSegmentControl({
         </Pressable>
 
         <Pressable
-          onPressIn={() => handlePress('all')}
+          onPress={() => handlePress('all')}
           style={styles.segmentButton}
         >
           <Text

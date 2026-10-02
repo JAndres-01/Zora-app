@@ -174,10 +174,20 @@ jest.mock('expo-notifications', () => ({
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
   cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
   getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
-  AndroidImportance: { MAX: 5 },
+  dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+  getPresentedNotificationsAsync: jest.fn().mockResolvedValue([]),
+  setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
+  getBadgeCountAsync: jest.fn().mockResolvedValue(0),
+  AndroidImportance: { MAX: 5, HIGH: 4, DEFAULT: 3, LOW: 2, MIN: 1, NONE: 0 },
   SchedulableTriggerInputTypes: {
     CALENDAR: 'calendar',
     TIME_INTERVAL: 'timeInterval',
+    DATE: 'date',
+    WEEKLY: 'weekly',
+    DAILY: 'daily',
+    MONTHLY: 'monthly',
+    YEARLY: 'yearly',
   },
 }))
 
@@ -190,16 +200,20 @@ const mockMediaAssets = [
   { id: 'asset-1', uri: 'file:///var/mobile/Photos/IMG_0001.JPG', filename: 'IMG_0001.JPG', width: 1080, height: 1920 },
   { id: 'asset-2', uri: 'file:///var/mobile/Photos/IMG_0002.JPG', filename: 'IMG_0002.JPG', width: 1080, height: 1920 },
 ]
-jest.mock('expo-media-library', () => ({
+const mockMediaLibrary = {
   __esModule: true,
-  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', canAskAgain: true, granted: true }),
-  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', canAskAgain: true, granted: true }),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', canAskAgain: true, granted: true, accessPrivileges: 'all' }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', canAskAgain: true, granted: true, accessPrivileges: 'all' }),
   getAssetsAsync: jest.fn().mockResolvedValue({
     assets: mockMediaAssets,
     endCursor: '2',
     hasNextPage: false,
     totalCount: 2,
   }),
+  getAssetInfoAsync: jest.fn().mockImplementation(async (id) => ({
+    localUri: typeof id === 'string' && id.includes('2') ? 'file:///var/mobile/Photos/IMG_0002.JPG' : 'file:///var/mobile/Photos/IMG_0001.JPG',
+    uri: typeof id === 'string' && id.includes('2') ? 'file:///var/mobile/Photos/IMG_0002.JPG' : 'file:///var/mobile/Photos/IMG_0001.JPG',
+  })),
   MediaType: {
     photo: 'photo',
     video: 'video',
@@ -209,7 +223,9 @@ jest.mock('expo-media-library', () => ({
   SortBy: {
     creationTime: 'creationTime',
   },
-}))
+}
+jest.mock('expo-media-library', () => mockMediaLibrary)
+jest.mock('expo-media-library/legacy', () => mockMediaLibrary)
 
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true }),

@@ -34,6 +34,14 @@ function deriveCleanTitle(fileName?: string | null, metaTitle?: string | null, t
   return ''
 }
 
+function normalizeFilePath(rawPath: string): string {
+  if (!rawPath) return ''
+  if (rawPath.startsWith('/') && !rawPath.startsWith('file://')) {
+    return `file://${rawPath}`
+  }
+  return rawPath
+}
+
 export function useIncomingShareIntent() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent({
     debug: false,
@@ -68,8 +76,9 @@ export function useIncomingShareIntent() {
     // Procesar archivos (PDFs, Imágenes, Documentos de Office, etc.)
     if (shareIntent.files && shareIntent.files.length > 0) {
       shareIntent.files.forEach((file: any, index: number) => {
-        const filePath = file.path || file.filePath || file.contentUri
-        if (!filePath) return
+        const rawPath = file.path || file.filePath || file.contentUri
+        if (!rawPath) return
+        const filePath = normalizeFilePath(rawPath)
 
         const isImage =
           file.mimeType?.startsWith('image/') ||
@@ -92,7 +101,7 @@ export function useIncomingShareIntent() {
           file_name: cleanName,
           file_url: filePath,
           file_type: isImage ? 'image' : 'document',
-          size_bytes: file.size || undefined,
+          size_bytes: file.size || file.fileSize || undefined,
         })
       })
 
@@ -166,7 +175,8 @@ export function useIncomingShareIntent() {
 
         if (parsed.path === 'share-task' || parsed.hostname === 'share-task' || parsed.path === 'share') {
           const params = parsed.queryParams || {}
-          const uri = typeof params.uri === 'string' ? params.uri : typeof params.url === 'string' ? params.url : null
+          const rawUri = typeof params.uri === 'string' ? params.uri : typeof params.url === 'string' ? params.url : null
+          const uri = rawUri ? normalizeFilePath(rawUri) : null
           const name = typeof params.name === 'string' ? params.name : 'Archivo adjunto'
           const type = typeof params.type === 'string' ? params.type : 'document'
           const title = typeof params.title === 'string' ? params.title : ''

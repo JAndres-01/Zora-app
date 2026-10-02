@@ -1,13 +1,15 @@
 import { Platform } from 'react-native'
 import Constants, { ExecutionEnvironment } from 'expo-constants'
 import type { Task, Schedule, AppPreferences } from '@/types/personal'
-import { personalStorage } from './personalStorage'
+import { personalStorage, subscribeToPersonalStorage } from './personalStorage'
 import { DEFAULT_ADVANCE_REMINDER_TIME, DEFAULT_SUBJECT_NAME } from '@/constants/defaults'
 import { logger } from '@/lib/logger'
 
 type NotificationsType = typeof import('expo-notifications')
 let _isInitialized = false
 let _notificationsModule: NotificationsType | null = null
+let _syncDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let _isSubscribed = false
 
 function getNotifications(): NotificationsType | null {
   if (Platform.OS === 'web') return null
@@ -35,7 +37,7 @@ function getNotifications(): NotificationsType | null {
 }
 
 /**
- * Inicializa la infraestructura de notificaciones (handler nativo y canal de Android).
+ * Inicializa la infraestructura de notificaciones (handler nativo, canal de Android y sincronización reactiva).
  * Debe invocarse de forma controlada durante el ciclo de arranque de la aplicación.
  */
 export function setupNotificationInfrastructure(): void {
@@ -65,8 +67,39 @@ export function setupNotificationInfrastructure(): void {
         logger.warn('[personalNotifications] Error configurando canal de notificaciones:', err)
       })
     }
+
+    // Suscribir automáticamente cambios en el almacenamiento local para re-sincronizar recordatorios
+    if (!_isSubscribed) {
+      _isSubscribed = true
+      subscribeToPersonalStorage(() => {
+        if (_syncDebounceTimer) clearTimeout(_syncDebounceTimer)
+        _syncDebounceTimer = setTimeout(() => {
+          syncAllNotifications().catch((err) => {
+            logger.warn('[personalNotifications] Error en sync reactivo:', err)
+          })
+        }, 600)
+      })
+    }
+
+    // Sincronización inicial silenciosa en arranque (solo si ya tiene permisos)
+    syncAllNotifications().catch(() => {})
   } catch (err) {
     logger.warn('[personalNotifications] Error inicializando notification handler:', err)
+  }
+}
+
+/**
+ * Comprueba si los permisos de notificación ya están otorgados sin desplegar modales al usuario
+ */
+export async function checkNotificationPermissions(): Promise<boolean> {
+  const Notifications = getNotifications()
+  if (!Notifications) return false
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync()
+    return status === 'granted'
+  } catch {
+    return false
   }
 }
 
@@ -106,6 +139,11 @@ export function cancelTaskReminder(taskId: string): Promise<void> {
   return (async () => {
     try {
       await Notifications.cancelScheduledNotificationAsync(`task_adv_${taskId}`)
+      if (taskId.startsWith('class_')) {
+        await Notifications.cancelScheduledNotificationAsync(`task_adv_${taskId.replace('class_', '')}`)
+      } else {
+        await Notifications.cancelScheduledNotificationAsync(`task_adv_class_${taskId}`)
+      }
     } catch (err) {
       logger.warn('[personalNotifications] Error cancelando recordatorio de tarea:', err)
     }
@@ -147,8 +185,10 @@ export async function scheduleTaskReminder(
 
     // Obtener hora y minuto configurados en ajustes (ej. "20:00")
     const [prefHourStr, prefMinStr] = (prefs.advance_reminder_time || DEFAULT_ADVANCE_REMINDER_TIME).split(':')
-    const prefHour = parseInt(prefHourStr, 10) || 20
-    const prefMin = parseInt(prefMinStr, 10) || 0
+    const parsedHour = parseInt(prefHourStr, 10)
+    const prefHour = isNaN(parsedHour) ? 20 : parsedHour
+    const parsedMin = parseInt(prefMinStr, 10)
+    const prefMin = isNaN(parsedMin) ? 0 : parsedMin
 
     // Calcular fecha del día anterior a la hora configurada
     const reminderDate = new Date(taskDueDate)
@@ -175,10 +215,12 @@ export async function scheduleTaskReminder(
         body: `"${task.title}" • ${subjName}`,
         sound: true,
         data: { taskId: task.id, type: 'task_advance' },
+        ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
       },
       trigger: {
         type: (Notifications as any).SchedulableTriggerInputTypes?.DATE || 'date',
         date: reminderDate,
+        ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
       } as any,
     })
   } catch (err) {
@@ -210,8 +252,13 @@ async function scheduleClassReminders(
 
   if (!prefs.class_reminder_enabled) return
 
+  const cachedSubjects = personalStorage.getCachedSubjects()
+
   for (const item of schedules) {
-    if (!item.subject || !item.start_time) continue
+    if (!item.start_time) continue
+
+    const subjectObj = item.subject || cachedSubjects.find((s) => s.id === item.subject_id) || null
+    if (!subjectObj?.name) continue
 
     try {
       const [startHourStr, startMinStr] = item.start_time.split(':')
@@ -223,19 +270,22 @@ async function scheduleClassReminders(
       // Calcular 10 minutos antes de la clase
       let notifMin = startMin - 10
       let notifHour = startHour
+      // En Expo Notifications: 1=Domingo, 2=Lunes, 3=Martes, 4=Miércoles, 5=Jueves, 6=Viernes, 7=Sábado
+      // day_of_week de Zora: 1..5 (Lun..Vie), 6 (Sáb), 7 (Dom)
+      let notifWeekday = item.day_of_week === 7 ? 1 : item.day_of_week + 1
+
       if (notifMin < 0) {
         notifMin += 60
         notifHour -= 1
       }
-      if (notifHour < 0) notifHour += 24
-
-      // En Expo Notifications: 1=Domingo, 2=Lunes, 3=Martes, 4=Miércoles, 5=Jueves, 6=Viernes, 7=Sábado
-      // Nuestro day_of_week va de 1 (Lunes) a 5 (Viernes) -> weekday = day_of_week + 1
-      const expoWeekday = item.day_of_week + 1
+      if (notifHour < 0) {
+        notifHour += 24
+        notifWeekday = notifWeekday === 1 ? 7 : notifWeekday - 1
+      }
 
       // Mensaje limpio: muestra el nombre de la materia (y aula únicamente si está definida)
       const roomSuffix = item.classroom_room?.trim() ? ` • Aula ${item.classroom_room.trim()}` : ''
-      const bodyText = `${item.subject.name}${roomSuffix}`
+      const bodyText = `${subjectObj.name}${roomSuffix}`
 
       await Notifications.scheduleNotificationAsync({
         identifier: `class_sched_${item.id || `${item.day_of_week}_${item.block_number}`}`,
@@ -244,12 +294,14 @@ async function scheduleClassReminders(
           body: bodyText,
           sound: true,
           data: { scheduleId: item.id, type: 'class_reminder' },
+          ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
         },
         trigger: {
           type: (Notifications as any).SchedulableTriggerInputTypes?.WEEKLY || 'weekly',
-          weekday: expoWeekday,
+          weekday: notifWeekday,
           hour: notifHour,
           minute: notifMin,
+          ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
         } as any,
       })
     } catch (err) {
@@ -271,7 +323,7 @@ export async function syncAllNotifications(
 
   try {
     const prefs = prefsOverride || (await personalStorage.getPreferences())
-    const hasPermission = await requestNotificationPermissions()
+    const hasPermission = await checkNotificationPermissions()
     if (!hasPermission) return
 
     const currentTasks = tasks || (await personalStorage.getTasksWithSubjects())
@@ -292,4 +344,3 @@ export async function syncAllNotifications(
     logger.warn('[personalNotifications] Error sincronizando notificaciones:', err)
   }
 }
-

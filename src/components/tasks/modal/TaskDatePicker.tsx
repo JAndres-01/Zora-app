@@ -22,7 +22,7 @@ import { isWhiteColor, WHITE_DOT_BORDER } from '@/constants/theme'
 import { DAYS_SHORT, MONTHS_SHORT, DAYS_WITH_SHORT } from '@/constants/dates'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { formatTime12h } from '@/lib/academicDateUtils'
-import { LAYOUT_EASE, SPRING_SLIDE_INDICATOR } from '@/constants/animations'
+import { SPRING_SLIDE_INDICATOR } from '@/constants/animations'
 import { PERSONAL_SCHEDULE_BLOCKS } from '@/lib/scheduleEngine'
 
 export interface TaskDatePickerProps {
@@ -149,7 +149,6 @@ export function TaskDatePicker({
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
-              LAYOUT_EASE(130)
               setDatePickerTab('class')
               setShowNativeDatePicker(false)
               setShowNativeTimePicker(false)
@@ -173,7 +172,6 @@ export function TaskDatePicker({
           <Pressable
             onPress={() => {
               triggerHaptic('selection')
-              LAYOUT_EASE(130)
               setDatePickerTab('manual')
             }}
             style={styles.segmentButton}
@@ -227,7 +225,6 @@ export function TaskDatePicker({
                     key={d.num}
                     onPress={() => {
                       triggerHaptic('selection')
-                      LAYOUT_EASE(130)
                       setSelectedClassDay(d.num)
                     }}
                     style={styles.dayPill}
@@ -353,7 +350,6 @@ export function TaskDatePicker({
               <Pressable
                 onPress={() => {
                   triggerHaptic('light')
-                  LAYOUT_EASE(130)
                   if (!dueDate) {
                     const now = new Date()
                     now.setHours(23, 59, 0, 0)
@@ -380,7 +376,6 @@ export function TaskDatePicker({
               <Pressable
                 onPress={() => {
                   triggerHaptic('light')
-                  LAYOUT_EASE(130)
                   if (!dueDate) {
                     const now = new Date()
                     now.setHours(23, 59, 0, 0)

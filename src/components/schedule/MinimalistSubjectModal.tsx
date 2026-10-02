@@ -82,6 +82,7 @@ export function MinimalistSubjectModal({
 
   const {
     modalVisible,
+    isClosing,
     fadeAnim,
     slideAnim,
     panY,
@@ -92,18 +93,6 @@ export function MinimalistSubjectModal({
     onClose,
     onClosed: resetForm,
   })
-
-  // Aparición/desaparición animada del botón "atrás" al entrar/salir de edición
-  const backBtnAnim = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    Animated.timing(backBtnAnim, {
-      toValue: editingSubject ? 1 : 0,
-      duration: 240,
-      easing: APPLE_EASING,
-      useNativeDriver: true,
-    }).start()
-  }, [editingSubject, backBtnAnim])
 
   const handleStartEdit = (subject: Subject) => {
     triggerHaptic('selection')
@@ -254,11 +243,11 @@ export function MinimalistSubjectModal({
 
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={handleSmoothClose}>
-      <View style={styles.modalRoot}>
-        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+      <View style={styles.modalRoot} pointerEvents={isClosing ? 'none' : 'auto'}>
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} pointerEvents={isClosing ? 'none' : 'auto'}>
           {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
-          <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} />
+          <Pressable style={styles.backdropTouch} onPress={handleSmoothClose} disabled={isClosing} />
         </Animated.View>
 
         <Animated.View
@@ -266,61 +255,19 @@ export function MinimalistSubjectModal({
             styles.sheetContainer,
             { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
           {/* Header */}
-          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
+          <View style={styles.sheetHeader} collapsable={false}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
-              <View style={[styles.headerSide, styles.iosButtonNudge]}>
-                <Animated.View
-                  pointerEvents={editingSubject ? 'none' : 'auto'}
-                  style={[
-                    styles.headerSideBtn,
-                    {
-                      opacity: backBtnAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 0],
-                      }),
-                      transform: [
-                        {
-                          scale: backBtnAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [1, 0.7],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <NativeGlassIconButton
-                    onPress={handleSmoothClose}
-                    icon="xmark"
-                    accessibilityLabel="Cerrar modal de materias"
-                  />
-                </Animated.View>
-                <Animated.View
-                  pointerEvents={editingSubject ? 'auto' : 'none'}
-                  style={[
-                    styles.headerSideBtn,
-                    {
-                      opacity: backBtnAnim,
-                      transform: [
-                        {
-                          scale: backBtnAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.7, 1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <NativeGlassIconButton
-                    onPress={handleCancelEdit}
-                    icon="back"
-                    accessibilityLabel="Volver a la lista de materias"
-                  />
-                </Animated.View>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={editingSubject ? handleCancelEdit : handleSmoothClose}
+                  icon={editingSubject ? 'back' : 'xmark'}
+                  accessibilityLabel={editingSubject ? 'Volver a la lista de materias' : 'Cerrar modal de materias'}
+                />
               </View>
 
               <View style={styles.headerTitleWrap} pointerEvents="none">
@@ -329,7 +276,7 @@ export function MinimalistSubjectModal({
                 </Text>
               </View>
 
-              <View style={[styles.headerSide, styles.iosButtonNudge]}>
+              <View style={styles.headerSide}>
                 <NativeGlassIconButton
                   onPress={handleSaveSubject}
                   icon="checkmark"
@@ -341,7 +288,7 @@ export function MinimalistSubjectModal({
             </View>
           </View>
 
-          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
             {/* Tarjeta glass de Nombre + Profesor (mismo tratamiento que el modal de tarea) */}
             <View style={styles.glassInputCard}>
               {Platform.OS === 'ios' && <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />}
@@ -511,15 +458,6 @@ const styles = StyleSheet.create({
     height: Platform.OS === 'ios' ? 58 : 36,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  headerSideBtn: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iosButtonNudge: {
-    transform: [{ translateY: Platform.OS === 'ios' ? 12 : 0 }],
   },
   headerTitleWrap: {
     position: 'absolute',

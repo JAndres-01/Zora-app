@@ -33,13 +33,17 @@ export async function uploadClassTaskAttachments(
   attachments: TaskAttachment[],
   userId: string
 ): Promise<TaskAttachment[]> {
-  if (!Array.isArray(attachments) || attachments.length === 0) {
+  if (!Array.isArray(attachments) || attachments.length === 0 || !userId) {
     return []
   }
 
   return Promise.all(
     attachments.map(async (att) => {
-      if (att.file_url && (att.file_url.startsWith('http://') || att.file_url.startsWith('https://'))) {
+      if (!att || !att.file_url || typeof att.file_url !== 'string') {
+        return att
+      }
+
+      if (att.file_url.startsWith('http://') || att.file_url.startsWith('https://')) {
         return att
       }
 

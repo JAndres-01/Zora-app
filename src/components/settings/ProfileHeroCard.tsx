@@ -3,9 +3,11 @@ import { View, Text, Pressable, StyleSheet, Animated } from 'react-native'
 import { QrCode, IdCard } from 'lucide-react-native'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { DEFAULT_STUDENT_NAME } from '@/constants/defaults'
+import { AnimatedGazeAvatar } from '@/components/profile/AnimatedGazeAvatar'
 
 export interface ProfileHeroCardProps {
   fullName?: string
+  avatarSeed?: string | null
   credentialUrl?: string | null
   onOpenCredential: () => void
   onUploadCredential: () => void
@@ -20,6 +22,7 @@ export function getInitials(name?: string): string {
 
 export function ProfileHeroCard({
   fullName,
+  avatarSeed,
   credentialUrl,
   onOpenCredential,
   onUploadCredential,
@@ -59,9 +62,12 @@ export function ProfileHeroCard({
         onPressOut={handleHeroPressOut}
         style={styles.heroProfileCard}
       >
-        <View style={styles.heroAvatar}>
-          <Text style={styles.heroAvatarText}>{getInitials(fullName)}</Text>
-        </View>
+        <AnimatedGazeAvatar
+          seed={avatarSeed}
+          size={48}
+          fallbackInitials={getInitials(fullName)}
+          style={styles.heroAvatar}
+        />
 
         <View style={styles.heroProfileInfo}>
           <Text style={styles.heroProfileName} numberOfLines={1}>

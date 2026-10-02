@@ -165,9 +165,11 @@ export function ClassAuthModal({ visible, onClose, onSuccess, embedded }: ClassA
               transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
           {/* Header (patrón canónico: X glass + título centrado + hairline) */}
-          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
+          <View style={styles.sheetHeader} collapsable={false}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
               <View style={styles.headerSide}>

@@ -129,6 +129,7 @@ function GlassSubjectButton({ onPress }: { onPress: () => void }) {
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets()
+  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 0)
   const router = useRouter()
 
   const {
@@ -351,8 +352,8 @@ export default function ScheduleScreen() {
         style={[
           styles.stickyHeaderBar,
           {
-            height: insets.top + 56,
-            paddingTop: insets.top,
+            height: topInset + 56,
+            paddingTop: topInset,
           },
         ]}
       >
@@ -411,7 +412,7 @@ export default function ScheduleScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: insets.top + 60,
+            paddingTop: topInset + 60,
             paddingBottom: insets.bottom + 90,
           },
         ]}

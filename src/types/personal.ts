@@ -1,6 +1,7 @@
 export interface PersonalProfile {
   id: string
   full_name: string
+  avatar_seed?: string
   student_credential_url?: string | null
   student_credential_name?: string | null
   student_credential_updated_at?: string | null

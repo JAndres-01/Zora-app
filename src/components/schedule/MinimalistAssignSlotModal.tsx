@@ -156,9 +156,11 @@ export function MinimalistAssignSlotModal({
             styles.sheetContainer,
             { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
           {/* Header (patrón canónico con botón X liquid glass) */}
-          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
+          <View style={styles.sheetHeader} collapsable={false}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
               <View style={styles.headerSide}>
@@ -177,7 +179,7 @@ export function MinimalistAssignSlotModal({
             </View>
           </View>
 
-          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} bounces={false}>
             {safeSubjects.length > 0 ? (
               <View style={styles.subjectsCard}>
                 {safeSubjects.map((s, idx) => {

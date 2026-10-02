@@ -28,10 +28,12 @@ import {
   Trash2,
   User,
   CalendarDays,
-  Pencil,
+  Bug,
+  Radio,
+  Grid,
 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
-import { MenuView } from '@react-native-menu/menu'
+import { MenuView, type MenuAction } from '@react-native-menu/menu'
 import type { PersonalProfile } from '@/types/personal'
 import { MONTHS_SHORT } from '@/constants/dates'
 import { triggerHaptic } from '@/lib/personalHaptics'
@@ -41,7 +43,17 @@ import { SemesterConfigCard, type SemesterPickerType } from './SemesterConfigCar
 import { DEFAULT_STUDENT_NAME, DEFAULT_ADVANCE_REMINDER_TIME } from '@/constants/defaults'
 import { ClassAuthModal } from '@/components/auth/ClassAuthModal'
 import { NativeGlassIconButton } from '@/components/tasks/NativeGlassIconButton'
+import { AnimatedGazeAvatar } from '@/components/profile/AnimatedGazeAvatar'
 import { getInitials } from './ProfileHeroCard'
+import {
+  hasTodayDebugData,
+  hasAutumnDebugData,
+  seedTodayActiveClassAndTasks,
+  clearTodayDebugData,
+  seedAutumnActivityHeatmap,
+  clearAutumnDebugData,
+  clearAllDebugData,
+} from '@/lib/debugTools'
 
 const REMINDER_TIME_OPTIONS = [
   { time: '18:00', label: '6:00 PM' },
@@ -51,7 +63,7 @@ const REMINDER_TIME_OPTIONS = [
   { time: '22:00', label: '10:00 PM' },
 ]
 
-type SettingsSubPage = 'account' | 'notifications' | 'semesters' | 'experience' | 'class_feed'
+type SettingsSubPage = 'account' | 'notifications' | 'semesters' | 'experience' | 'class_feed' | 'debug'
 
 export interface SystemSettingsModalProps {
   visible: boolean
@@ -140,9 +152,11 @@ export function SystemSettingsModal({
 
   const {
     modalVisible,
+    isClosing,
     fadeAnim,
     slideAnim,
     panY,
+    panResponder,
     handleSmoothClose: dismissSheet,
   } = useModalAnimation({ visible, onClose })
 
@@ -186,19 +200,131 @@ export function SystemSettingsModal({
     })
   }
 
-  // Reset al abrir/cerrar modal
+  // Reset y carga de estados al abrir/cerrar modal
+  const [todayDebugEnabled, setTodayDebugEnabled] = useState(false)
+  const [autumnDebugEnabled, setAutumnDebugEnabled] = useState(false)
+
   useEffect(() => {
     if (visible) {
       setActiveDatePicker(null)
       setActiveSubPage(null)
       setSubPageMounted(false)
       subPageSlideX.setValue(SCREEN_W)
+
+      // Comprobar si existen datos de depuración
+      hasTodayDebugData().then(setTodayDebugEnabled)
+      hasAutumnDebugData().then(setAutumnDebugEnabled)
     }
   }, [visible, SCREEN_W, subPageSlideX])
 
-  const reminderTimeMenuActions = REMINDER_TIME_OPTIONS.map((opt) => ({
+  // Handlers para la sección de Debug
+  const handleDebugShowWelcome = () => {
+    triggerHaptic('light')
+    handleSmoothClose(() => {
+      router.push('/welcome')
+    })
+  }
+
+  const handleToggleTodayDebug = async (val: boolean) => {
+    triggerHaptic('selection')
+    setTodayDebugEnabled(val)
+    if (val) {
+      try {
+        await seedTodayActiveClassAndTasks()
+        triggerHaptic('success')
+        Alert.alert(
+          'Pestaña Hoy Activa',
+          'Datos generados con clase en curso y tareas pendientes para hoy.',
+          [
+            {
+              text: 'Ver en Hoy',
+              onPress: () => {
+                handleSmoothClose(() => {
+                  router.navigate({
+                    pathname: '/(tabs)/today',
+                    params: {
+                      simulatedMinutes: '480',
+                      _t: Date.now().toString(),
+                    },
+                  })
+                })
+              },
+            },
+            { text: 'Aceptar', style: 'cancel' },
+          ]
+        )
+      } catch {
+        setTodayDebugEnabled(false)
+        Alert.alert('Error', 'No se pudieron generar los datos de prueba de Hoy.')
+      }
+    } else {
+      try {
+        await clearTodayDebugData()
+        triggerHaptic('light')
+      } catch {
+        setTodayDebugEnabled(true)
+        Alert.alert('Error', 'No se pudieron eliminar los datos de prueba de Hoy.')
+      }
+    }
+  }
+
+  const handleToggleAutumnDebug = async (val: boolean) => {
+    triggerHaptic('selection')
+    setAutumnDebugEnabled(val)
+    if (val) {
+      try {
+        const result = await seedAutumnActivityHeatmap()
+        triggerHaptic('success')
+        Alert.alert(
+          'Mapa de Actividad (Otoño)',
+          `Se generaron ${result.tasksCount} entregas en ${result.weeksCount} semanas (máximo 3 tareas por semana, a veces 2).`
+        )
+      } catch {
+        setAutumnDebugEnabled(false)
+        Alert.alert('Error', 'No se pudo generar el mapa de actividad de otoño.')
+      }
+    } else {
+      try {
+        await clearAutumnDebugData()
+        triggerHaptic('light')
+      } catch {
+        setAutumnDebugEnabled(true)
+        Alert.alert('Error', 'No se pudieron eliminar los datos de otoño.')
+      }
+    }
+  }
+
+  const handleClearAllDebug = async () => {
+    triggerHaptic('warning')
+    Alert.alert(
+      'Limpiar Datos de Depuración',
+      '¿Deseas eliminar todas las materias, horarios y tareas de prueba generadas?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Limpiar Todo',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearAllDebugData()
+              setTodayDebugEnabled(false)
+              setAutumnDebugEnabled(false)
+              triggerHaptic('success')
+              Alert.alert('Completado', 'Todos los datos de depuración han sido eliminados.')
+            } catch {
+              Alert.alert('Error', 'No se pudieron limpiar todos los datos de depuración.')
+            }
+          },
+        },
+      ]
+    )
+  }
+
+  const reminderTimeMenuActions: MenuAction[] = REMINDER_TIME_OPTIONS.map((opt) => ({
     id: opt.time,
     title: opt.label,
+    image: Platform.select({ ios: 'clock', android: 'ic_menu_recent_history' }),
+    imageColor: '#FFFFFF',
     state: advanceReminderTime === opt.time ? ('on' as const) : ('off' as const),
   }))
 
@@ -229,6 +355,8 @@ export function SystemSettingsModal({
         return 'Experiencia'
       case 'class_feed':
         return 'Feed de Clase'
+      case 'debug':
+        return 'Debug'
       default:
         return 'Ajustes'
     }
@@ -247,15 +375,16 @@ export function SystemSettingsModal({
         }
       }}
     >
-      <View style={styles.modalRoot}>
+      <View style={styles.modalRoot} pointerEvents={isClosing ? 'none' : 'auto'}>
         {/* Backdrop Frosted con Fade */}
-        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} pointerEvents={isClosing ? 'none' : 'auto'}>
           {Platform.OS === 'ios' && (
             <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
           )}
           <View style={styles.backdropDim} />
           <Pressable
             style={styles.backdropTouch}
+            disabled={isClosing}
             onPress={() => {
               if (activeSubPage) {
                 closeSubPage()
@@ -275,31 +404,25 @@ export function SystemSettingsModal({
               transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
-          {/* Barra Superior con Botón X liquid glass arriba a la derecha */}
-          <View style={styles.topBar}>
-            <View style={styles.topBarSpacer} />
-            <NativeGlassIconButton
-              onPress={() => handleSmoothClose()}
-              icon="xmark"
-              accessibilityLabel="Cerrar ajustes"
-            />
+          {/* Handle superior de arrastre */}
+          <View style={styles.sheetHeader} collapsable={false}>
+            <View style={styles.dragHandle} />
           </View>
 
-          {/* Menú Principal de Ajustes */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.mainScrollContent}
-          >
-            {/* Perfil del Estudiante (Estilo ChatGPT: Avatar azul + Lápiz + Nombre sin subtítulo) */}
+          {/* Menú Principal de Ajustes (Contenido Estático) */}
+          <View style={styles.mainScrollContent}>
+            {/* Perfil del Estudiante (Avatar Gaze animado + Nombre sin subtítulo ni lápiz) */}
             <View style={styles.profileSection}>
               <View style={styles.avatarWrapper}>
-                <View style={styles.profileAvatar}>
-                  <Text style={styles.profileAvatarText}>{getInitials(profile?.full_name)}</Text>
-                </View>
-                <View style={styles.editBadge}>
-                  <Pencil size={10} color="#FFFFFF" strokeWidth={2.5} />
-                </View>
+                <AnimatedGazeAvatar
+                  seed={profile?.avatar_seed}
+                  fallbackInitials={getInitials(profile?.full_name)}
+                  size={68}
+                  style={styles.profileAvatar}
+                />
               </View>
               <Text style={styles.profileName} numberOfLines={1}>
                 {profile?.full_name || DEFAULT_STUDENT_NAME}
@@ -376,11 +499,27 @@ export function SystemSettingsModal({
                   </View>
                   <ChevronRight size={15} color="#8E8E93" />
                 </Pressable>
+
+                <View style={styles.rowDivider} />
+
+                {/* 5. Botón: Debug */}
+                <Pressable
+                  onPress={() => openSubPage('debug')}
+                  style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir opciones de depuración"
+                >
+                  <Bug size={19} color="#FFFFFF" strokeWidth={2} style={styles.leadingIcon} />
+                  <View style={styles.rowMain}>
+                    <Text style={styles.rowTitle}>Debug</Text>
+                  </View>
+                  <ChevronRight size={15} color="#8E8E93" />
+                </Pressable>
               </View>
             </View>
 
             <Text style={styles.versionText}>Zora v2.0</Text>
-          </ScrollView>
+          </View>
 
           {/* Sub-Página Deslizable (Push de Derecha a Izquierda) */}
           {subPageMounted && (
@@ -408,6 +547,7 @@ export function SystemSettingsModal({
                 style={styles.subPageScroll}
                 contentContainerStyle={styles.subPageScrollContent}
                 showsVerticalScrollIndicator={false}
+                bounces={false}
               >
                 {/* SUB-PÁGINA 1: CUENTA */}
                 {activeSubPage === 'account' && (
@@ -678,6 +818,81 @@ export function SystemSettingsModal({
                     />
                   </View>
                 )}
+
+                {/* SUB-PÁGINA 6: DEBUG */}
+                {activeSubPage === 'debug' && (
+                  <View style={styles.subPageSection}>
+                    <Text style={styles.sectionLabel}>Funciones de Depuración</Text>
+                    <View style={styles.groupedList}>
+                      {/* 1. Mostrar bienvenido */}
+                      <Pressable
+                        onPress={handleDebugShowWelcome}
+                        style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Mostrar bienvenido"
+                      >
+                        <Sparkles size={19} color="#38BDF8" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Mostrar bienvenido</Text>
+                          <Text style={styles.rowSubtitle}>Abrir pantalla de bienvenida e introducción</Text>
+                        </View>
+                        <ChevronRight size={15} color="#8E8E93" />
+                      </Pressable>
+
+                      <View style={styles.rowDivider} />
+
+                      {/* 2. Pestaña Hoy activa (Switch para encender / apagar y borrar) */}
+                      <View style={styles.listRow}>
+                        <Radio size={19} color="#10B981" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Pestaña Hoy activa</Text>
+                          <Text style={styles.rowSubtitle}>Clase en curso y tareas pendientes para hoy</Text>
+                        </View>
+                        <Switch
+                          value={todayDebugEnabled}
+                          onValueChange={handleToggleTodayDebug}
+                          trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#3A3A3C"
+                        />
+                      </View>
+
+                      <View style={styles.rowDivider} />
+
+                      {/* 3. Mapa de actividad en otoño (Switch para encender / apagar y borrar) */}
+                      <View style={styles.listRow}>
+                        <Grid size={19} color="#FF6B00" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.rowTitle}>Mapa de actividad (Otoño)</Text>
+                          <Text style={styles.rowSubtitle}>Máximo 3 tareas/semana (a veces 2)</Text>
+                        </View>
+                        <Switch
+                          value={autumnDebugEnabled}
+                          onValueChange={handleToggleAutumnDebug}
+                          trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#3A3A3C"
+                        />
+                      </View>
+
+                      <View style={styles.rowDivider} />
+
+                      {/* 4. Limpiar todos los datos de prueba */}
+                      <Pressable
+                        onPress={handleClearAllDebug}
+                        style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Limpiar todos los datos de depuración"
+                      >
+                        <Trash2 size={19} color="#EF4444" strokeWidth={2} style={styles.leadingIcon} />
+                        <View style={styles.rowMain}>
+                          <Text style={styles.dangerRowText}>Limpiar datos de prueba</Text>
+                          <Text style={styles.rowSubtitle}>Eliminar todo lo generado por el modo debug</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
               </ScrollView>
             </Animated.View>
           )}
@@ -718,49 +933,32 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     overflow: 'hidden',
     borderCurve: 'continuous',
-    height: '95%',
+    height: '88%',
+    maxHeight: '88%',
   },
-  topBar: {
-    flexDirection: 'row',
+  sheetHeader: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 6,
-    zIndex: 10,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: 'transparent',
+    width: '100%',
   },
-  topBarSpacer: {
+  dragHandle: {
     width: 36,
-  },
-  closeCircleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#28282B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeCircleBtnPressed: {
-    backgroundColor: '#38383C',
-    transform: [{ scale: 0.95 }],
-  },
-  backCircleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#28282B',
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignSelf: 'center',
   },
   mainScrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingTop: 18,
     paddingBottom: 36,
-    gap: 20,
+    gap: 22,
   },
   profileSection: {
     alignItems: 'center',
-    paddingTop: 4,
+    paddingTop: 8,
     paddingBottom: 10,
     gap: 12,
   },
@@ -771,7 +969,9 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#2B82C9',
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -780,19 +980,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.3,
-  },
-  editBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#343438',
-    borderWidth: 2,
-    borderColor: '#171719',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   profileName: {
     color: '#FFFFFF',
@@ -841,6 +1028,12 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     fontWeight: '500',
     letterSpacing: -0.2,
+  },
+  rowSubtitle: {
+    color: '#8E8E93',
+    fontSize: 12.5,
+    fontWeight: '400',
+    marginTop: 2,
   },
   dangerRowText: {
     color: '#EF4444',

@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Animated,
   Keyboard,
-  LayoutAnimation,
   Platform,
   UIManager,
   AccessibilityInfo,
@@ -33,7 +32,6 @@ import { triggerHaptic } from '@/lib/personalHaptics'
 import { isWhiteColor } from '@/constants/theme'
 import {
   playConfettiSound,
-  playTrashSound,
   playTaskUndoSound,
 } from '@/lib/personalAudio'
 import {
@@ -43,7 +41,7 @@ import {
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { useDeferredFocusLoad } from '@/hooks/useDeferredFocusLoad'
 import { sortTasksByDueDate } from '@/lib/taskSort'
-import { LAYOUT_EASE, PANEL_SWITCH_LAYOUT } from '@/constants/animations'
+import { PANEL_SWITCH_LAYOUT } from '@/constants/animations'
 import { useClassAuth } from '@/context/ClassAuthContext'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -52,6 +50,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets()
+  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 0)
 
   const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
   const [tasks, setTasks] = useState<Task[]>(() => personalStorage.getCachedTasksWithSubjects())
@@ -309,26 +308,6 @@ export default function TasksScreen() {
         }
       }
 
-      // Fade de salida rápido (120ms) + reposicionamiento fluido easeInEaseOut de las demás filas
-      // El delete/create (fila que sale/cambia) termina antes que el update (reorden del resto)
-      // para que el desvanecimiento se complete mientras el resto se acomoda sin cortes.
-      LayoutAnimation.configureNext({
-        duration: 180,
-        create: {
-          type: LayoutAnimation.Types.easeInEaseOut,
-          property: LayoutAnimation.Properties.opacity,
-          duration: 120,
-        },
-        update: {
-          type: LayoutAnimation.Types.easeInEaseOut,
-          duration: 180,
-        },
-        delete: {
-          type: LayoutAnimation.Types.easeInEaseOut,
-          property: LayoutAnimation.Properties.opacity,
-          duration: 120,
-        },
-      })
       const isCompleted = nextStatus === 'completed'
       const nowIso = new Date().toISOString()
       setTasks((prevTasks) =>
@@ -378,8 +357,6 @@ export default function TasksScreen() {
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
       cancelTaskReminder(taskId)
-      playTrashSound()
-      LAYOUT_EASE(180)
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
       setActiveTask((prev) => (prev?.id === taskId ? null : prev))
       setTaskModalMode('none')
@@ -481,45 +458,47 @@ export default function TasksScreen() {
       }
 
       if (isNew) {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
+        requestAnimationFrame(() => {
+          try {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
+          } catch {}
+        })
       }
 
-      // 2. Insertar/actualizar la tarea con la misma animación de 180ms easeInEaseOut
-      entranceTimeoutRef.current = setTimeout(() => {
-        LAYOUT_EASE(180)
-        setTasks((prevTasks) => {
-          const exists = prevTasks.some((t) => t.id === savedTask.id)
-          if (exists) {
-            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
-          }
-          return [savedTask, ...prevTasks]
-        })
+      // 2. Insertar/actualizar la tarea inmediatamente de forma síncrona
+      setTasks((prevTasks) => {
+        const exists = prevTasks.some((t) => t.id === savedTask.id)
+        const updated = exists
+          ? prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+          : [savedTask, ...prevTasks]
+        tasksRef.current = updated
+        lastTasksRef.current = updated
+        return updated
+      })
 
-        // 3. Activar la animación de resalte (lift, escala y brillo blanco)
+      // 3. Activar la animación de resalte (lift, escala y brillo blanco)
+      highlightTimeoutRef.current = setTimeout(() => {
+        setHighlightedTaskId(savedTask.id)
         highlightTimeoutRef.current = setTimeout(() => {
-          setHighlightedTaskId(savedTask.id)
-          highlightTimeoutRef.current = setTimeout(() => {
-            setHighlightedTaskId(null)
-          }, 1400)
-        }, 80)
-      }, 50)
+          setHighlightedTaskId(null)
+        }, 1400)
+      }, 80)
 
-      // 4. Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
+      // 4. Sincronizar datos de almacenamiento en segundo plano
       loadDataTimeoutRef.current = setTimeout(() => {
         isSavingTaskRef.current = false
         loadData()
-      }, 600)
+      }, 300)
     },
     [loadData, statusFilter, selectedSubjectId, searchQuery]
   )
 
   const renderTaskItem = useCallback(
-    ({ item, index }: { item: Task; index: number }) => (
+    ({ item }: { item: Task }) => (
       <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
         <MinimalistTaskRow
           task={item}
           statusFilter={statusFilter}
-          isLast={index === filteredTasks.length - 1}
           isHighlighted={highlightedTaskId === item.id}
           isAdmin={isAdmin}
           onToggleStatus={handleToggleStatus}
@@ -533,7 +512,6 @@ export default function TasksScreen() {
     [
       cardEntranceAnims,
       statusFilter,
-      filteredTasks.length,
       highlightedTaskId,
       isAdmin,
       handleToggleStatus,
@@ -642,8 +620,8 @@ export default function TasksScreen() {
           style={[
             styles.focusedSearchHeader,
             {
-              paddingTop: insets.top + 4,
-              height: insets.top + 52,
+              paddingTop: topInset + 4,
+              height: topInset + 52,
               opacity: searchRevealVal,
               transform: [
                 {
@@ -717,8 +695,8 @@ export default function TasksScreen() {
           style={[
             styles.stickyHeaderBar,
             {
-              height: insets.top + 56,
-              paddingTop: insets.top,
+              height: topInset + 56,
+              paddingTop: topInset,
             },
           ]}
         >
@@ -802,7 +780,7 @@ export default function TasksScreen() {
           contentContainerStyle={[
             styles.content,
             {
-              paddingTop: isSearchActive ? insets.top + 58 : insets.top + 60,
+              paddingTop: isSearchActive ? topInset + 58 : topInset + 60,
               paddingBottom: insets.bottom + 90,
             },
           ]}
@@ -814,10 +792,10 @@ export default function TasksScreen() {
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
             { useNativeDriver: true }
           )}
-          initialNumToRender={15}
-          maxToRenderPerBatch={12}
-          windowSize={9}
-          removeClippedSubviews={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           onScrollToIndexFailed={(info) => {
             setTimeout(() => {
               flatListRef.current?.scrollToIndex({
@@ -838,6 +816,7 @@ export default function TasksScreen() {
         onClose={() => {
           setTaskModalMode('none')
           setActiveTask(null)
+          loadData()
         }}
         onToggleStatus={handleToggleStatus}
         onDeleteTask={handleDeleteTask}

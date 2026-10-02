@@ -7,6 +7,7 @@ import { personalStorage } from '@/lib/personalStorage'
 import { logger } from '@/lib/logger'
 import { generateId } from '@/lib/idGenerator'
 import { useProfile } from './PersonalAuthContext'
+import { sameClassTasks, sameSubjects, sameSchedules } from '@/lib/dataEquality'
 import {
   uploadClassTaskAttachments,
   processPendingClassActionsQueue,
@@ -83,6 +84,9 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
   roleRef.current = role
   const profileRef = useRef(profile)
   profileRef.current = profile
+  const inFlightPublishIdsRef = useRef<Set<string>>(new Set())
+  const isSyncingClassTasksRef = useRef(false)
+  const pendingSyncClassTasksRef = useRef(false)
 
   const fetchUserProfile = async (userId: string): Promise<{ role: UserRole; fullName: string | null }> => {
     try {
@@ -114,6 +118,11 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const syncClassTasks = useCallback(async () => {
+    if (isSyncingClassTasksRef.current) {
+      pendingSyncClassTasksRef.current = true
+      return
+    }
+    isSyncingClassTasksRef.current = true
     try {
       setIsSyncing(true)
       // Cargar tareas cacheadas inmediatamente
@@ -141,37 +150,44 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (Array.isArray(data)) {
-        // Mantener las tareas pendientes locales que aún estén esperando sincronización
+        // Mantener las tareas pendientes locales y las tareas en vuelo de publicación
         const pendingQueue = await personalStorage.getPendingClassActions()
         const pendingPublishIds = new Set(
           pendingQueue
             .filter((a) => a.type === 'publish' && a.class_task_id)
             .map((a) => a.class_task_id)
         )
+        const allProtectedIds = new Set([
+          ...pendingPublishIds,
+          ...inFlightPublishIdsRef.current,
+        ])
 
+        const currentCached = await personalStorage.getClassTasksCache()
         let merged = data as ClassTask[]
-        if (pendingPublishIds.size > 0) {
-          const currentCached = await personalStorage.getClassTasksCache()
-          const uncommitted = currentCached.filter((t) => pendingPublishIds.has(t.id))
-          merged = [...uncommitted, ...data.filter((d) => !pendingPublishIds.has(d.id))]
+        if (allProtectedIds.size > 0) {
+          const uncommitted = currentCached.filter((t) => allProtectedIds.has(t.id))
+          merged = [...uncommitted, ...data.filter((d) => !allProtectedIds.has(d.id))]
         }
 
-        await personalStorage.setClassTasksCache(merged, { notify: true })
-        setClassTasks(merged)
+        if (!sameClassTasks(merged, currentCached)) {
+          await personalStorage.setClassTasksCache(merged, { notify: true })
+          setClassTasks(merged)
+        }
       }
     } catch (err) {
       logger.error('[ClassAuth] Error en syncClassTasks:', err)
     } finally {
       setIsSyncing(false)
+      isSyncingClassTasksRef.current = false
+      if (pendingSyncClassTasksRef.current) {
+        pendingSyncClassTasksRef.current = false
+        syncClassTasks().catch(() => {})
+      }
     }
   }, [])
 
   const syncPersonalTasks = useCallback(async () => {
-    try {
-      await personalStorage.syncPersonalTasksFromRemote()
-    } catch (err) {
-      logger.error('[ClassAuth] Error en syncPersonalTasks:', err)
-    }
+    // Las tareas personales son estrictamente locales
   }, [])
 
   const syncClassSchedule = useCallback(async () => {
@@ -182,13 +198,19 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       ])
 
       if (subjs !== null && Array.isArray(subjs)) {
-        await personalStorage.setClassSubjectsCache(subjs)
-        setClassSubjects(subjs)
+        const cachedSubjs = await personalStorage.getClassSubjectsCache()
+        if (!sameSubjects(subjs, cachedSubjs)) {
+          await personalStorage.setClassSubjectsCache(subjs)
+          setClassSubjects(subjs)
+        }
       }
 
       if (scheds !== null && Array.isArray(scheds)) {
-        await personalStorage.setClassSchedulesCache(scheds)
-        setClassSchedules(scheds)
+        const cachedScheds = await personalStorage.getClassSchedulesCache()
+        if (!sameSchedules(scheds, cachedScheds)) {
+          await personalStorage.setClassSchedulesCache(scheds)
+          setClassSchedules(scheds)
+        }
       }
     } catch (err) {
       logger.error('[ClassAuth] Error en syncClassSchedule:', err)
@@ -223,7 +245,6 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
             setRole(profileData.role)
             syncClassTasks()
             syncClassSchedule()
-            syncPersonalTasks()
           }
         })
       }
@@ -244,7 +265,6 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         }).catch(() => {})
         syncClassTasks().catch(() => {})
         syncClassSchedule().catch(() => {})
-        syncPersonalTasks().catch(() => {})
       } else {
         setRole(null)
       }
@@ -262,9 +282,6 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_schedules' }, () => {
         syncClassSchedule().catch(() => {})
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-        syncPersonalTasks().catch(() => {})
-      })
       .subscribe()
 
     // 5. Listener de AppState para procesar cola pendiente y refrescar al volver a primer plano
@@ -272,7 +289,6 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       if (nextAppState === 'active') {
         syncClassTasks().catch(() => {})
         syncClassSchedule().catch(() => {})
-        syncPersonalTasks().catch(() => {})
       }
     })
 
@@ -319,7 +335,6 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
 
         syncClassTasks().catch(() => {})
         syncClassSchedule().catch(() => {})
-        syncPersonalTasks().catch(() => {})
 
         personalStorage.setSubjects([]).catch(() => {})
         personalStorage.setSchedules([]).catch(() => {})
@@ -379,7 +394,6 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         // Sincronizaciones no bloqueantes en segundo plano
         syncClassTasks().catch(() => {})
         syncClassSchedule().catch(() => {})
-        syncPersonalTasks().catch(() => {})
         personalStorage.setSubjects([]).catch(() => {})
         personalStorage.setSchedules([]).catch(() => {})
       }
@@ -433,27 +447,31 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
     const publisherName = profile?.full_name || user.user_metadata?.full_name || 'Admin'
     const newId = taskData.id || `class_${generateId('class').replace('class_', '')}`
     const nowIso = new Date().toISOString()
+    const safeSubjName = (taskData.subject_name || 'General').trim()
+    const safeTitle = (taskData.title || 'Nueva Tarea').trim()
 
     const localClassTask: ClassTask = {
       id: newId,
       publisher_id: user.id,
       publisher_name: publisherName,
-      subject_name: taskData.subject_name.trim(),
+      subject_name: safeSubjName,
       subject_code: taskData.subject_code?.trim() || null,
-      title: taskData.title.trim(),
+      title: safeTitle,
       description: taskData.description?.trim() || null,
-      type: taskData.type,
+      type: taskData.type || 'individual',
       due_date: taskData.due_date || null,
-      attachments: taskData.attachments || [],
+      attachments: Array.isArray(taskData.attachments) ? taskData.attachments : [],
       created_at: nowIso,
       updated_at: nowIso,
       is_pending_sync: false,
     }
 
-    // Inserción optimista inmediata en caché
+    inFlightPublishIdsRef.current.add(newId)
+
+    // Inserción optimista inmediata en caché sin disparar notify redundantemente
     const initialCache = await personalStorage.getClassTasksCache()
     const optimisticCache = [localClassTask, ...initialCache.filter((t) => t.id !== newId)]
-    await personalStorage.setClassTasksCache(optimisticCache, { notify: true })
+    await personalStorage.setClassTasksCache(optimisticCache, { notify: false })
     setClassTasks(optimisticCache)
 
     try {
@@ -465,11 +483,11 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
         id: newId,
         publisher_id: user.id,
         publisher_name: publisherName,
-        subject_name: taskData.subject_name.trim(),
+        subject_name: safeSubjName,
         subject_code: taskData.subject_code?.trim() || null,
-        title: taskData.title.trim(),
+        title: safeTitle,
         description: taskData.description?.trim() || null,
-        type: taskData.type,
+        type: taskData.type || 'individual',
         due_date: taskData.due_date || null,
         attachments: uploadedAttachments,
         created_at: nowIso,
@@ -489,7 +507,7 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
       const insertedTask = (data || remoteTask) as ClassTask
       const currentCache = await personalStorage.getClassTasksCache()
       const updatedCache = [insertedTask, ...currentCache.filter((t) => t.id !== insertedTask.id && t.id !== newId)]
-      await personalStorage.setClassTasksCache(updatedCache, { notify: true })
+      await personalStorage.setClassTasksCache(updatedCache, { notify: false })
       setClassTasks(updatedCache)
 
       syncClassTasks().catch(() => {})
@@ -520,10 +538,12 @@ export function ClassAuthProvider({ children }: { children: React.ReactNode }) {
 
       const currentCache = await personalStorage.getClassTasksCache()
       const updatedCache = [pendingTask, ...currentCache.filter((t) => t.id !== pendingTask.id && t.id !== newId)]
-      await personalStorage.setClassTasksCache(updatedCache, { notify: true })
+      await personalStorage.setClassTasksCache(updatedCache, { notify: false })
       setClassTasks(updatedCache)
 
       return { error: null, data: pendingTask }
+    } finally {
+      inFlightPublishIdsRef.current.delete(newId)
     }
   }
 

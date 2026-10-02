@@ -8,9 +8,12 @@ import { PersonalAuthProvider } from '@/context/PersonalAuthContext'
 import { ClassAuthProvider } from '@/context/ClassAuthContext'
 import { StyleSheet, Platform, View, Text, Alert } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
-import { personalStorage } from '@/lib/personalStorage'
+import { personalStorage, subscribeToPersonalStorage } from '@/lib/personalStorage'
 import { setupNotificationInfrastructure } from '@/lib/personalNotifications'
 import { preloadAllAudio } from '@/lib/personalAudio'
+import { useIncomingShareIntent } from '@/lib/useIncomingShareIntent'
+import { MinimalistTaskModal } from '@/components/tasks/MinimalistTaskModal'
+import type { Subject } from '@/types/personal'
 import { logger } from '@/lib/logger'
 
 const ZoraDarkTheme = {
@@ -82,6 +85,45 @@ class RootErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundar
     }
     return this.props.children
   }
+}
+
+function RootShareIntentHandler() {
+  const [subjects, setSubjects] = useState<Subject[]>(() => personalStorage.getCachedSubjects())
+  const {
+    isShareModalOpen,
+    incomingAttachments,
+    incomingTitle,
+    incomingDescription,
+    closeIncomingShareModal,
+  } = useIncomingShareIntent()
+
+  useEffect(() => {
+    let isMounted = true
+    const updateSubjects = () => {
+      personalStorage.getSubjects().then((subjs) => {
+        if (isMounted && subjs && Array.isArray(subjs)) setSubjects(subjs)
+      })
+    }
+    updateSubjects()
+    const unsubscribe = subscribeToPersonalStorage(updateSubjects)
+    return () => {
+      isMounted = false
+      unsubscribe()
+    }
+  }, [])
+
+  return (
+    <MinimalistTaskModal
+      mode={isShareModalOpen ? 'create' : 'none'}
+      task={null}
+      subjects={subjects}
+      initialAttachments={incomingAttachments}
+      initialTitle={incomingTitle}
+      initialDescription={incomingDescription}
+      onClose={closeIncomingShareModal}
+      onTaskSaved={closeIncomingShareModal}
+    />
+  )
 }
 
 export default function RootLayout() {
@@ -165,10 +207,10 @@ export default function RootLayout() {
                     contentStyle: { backgroundColor: '#000000' },
                   }}
                 >
-                  <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
                   <Stack.Screen name="welcome" options={{ animation: 'default' }} />
                   <Stack.Screen name="auth" options={{ animation: 'default' }} />
-                  <Stack.Screen name="(tabs)" options={{ animation: 'default' }} />
+                  <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
                   <Stack.Screen name="+not-found" options={{ headerShown: false }} />
                   <Stack.Screen
                     name="modal"
@@ -186,6 +228,7 @@ export default function RootLayout() {
                     }}
                   />
                 </Stack>
+                <RootShareIntentHandler />
               </ThemeProvider>
             </ClassAuthProvider>
           </PersonalAuthProvider>

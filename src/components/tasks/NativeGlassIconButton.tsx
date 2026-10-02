@@ -9,11 +9,11 @@ export type GlassIconName = 'xmark' | 'checkmark' | 'back' | 'ellipsis' | 'photo
 export type GlassIconVariant = 'default' | 'prominent'
 
 const DEFAULT_ICON_SIZE: Record<GlassIconName, number> = {
-  xmark: 17,
-  checkmark: 17,
-  back: 19,
+  xmark: 20,
+  checkmark: 20,
+  back: 22,
   ellipsis: 22,
-  photos: 18,
+  photos: 20,
 }
 
 const ICON_MAP: Record<
@@ -29,8 +29,7 @@ const ICON_MAP: Record<
 
 /**
  * Fallback para Android/web: botón circular con acabado limpio y nítido.
- * En iOS se usa la versión nativa (`NativeGlassIconButton.ios.tsx`) con SwiftUI.
- * En Android/web, evita BlurView y brillos diagonales que difuminan el icono.
+ * En iOS se usa la versión nativa (`NativeGlassIconButton.ios.tsx`).
  */
 export function NativeGlassIconButton({
   onPress,
@@ -93,9 +92,9 @@ export function NativeGlassIconButton({
 
 const styles = StyleSheet.create({
   glassButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
@@ -109,11 +108,11 @@ const styles = StyleSheet.create({
   },
   glassSheen: {
     position: 'absolute',
-    top: 6,
-    left: 10,
-    width: 38,
-    height: 12,
-    borderRadius: 6,
+    top: 7,
+    left: 11,
+    width: 44,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     transform: [{ rotate: '16deg' }],
   },

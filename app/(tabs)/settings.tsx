@@ -143,6 +143,7 @@ function GlassSettingsButton({ onPress }: { onPress: () => void }) {
 export default function ProfileScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 0)
   const { profile, updateCredential, clearData } = usePersonalAuth()
   const { isConnected } = useClassAuth()
 
@@ -458,8 +459,8 @@ export default function ProfileScreen() {
         style={[
           styles.stickyHeaderBar,
           {
-            height: insets.top + 56,
-            paddingTop: insets.top,
+            height: topInset + 56,
+            paddingTop: topInset,
           },
         ]}
       >
@@ -511,7 +512,7 @@ export default function ProfileScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: insets.top + 60,
+            paddingTop: topInset + 60,
             paddingBottom: Math.max(insets.bottom, 24) + 64,
           },
         ]}
@@ -544,6 +545,7 @@ export default function ProfileScreen() {
         <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
           <ProfileHeroCard
             fullName={profile?.full_name}
+            avatarSeed={profile?.avatar_seed}
             credentialUrl={profile?.student_credential_url}
             onOpenCredential={() => setShowCredentialModal(true)}
             onUploadCredential={handlePickCredential}

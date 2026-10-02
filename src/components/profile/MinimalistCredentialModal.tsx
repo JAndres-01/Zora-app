@@ -5,6 +5,7 @@ import {
   Modal,
   Pressable,
   Image,
+  ScrollView,
   StyleSheet,
   Animated,
   Alert,
@@ -142,6 +143,7 @@ export function MinimalistCredentialModal({
 
   const {
     modalVisible,
+    isClosing,
     fadeAnim,
     slideAnim,
     panY,
@@ -179,17 +181,20 @@ export function MinimalistCredentialModal({
         id: 'share',
         title: 'Compartir',
         image: Platform.select({ ios: 'square.and.arrow.up', android: 'ic_menu_share' }),
+        imageColor: '#FFFFFF',
       },
       {
         id: 'change',
         title: isImage ? 'Cambiar imagen' : 'Cambiar PDF',
         image: Platform.select({ ios: 'arrow.triangle.2.circlepath', android: 'ic_menu_rotate' }),
+        imageColor: '#FFFFFF',
       },
       {
         id: 'delete',
         title: 'Eliminar credencial',
         attributes: { destructive: true },
         image: Platform.select({ ios: 'trash', android: 'ic_menu_delete' }),
+        imageColor: '#FF453A',
       },
     ],
     [isImage]
@@ -325,12 +330,12 @@ export function MinimalistCredentialModal({
       onRequestClose={handleClose}
       statusBarTranslucent={true}
     >
-      <View style={styles.modalRoot}>
+      <View style={styles.modalRoot} pointerEvents={isClosing ? 'none' : 'auto'}>
         {/* Backdrop Frosted con Fade */}
-        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} pointerEvents={isClosing ? 'none' : 'auto'}>
           {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
-          <Pressable style={styles.backdropTouch} onPress={handleClose} />
+          <Pressable style={styles.backdropTouch} onPress={handleClose} disabled={isClosing} />
         </Animated.View>
 
         {/* Hoja Deslizante */}
@@ -342,8 +347,9 @@ export function MinimalistCredentialModal({
               transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
+          collapsable={false}
         >
-          {/* Header minimalista con botón X + Título centrado + Botón 3 puntos */}
+          {/* Header minimalista con botón X + Título centrado + Botón 3 puntos (gesto de arrastre aislado aquí) */}
           <View style={styles.headerSection} collapsable={false} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
 
@@ -410,13 +416,22 @@ export function MinimalistCredentialModal({
                 <Text style={styles.errorTitle}>Sin credencial seleccionada</Text>
               </View>
             ) : isImage ? (
-              <View style={styles.imageViewerContainer}>
+              <ScrollView
+                style={styles.imageViewerContainer}
+                contentContainerStyle={styles.imageScrollContent}
+                maximumZoomScale={3}
+                minimumZoomScale={1}
+                bouncesZoom={true}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                centerContent={true}
+              >
                 <Image
                   source={{ uri: resolvedUrl }}
                   style={styles.credentialImage}
                   resizeMode="contain"
                 />
-              </View>
+              </ScrollView>
             ) : Platform.OS === 'web' ? (
               <iframe
                 src={resolvedUrl}
@@ -603,9 +618,12 @@ const styles = StyleSheet.create({
   },
   imageViewerContainer: {
     flex: 1,
+    backgroundColor: '#000000',
+  },
+  imageScrollContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
     padding: 12,
   },
   credentialImage: {

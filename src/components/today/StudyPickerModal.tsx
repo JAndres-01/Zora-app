@@ -110,11 +110,20 @@ export function StudyPickerModal({
               transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
           {/* Header */}
-          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
+          <View style={styles.sheetHeader} collapsable={false}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleSmoothClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar ruleta"
+                />
+              </View>
               <View style={styles.headerTitleWrap} pointerEvents="none">
                 <View style={styles.titleRow}>
                   <Dices size={17} color="#D4AF37" strokeWidth={2.2} />
@@ -125,14 +134,6 @@ export function StudyPickerModal({
                     </View>
                   )}
                 </View>
-              </View>
-
-              <View style={[styles.headerSide, styles.iosButtonNudge]}>
-                <NativeGlassIconButton
-                  onPress={handleSmoothClose}
-                  icon="xmark"
-                  accessibilityLabel="Cerrar ruleta"
-                />
               </View>
               <View style={styles.headerSide} />
             </View>
@@ -240,9 +241,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
-  },
-  iosButtonNudge: {
-    transform: [{ translateY: Platform.OS === 'ios' ? 12 : 0 }],
   },
   headerTitleWrap: {
     position: 'absolute',

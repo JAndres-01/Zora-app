@@ -69,8 +69,10 @@ export function TasksSubjectFilterModal({
             styles.menuSheet,
             { transform: [{ translateY: Animated.add(menuSlideAnim, panY) }] },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
-          <View style={styles.menuHeader} collapsable={false} {...panResponder.panHandlers}>
+          <View style={styles.menuHeader} collapsable={false}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
               <View style={styles.headerSide}>
@@ -87,7 +89,7 @@ export function TasksSubjectFilterModal({
             </View>
           </View>
 
-          <ScrollView style={styles.menuList} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.menuList} showsVerticalScrollIndicator={false} bounces={false}>
             <View style={styles.groupedList}>
               <Pressable
                 onPress={() => handleSelect('all')}

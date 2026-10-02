@@ -34,6 +34,7 @@ export interface TaskDetailViewProps {
   panHandlers?: GestureResponderHandlers
   onOpenImage: (image: { uri: string; title: string }) => void
   onOpenPdf: (pdf: { uri: string; title: string }) => void
+  onScrollOffsetChange?: (offsetY: number) => void
 }
 
 function formatFileSize(bytes?: number): string {
@@ -94,6 +95,7 @@ export function TaskDetailView({
   panHandlers,
   onOpenImage,
   onOpenPdf,
+  onScrollOffsetChange,
 }: TaskDetailViewProps) {
   const isCompleted = task?.status === 'completed'
 
@@ -277,6 +279,11 @@ export function TaskDetailView({
         style={styles.detailScroll}
         contentContainerStyle={styles.detailScrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        bounces={false}
+        onScroll={(e) => {
+          onScrollOffsetChange?.(e.nativeEvent.contentOffset.y)
+        }}
       >
         {/* NOTAS / DESCRIPCIÓN */}
         {Boolean(task?.description) && (

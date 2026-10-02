@@ -13,34 +13,12 @@ import {
 } from 'react-native'
 import { Images, Image as ImageIcon, ShieldAlert } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
+import * as MediaLibrary from 'expo-media-library/legacy'
 import type { TaskAttachment } from '@/types/personal'
 import { triggerHaptic } from '@/lib/personalHaptics'
 import { generateId } from '@/lib/idGenerator'
 import { NativeGlassIconButton } from '../NativeGlassIconButton'
-
-interface MediaLibraryAsset {
-  id: string
-  uri: string
-  filename?: string
-  width?: number
-  height?: number
-}
-
-interface MediaLibraryModule {
-  requestPermissionsAsync: () => Promise<{ status: string; canAskAgain?: boolean; granted?: boolean }>
-  getPermissionsAsync: () => Promise<{ status: string; canAskAgain?: boolean; granted?: boolean }>
-  getAssetsAsync: (options: { first: number; mediaType: string; sortBy: string }) => Promise<{
-    assets: MediaLibraryAsset[]
-  }>
-}
-
-// Carga segura del módulo nativo expo-media-library
-let ExpoMediaLibrary: MediaLibraryModule | null = null
-try {
-  ExpoMediaLibrary = require('expo-media-library')
-} catch (e) {
-  ExpoMediaLibrary = null
-}
+import { logger } from '@/lib/logger'
 
 export interface TaskPhotosViewProps {
   onSelectPhoto: (attachment: TaskAttachment) => void
@@ -55,6 +33,16 @@ interface PhotoItem {
   height?: number
 }
 
+function isPermissionGranted(res?: MediaLibrary.PermissionResponse | null): boolean {
+  if (!res) return false
+  return (
+    res.status === 'granted' ||
+    res.granted === true ||
+    res.accessPrivileges === 'all' ||
+    res.accessPrivileges === 'limited'
+  )
+}
+
 export function TaskPhotosView({ onSelectPhoto, onBack }: TaskPhotosViewProps) {
   const { width: screenWidth } = useWindowDimensions()
   const [photos, setPhotos] = useState<PhotoItem[]>([])
@@ -67,35 +55,30 @@ export function TaskPhotosView({ onSelectPhoto, onBack }: TaskPhotosViewProps) {
   const itemSize = Math.floor((screenWidth - gridPadding * 2 - itemGap * (numColumns - 1)) / numColumns)
 
   const loadPhotos = useCallback(async () => {
-    if (!ExpoMediaLibrary || typeof ExpoMediaLibrary.getAssetsAsync !== 'function') {
-      setLoading(false)
-      setPhotos([])
-      return
-    }
-
     try {
       setLoading(true)
-      const permCheck = typeof ExpoMediaLibrary.getPermissionsAsync === 'function'
-        ? await ExpoMediaLibrary.getPermissionsAsync()
-        : { status: 'undetermined' }
+      const permCheck = typeof MediaLibrary.getPermissionsAsync === 'function'
+        ? await MediaLibrary.getPermissionsAsync()
+        : null
 
-      let currentStatus = permCheck.status
-      if (currentStatus !== 'granted') {
-        const req = await ExpoMediaLibrary.requestPermissionsAsync()
-        currentStatus = req.status
+      let isAllowed = isPermissionGranted(permCheck)
+
+      if (!isAllowed && typeof MediaLibrary.requestPermissionsAsync === 'function') {
+        const req = await MediaLibrary.requestPermissionsAsync()
+        isAllowed = isPermissionGranted(req)
       }
 
-      if (currentStatus === 'granted') {
+      if (isAllowed && typeof MediaLibrary.getAssetsAsync === 'function') {
         setPermissionDenied(false)
-        const assets = await ExpoMediaLibrary.getAssetsAsync({
+        const assets = await MediaLibrary.getAssetsAsync({
           first: 48,
-          mediaType: 'photo',
-          sortBy: 'creationTime',
+          mediaType: [MediaLibrary.MediaType.photo],
+          sortBy: [MediaLibrary.SortBy.creationTime, false],
         })
 
         if (assets && assets.assets) {
           setPhotos(
-            assets.assets.map((a: MediaLibraryAsset) => ({
+            assets.assets.map((a: MediaLibrary.Asset) => ({
               id: a.id,
               uri: a.uri,
               filename: a.filename,
@@ -111,6 +94,7 @@ export function TaskPhotosView({ onSelectPhoto, onBack }: TaskPhotosViewProps) {
         setPhotos([])
       }
     } catch (err) {
+      logger.warn('[TaskPhotosView] Error al cargar fotos recientes:', err)
       setPermissionDenied(true)
       setPhotos([])
     } finally {
@@ -122,14 +106,28 @@ export function TaskPhotosView({ onSelectPhoto, onBack }: TaskPhotosViewProps) {
     loadPhotos()
   }, [loadPhotos])
 
-  const handleSelectPhoto = (photo: PhotoItem) => {
+  const handleSelectPhoto = async (photo: PhotoItem) => {
     triggerHaptic('success')
+    let resolvedUri = photo.uri
+    try {
+      if (typeof MediaLibrary.getAssetInfoAsync === 'function') {
+        const info = await MediaLibrary.getAssetInfoAsync(photo.id)
+        if (info?.localUri) {
+          resolvedUri = info.localUri
+        } else if (info?.uri) {
+          resolvedUri = info.uri
+        }
+      }
+    } catch {
+      // Fallback a photo.uri
+    }
+
     const now = new Date()
     const timeString = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`
     const newAttachment: TaskAttachment = {
       id: generateId('att'),
       file_name: photo.filename || `Foto ${timeString}`,
-      file_url: photo.uri,
+      file_url: resolvedUri,
       file_type: 'image',
       size_bytes: 0,
     }
@@ -160,18 +158,22 @@ export function TaskPhotosView({ onSelectPhoto, onBack }: TaskPhotosViewProps) {
         onSelectPhoto(newAttachment)
       }
     } catch (err) {
-      // Ignorar cancelaciones
+      logger.warn('[TaskPhotosView] Error al abrir galería completa:', err)
     }
   }
 
   const handleRequestPermission = async () => {
     triggerHaptic('medium')
-    if (ExpoMediaLibrary && typeof ExpoMediaLibrary.requestPermissionsAsync === 'function') {
-      const res = await ExpoMediaLibrary.requestPermissionsAsync()
-      if (res.status === 'granted') {
-        loadPhotos()
-        return
+    try {
+      if (typeof MediaLibrary.requestPermissionsAsync === 'function') {
+        const res = await MediaLibrary.requestPermissionsAsync()
+        if (isPermissionGranted(res)) {
+          loadPhotos()
+          return
+        }
       }
+    } catch (err) {
+      logger.warn('[TaskPhotosView] Error al solicitar permiso:', err)
     }
     Linking.openSettings().catch(() => {})
   }

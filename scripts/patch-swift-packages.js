@@ -14,6 +14,21 @@ if (fs.existsSync(dateComponentsSerializerPath)) {
   }
 }
 
+// 0.1 @react-native-menu/menu: prevent 0x00000000 (transparent) imageColor from Codegen NewArch hiding SF Symbols
+const rctMenuItemPath = path.join(process.cwd(), 'node_modules', '@react-native-menu', 'menu', 'ios', 'Shared', 'RCTMenuItem.swift')
+if (fs.existsSync(rctMenuItemPath)) {
+  let content = fs.readFileSync(rctMenuItemPath, 'utf8')
+  const orig = content
+  content = content.replace(
+    /if let imageColor = details\["imageColor"\] \{/,
+    'if let imageColor = details["imageColor"] as? NSNumber, imageColor.intValue != 0 {'
+  )
+  if (content !== orig) {
+    fs.writeFileSync(rctMenuItemPath, content, 'utf8')
+    console.log('[patch-swift-packages] Patched RCTMenuItem.swift to ignore zero imageColor in NewArch')
+  }
+}
+
 // 1. ExpoModulesJSI Package.swift
 const jsiPackagePath = path.join(process.cwd(), 'node_modules', 'expo-modules-jsi', 'apple', 'Package.swift')
 if (fs.existsSync(jsiPackagePath)) {
@@ -1220,6 +1235,97 @@ function patchExpoShareIntent() {
   }
 }
 patchExpoShareIntent()
+
+// 5.15. Patch RCTComponentViewRegistry and RCTMountingManager to prevent unregistered component crash in Fabric
+function patchFabricComponentViewRegistry(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  const orig = content
+
+  const oldMethod = /- \(const RCTComponentViewDescriptor &\)componentViewDescriptorWithTag:\(Tag\)tag\s*\{[\s\S]*?return iterator->second;\s*\}/
+  const newMethod = `- (const RCTComponentViewDescriptor &)componentViewDescriptorWithTag:(Tag)tag
+{
+  RCTAssertMainQueue();
+  auto iterator = _registry.find(tag);
+  if (iterator == _registry.end()) {
+    static const RCTComponentViewDescriptor emptyDescriptor{};
+    return emptyDescriptor;
+  }
+  return iterator->second;
+}`
+
+  if (content.includes('Attempt to query unregistered component.')) {
+    content = content.replace(oldMethod, newMethod)
+    if (content !== orig) {
+      fs.writeFileSync(filePath, content, 'utf8')
+      console.log(`[patch-swift-packages] Successfully patched RCTComponentViewRegistry.mm at: ${filePath}`)
+    }
+  }
+}
+
+function patchFabricMountingManager(filePath) {
+  if (!fs.existsSync(filePath)) return
+  let content = fs.readFileSync(filePath, 'utf8')
+  const orig = content
+
+  // In Delete: guard enqueue on non-null view
+  content = content.replace(
+    /case ShadowViewMutation::Delete:\s*\{[\s\S]*?break;\s*\}/,
+    `case ShadowViewMutation::Delete: {
+        auto &oldChildShadowView = mutation.oldChildShadowView;
+        auto &oldChildViewDescriptor = [registry componentViewDescriptorWithTag:oldChildShadowView.tag];
+
+        if (oldChildViewDescriptor.view != nil) {
+          observerCoordinator.unregisterViewComponentDescriptor(oldChildViewDescriptor, surfaceId);
+
+          [registry enqueueComponentViewWithComponentHandle:oldChildShadowView.componentHandle
+                                                        tag:oldChildShadowView.tag
+                                    componentViewDescriptor:oldChildViewDescriptor];
+        }
+        break;
+      }`
+  )
+
+  // In Insert: guard mountChildComponentView on non-null views
+  content = content.replace(
+    /\[parentViewDescriptor\.view mountChildComponentView:newChildComponentView index:mutation\.index\];/,
+    `if (parentViewDescriptor.view != nil && newChildComponentView != nil) {
+          [parentViewDescriptor.view mountChildComponentView:newChildComponentView index:mutation.index];
+        }`
+  )
+
+  // In Remove: guard unmountChildComponentView on non-null views
+  content = content.replace(
+    /\[parentViewDescriptor\.view unmountChildComponentView:oldChildViewDescriptor\.view index:mutation\.index\];/,
+    `if (parentViewDescriptor.view != nil && oldChildViewDescriptor.view != nil) {
+          [parentViewDescriptor.view unmountChildComponentView:oldChildViewDescriptor.view index:mutation.index];
+        }`
+  )
+
+  if (content !== orig) {
+    fs.writeFileSync(filePath, content, 'utf8')
+    console.log(`[patch-swift-packages] Successfully patched RCTMountingManager.mm at: ${filePath}`)
+  }
+}
+
+function findAndPatchFabricMounting(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== '.git' && entry.name !== '.expo') {
+        findAndPatchFabricMounting(fullPath)
+      }
+    } else if (entry.name === 'RCTComponentViewRegistry.mm') {
+      patchFabricComponentViewRegistry(fullPath)
+    } else if (entry.name === 'RCTMountingManager.mm') {
+      patchFabricMountingManager(fullPath)
+    }
+  }
+}
+
+findAndPatchFabricMounting(path.join(process.cwd(), 'node_modules', 'react-native'))
+findAndPatchFabricMounting(path.join(process.cwd(), 'ios', 'Pods'))
 
 ensurePbxprojGroupConsistency(path.join(process.cwd(), 'ios'))
 

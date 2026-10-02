@@ -130,6 +130,7 @@ export function GlassFilterSearchPill({
 }) {
   const [reduceTransparency, setReduceTransparency] = useState(false)
   const scaleAnim = useRef(new Animated.Value(1)).current
+
   const [showFilterModal, setShowFilterModal] = useState(false)
   const isSelectedWhite = isWhiteColor(selectedSubject?.color)
 
@@ -172,7 +173,7 @@ export function GlassFilterSearchPill({
     {
       id: 'all',
       title: 'Todas las materias',
-      image: Platform.OS === 'ios' ? 'square.grid.2x2' : undefined,
+      image: Platform.select({ ios: 'square.grid.2x2', android: 'ic_menu_agenda' }),
       imageColor: '#FFFFFF',
       state: selectedSubjectId === 'all' ? 'on' : 'off',
     },
@@ -188,7 +189,7 @@ export function GlassFilterSearchPill({
         id: subj.id,
         title: subj.name,
         subtitle: count > 0 ? `${count} tarea${count !== 1 ? 's' : ''}` : undefined,
-        image: Platform.OS === 'ios' ? 'circle.fill' : undefined,
+        image: Platform.select({ ios: 'circle.fill', android: 'ic_menu_myplaces' }),
         imageColor: subj.color || '#FFFFFF',
         state: selectedSubjectId === subj.id ? 'on' : 'off',
       } satisfies MenuAction
@@ -319,20 +320,20 @@ export function TasksHeader({
   const card0Style = cardEntranceAnim
     ? {
         opacity: cardEntranceAnim.interpolate({
-          inputRange: [0, 0.4, 1],
-          outputRange: [0, 0.7, 1],
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, 0.85, 1],
         }),
         transform: [
           {
             translateY: cardEntranceAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [-24, 0],
+              outputRange: [4, 0],
             }),
           },
           {
             scale: cardEntranceAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [0.97, 1],
+              outputRange: [0.99, 1],
             }),
           },
         ],

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -26,7 +26,7 @@ import { MinimalistTaskModal, TaskModalMode } from '@/components/tasks/Minimalis
 import { MinimalistConfetti } from '@/components/effects/MinimalistConfetti'
 import { StudyPickerModal } from '@/components/today/StudyPickerModal'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack, useRouter } from 'expo-router'
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router'
 import { Dices } from 'lucide-react-native'
 import { useCardEntrance, getCardEntranceStyle } from '@/hooks/useCardEntrance'
 import { useDeferredFocusLoad } from '@/hooks/useDeferredFocusLoad'
@@ -143,7 +143,10 @@ function GlassStudyPickerButton({ onPress }: { onPress: () => void }) {
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets()
+  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 0)
   const router = useRouter()
+  const params = useLocalSearchParams<{ simulatedMinutes?: string }>()
+  const simulatedMinutes = params.simulatedMinutes ? parseInt(params.simulatedMinutes, 10) : undefined
 
   const getTodayDayOfWeek = () => {
     const day = new Date().getDay()
@@ -214,8 +217,8 @@ export default function TodayScreen() {
     }
   }, [])
 
-  // Refresco DIFERIDO tras el paint del switch: la entrada no espera al re-render.
-  useDeferredFocusLoad(loadData)
+  // Refresco DIFERIDO tras completarse la animación de entrada en frío (350ms)
+  useDeferredFocusLoad(loadData, 350)
 
   const isSavingTaskRef = useRef(false)
 
@@ -316,31 +319,30 @@ export default function TodayScreen() {
 
       isSavingTaskRef.current = true
 
-      // Iniciar inserción y resalte (~50ms)
-      entranceTimeoutRef.current = setTimeout(() => {
-        LAYOUT_EASE(180)
-        setTasks((prevTasks) => {
-          const exists = prevTasks.some((t) => t.id === savedTask.id)
-          if (exists) {
-            return prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
-          }
-          return [savedTask, ...prevTasks]
-        })
+      // Inserción y actualización inmediata de forma síncrona
+      setTasks((prevTasks) => {
+        const exists = prevTasks.some((t) => t.id === savedTask.id)
+        const updated = exists
+          ? prevTasks.map((t) => (t.id === savedTask.id ? { ...t, ...savedTask } : t))
+          : [savedTask, ...prevTasks]
+        tasksRef.current = updated
+        lastTasksRef.current = updated
+        return updated
+      })
 
-        // Resaltar la fila (lift, escala y brillo blanco)
+      // Resaltar la fila (lift, escala y brillo blanco)
+      highlightTimeoutRef.current = setTimeout(() => {
+        setHighlightedTaskId(savedTask.id)
         highlightTimeoutRef.current = setTimeout(() => {
-          setHighlightedTaskId(savedTask.id)
-          highlightTimeoutRef.current = setTimeout(() => {
-            setHighlightedTaskId(null)
-          }, 1400)
-        }, 80)
-      }, 50)
+          setHighlightedTaskId(null)
+        }, 1400)
+      }, 80)
 
-      // Sincronizar datos de almacenamiento en segundo plano sin interrumpir las animaciones
+      // Sincronizar datos de almacenamiento en segundo plano
       loadDataTimeoutRef.current = setTimeout(() => {
         isSavingTaskRef.current = false
         loadData()
-      }, 600)
+      }, 300)
     },
     [loadData]
   )
@@ -371,6 +373,24 @@ export default function TodayScreen() {
 
   // Animaciones de Entrada Escalonada (título + 3 tarjetas, igual que Horario/Tareas)
   const cardEntranceAnims = useCardEntrance(4, 'today')
+
+  // Estilos de entrada memoizados: evita recrear interpolaciones nativas en cada render
+  const headerEntranceStyle = useMemo(
+    () => getCardEntranceStyle(cardEntranceAnims[0]),
+    [cardEntranceAnims]
+  )
+  const heroEntranceStyle = useMemo(
+    () => getCardEntranceStyle(cardEntranceAnims[1]),
+    [cardEntranceAnims]
+  )
+  const tasksEntranceStyle = useMemo(
+    () => getCardEntranceStyle(cardEntranceAnims[2]),
+    [cardEntranceAnims]
+  )
+  const timelineEntranceStyle = useMemo(
+    () => getCardEntranceStyle(cardEntranceAnims[3]),
+    [cardEntranceAnims]
+  )
 
   // Colapso del header estilo Apple Notes / WhatsApp (sincronizado con el scroll).
   const scrollY = useRef(new Animated.Value(0)).current
@@ -418,81 +438,137 @@ export default function TodayScreen() {
       {/* Confetti Festivo al Completar Tareas */}
       <MinimalistConfetti burstTrigger={confettiBurstTrigger} />
 
-      {/* Cabecera Superior Externa (Título + Subtítulo de Fecha + Botón Acción) */}
+      {/* Barra de Navegación Sticky Superior (estilo Apple Notes / WhatsApp) */}
       <View
+        pointerEvents="box-none"
         style={[
-          styles.topHeaderArea,
-          { paddingTop: insets.top + 8 },
+          styles.stickyHeaderBar,
+          {
+            height: topInset + 56,
+            paddingTop: topInset,
+          },
         ]}
       >
-        <View style={styles.headerTitleGroup}>
-          <Text style={styles.title}>Hoy</Text>
-          <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
-        </View>
-
-        <View style={styles.headerRightActions}>
-          <GlassStudyPickerButton onPress={() => setShowStudyPicker(true)} />
-        </View>
-      </View>
-
-      {/* Contenedor Modal/Sheet del Contenido Principal */}
-      <View style={styles.contentSheetContainer}>
-        <Animated.ScrollView
-          style={styles.container}
-          contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={[
-            styles.content,
-            {
-              paddingTop: 20,
-              paddingBottom: insets.bottom + 90,
-            },
+        {/* Fondo Translúcido con Transición en Scroll */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: headerBgOpacity },
+            Platform.OS === 'android' && { backgroundColor: '#000000' },
           ]}
-          showsVerticalScrollIndicator={false}
-          bounces
-          alwaysBounceVertical
-          keyboardShouldPersistTaps="handled"
-          onScrollBeginDrag={() => Keyboard.dismiss()}
-          scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
+          pointerEvents="none"
         >
-          {/* Card 1: Hero Card Dinámica (Clase en Vivo / Próxima) */}
-          <Animated.View style={getCardEntranceStyle(cardEntranceAnims[0])}>
-            <MinimalistLiveHero schedulesToday={schedulesToday} />
+          {Platform.OS === 'ios' && (
+            <BlurView
+              intensity={75}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          )}
+          <View style={styles.stickyHeaderBorder} />
+        </Animated.View>
+
+        {/* Contenido: Título Compacto Centrado y Acción Principal a la Derecha */}
+        <View style={styles.stickyHeaderContent} pointerEvents="box-none">
+          <View style={styles.stickyHeaderLeft} />
+
+          <Animated.View
+            style={[
+              styles.compactTitleWrapper,
+              {
+                opacity: compactTitleOpacity,
+                transform: [{ translateY: compactTitleTranslateY }],
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={styles.compactTitle}>Hoy</Text>
           </Animated.View>
 
-          {/* Card 2: Bloque de Tareas Próximas (Adaptativo) */}
-          <Animated.View style={getCardEntranceStyle(cardEntranceAnims[1])}>
-            <MinimalistTodayTasks
-              tasks={tasks}
-              highlightedTaskId={highlightedTaskId}
-              onToggleTask={handleToggleTaskStatus}
-              onOpenTaskDetail={(t) => {
-                triggerHaptic('light')
-                setActiveTask(t)
-                setTaskModalMode('detail')
-              }}
-              onNavigateToTasks={() => router.navigate('/(tabs)/tasks')}
-            />
-          </Animated.View>
-
-          {/* Card 3: Timeline Continuo de Clases con Entregas de Tareas */}
-          <Animated.View style={getCardEntranceStyle(cardEntranceAnims[2])}>
-            <MinimalistDayTimeline
-              schedulesToday={schedulesToday}
-              tasks={tasks}
-              onToggleTask={handleToggleTaskStatus}
-              onOpenTaskDetail={(t) => {
-                triggerHaptic('light')
-                setActiveTask(t)
-                setTaskModalMode('detail')
-              }}
-            />
-          </Animated.View>
-        </Animated.ScrollView>
+          <View style={styles.stickyHeaderRight}>
+            <GlassStudyPickerButton onPress={() => setShowStudyPicker(true)} />
+          </View>
+        </View>
       </View>
+
+      <Animated.ScrollView
+        style={styles.container}
+        contentInsetAdjustmentBehavior="never"
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: topInset + 60,
+            paddingBottom: insets.bottom + 90,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces
+        alwaysBounceVertical
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+      >
+        {/* Card 0: Cabecera iOS con Large Title y Fecha */}
+        <Animated.View style={headerEntranceStyle}>
+          <Animated.View
+            style={[
+              styles.titleCoverBlock,
+              {
+                opacity: largeTitleOpacity,
+                transform: [
+                  { translateY: titleCollapseY },
+                  { scale: titleCollapseScale },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.title}>Hoy</Text>
+            <Text style={styles.subtitle}>{getFormattedCurrentDate()}</Text>
+          </Animated.View>
+        </Animated.View>
+
+        {/* Card 1: Hero Card Dinámica (Clase en Vivo / Próxima) */}
+        <Animated.View style={heroEntranceStyle}>
+          <MinimalistLiveHero
+            schedulesToday={schedulesToday}
+            simulatedMinutes={simulatedMinutes}
+          />
+        </Animated.View>
+
+        {/* Card 2: Bloque de Tareas Próximas (Adaptativo) */}
+        <Animated.View style={tasksEntranceStyle}>
+          <MinimalistTodayTasks
+            tasks={tasks}
+            highlightedTaskId={highlightedTaskId}
+            onToggleTask={handleToggleTaskStatus}
+            onOpenTaskDetail={(t) => {
+              triggerHaptic('light')
+              setActiveTask(t)
+              setTaskModalMode('detail')
+            }}
+            onNavigateToTasks={() => router.navigate('/(tabs)/tasks')}
+          />
+        </Animated.View>
+
+        {/* Card 3: Timeline Continuo de Clases con Entregas de Tareas */}
+        <Animated.View style={timelineEntranceStyle}>
+          <MinimalistDayTimeline
+            schedulesToday={schedulesToday}
+            tasks={tasks}
+            simulatedMinutes={simulatedMinutes}
+            onToggleTask={handleToggleTaskStatus}
+            onOpenTaskDetail={(t) => {
+              triggerHaptic('light')
+              setActiveTask(t)
+              setTaskModalMode('detail')
+            }}
+          />
+        </Animated.View>
+      </Animated.ScrollView>
 
       {/* Modal Unificado de Tareas (Detalle, Crear y Editar) */}
       <MinimalistTaskModal
@@ -502,6 +578,7 @@ export default function TodayScreen() {
         onClose={() => {
           setTaskModalMode('none')
           setActiveTask(null)
+          loadData()
         }}
         onToggleStatus={handleToggleTaskStatus}
         onDeleteTask={handleDeleteTask}
@@ -535,56 +612,66 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   screenWrapper: {
     flex: 1,
-    backgroundColor: '#090A0E',
-  },
-  topHeaderArea: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: '#090A0E',
-  },
-  headerTitleGroup: {
-    flex: 1,
-    gap: 3,
-  },
-  headerRightActions: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-  },
-  subtitle: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-  },
-  contentSheetContainer: {
-    flex: 1,
     backgroundColor: '#000000',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
   },
   container: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 16,
-    gap: 18,
+    gap: 16,
+  },
+  // ─── Barra sticky superior ───
+  stickyHeaderBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    elevation: 20,
+  },
+  stickyHeaderBorder: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  stickyHeaderContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  stickyHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactTitleWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+  },
+  compactTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    textAlign: 'center',
+  },
+  stickyHeaderRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   glassBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     padding: 6,
     borderCurve: 'continuous',
     alignItems: 'center',
@@ -595,16 +682,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 1)',
   },
   glassBtnInner: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   blurBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
@@ -616,5 +703,25 @@ const styles = StyleSheet.create({
   blurBtnWhite: {
     backgroundColor: '#FFFFFF',
     borderColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  // ─── Cabecera Large Title colapsable ───
+  titleCoverBlock: {
+    backgroundColor: '#000000',
+    zIndex: 20,
+    paddingHorizontal: 2,
+    marginBottom: 2,
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    color: '#A1A1AA',
+    fontSize: 13.5,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    marginTop: 3,
   },
 })

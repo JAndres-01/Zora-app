@@ -1,4 +1,4 @@
-import type { AppPreferences, Schedule, Subject, Task } from '@/types/personal'
+import type { AppPreferences, Schedule, Subject, Task, ClassTask } from '@/types/personal'
 
 /**
  * Comparadores baratos de listas en caché usados por las pestañas para saltar
@@ -10,6 +10,32 @@ import type { AppPreferences, Schedule, Subject, Task } from '@/types/personal'
 
 function sameSubjectRef(a: Subject | null | undefined, b: Subject | null | undefined): boolean {
   return a?.id === b?.id && a?.name === b?.name && a?.color === b?.color
+}
+
+export function sameClassTasks(a: ClassTask[], b: ClassTask[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i]
+    const y = b[i]
+    if (
+      x.id !== y.id ||
+      x.title !== y.title ||
+      x.description !== y.description ||
+      x.subject_name !== y.subject_name ||
+      x.subject_code !== y.subject_code ||
+      x.type !== y.type ||
+      x.due_date !== y.due_date ||
+      x.publisher_id !== y.publisher_id ||
+      x.publisher_name !== y.publisher_name ||
+      x.updated_at !== y.updated_at ||
+      x.is_pending_sync !== y.is_pending_sync ||
+      (x.attachments?.length ?? 0) !== (y.attachments?.length ?? 0)
+    ) {
+      return false
+    }
+  }
+  return true
 }
 
 export function sameTasks(a: Task[], b: Task[]): boolean {

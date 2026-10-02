@@ -102,11 +102,20 @@ export function MinimalistDayTasksModal({
               transform: [{ translateY: Animated.add(slideAnim, panY) }],
             },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
           {/* Header (patrón canónico con botón X liquid glass) */}
-          <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
+          <View style={styles.sheetHeader} collapsable={false}>
             <View style={styles.dragHandle} />
             <View style={styles.headerRow}>
+              <View style={styles.headerSide}>
+                <NativeGlassIconButton
+                  onPress={handleSmoothClose}
+                  icon="xmark"
+                  accessibilityLabel="Cerrar"
+                />
+              </View>
               <View style={styles.headerTitleWrap} pointerEvents="none">
                 <View style={styles.titleWithBadgeRow}>
                   <Text style={styles.headerTitle} numberOfLines={1}>
@@ -119,14 +128,6 @@ export function MinimalistDayTasksModal({
                   )}
                 </View>
               </View>
-
-              <View style={[styles.headerSide, styles.iosButtonNudge]}>
-                <NativeGlassIconButton
-                  onPress={handleSmoothClose}
-                  icon="xmark"
-                  accessibilityLabel="Cerrar"
-                />
-              </View>
               <View style={styles.headerSide} />
             </View>
           </View>
@@ -136,6 +137,7 @@ export function MinimalistDayTasksModal({
             style={styles.sheetScroll}
             contentContainerStyle={styles.sheetScrollContent}
             showsVerticalScrollIndicator={false}
+            bounces={false}
           >
             {sortedDayTasks.length > 0 ? (
               <View style={styles.tasksList}>
@@ -271,9 +273,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
-  },
-  iosButtonNudge: {
-    transform: [{ translateY: Platform.OS === 'ios' ? 12 : 0 }],
   },
   headerTitleWrap: {
     position: 'absolute',

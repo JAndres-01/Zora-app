@@ -26,37 +26,43 @@ export const APPLE_EASING = Easing.bezier(0.16, 1, 0.3, 1)
 export const LAYOUT_EASE = (
   duration: number = 220,
   phaseDurations?: { create?: number; update?: number; delete?: number }
-) =>
-  LayoutAnimation.configureNext({
-    duration,
-    create: {
-      type: LayoutAnimation.Types.easeInEaseOut,
-      property: LayoutAnimation.Properties.opacity,
-      duration: phaseDurations?.create,
-    },
-    update: {
-      type: LayoutAnimation.Types.easeInEaseOut,
-      duration: phaseDurations?.update,
-    },
-    delete: {
-      type: LayoutAnimation.Types.easeInEaseOut,
-      property: LayoutAnimation.Properties.opacity,
-      duration: phaseDurations?.delete,
-    },
-  })
+) => {
+  try {
+    LayoutAnimation.configureNext({
+      duration,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+        duration: phaseDurations?.create,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        duration: phaseDurations?.update,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+        duration: phaseDurations?.delete,
+      },
+    })
+  } catch {}
+}
 
 /**
  * LayoutAnimation para cuando una fila ya completó su propia animación de salida (ej. destrucción)
  * y solo se necesita reposicionar fluidamente el resto de las filas hacia arriba sin ghost snapshots.
  */
-export const ROW_COLLAPSE_LAYOUT = (duration: number = 220) =>
-  LayoutAnimation.configureNext({
-    duration,
-    update: {
-      type: LayoutAnimation.Types.easeInEaseOut,
+export const ROW_COLLAPSE_LAYOUT = (duration: number = 220) => {
+  try {
+    LayoutAnimation.configureNext({
       duration,
-    },
-  })
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        duration,
+      },
+    })
+  } catch {}
+}
 
 /**
  * LayoutAnimation para switches de panel (Pendientes/Completadas/Todas).
@@ -66,24 +72,27 @@ export const ROW_COLLAPSE_LAYOUT = (duration: number = 220) =>
 export const PANEL_SWITCH_LAYOUT = (
   fadeDuration: number = 80,
   updateDuration: number = 130
-) =>
-  LayoutAnimation.configureNext({
-    duration: Math.max(fadeDuration, updateDuration),
-    create: {
-      type: LayoutAnimation.Types.easeInEaseOut,
-      property: LayoutAnimation.Properties.opacity,
-      duration: fadeDuration,
-    },
-    update: {
-      type: LayoutAnimation.Types.easeOut,
-      duration: updateDuration,
-    },
-    delete: {
-      type: LayoutAnimation.Types.easeInEaseOut,
-      property: LayoutAnimation.Properties.opacity,
-      duration: fadeDuration,
-    },
-  })
+) => {
+  try {
+    LayoutAnimation.configureNext({
+      duration: Math.max(fadeDuration, updateDuration),
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+        duration: fadeDuration,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeOut,
+        duration: updateDuration,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+        duration: fadeDuration,
+      },
+    })
+  } catch {}
+}
 
 /**
  * Física de resorte para paneles modales inferiores.

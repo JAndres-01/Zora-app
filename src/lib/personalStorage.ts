@@ -18,7 +18,7 @@ import {
 } from '@/constants/defaults'
 import { logger } from './logger'
 import { setGlobalSoundEnabled } from './personalAudio'
-import { supabase } from './supabase'
+import { generateId } from './idGenerator'
 
 const KEYS = {
   SUBJECTS: 'zora_personal_subjects_v2',
@@ -69,20 +69,21 @@ function notifyListeners() {
 }
 
 function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[] | null): Subject[] {
-  const cList = classSubjects || []
-  const lList = localSubjects || []
+  const cList = Array.isArray(classSubjects) ? classSubjects : []
+  const lList = Array.isArray(localSubjects) ? localSubjects : []
   if (cList.length === 0) return [...lList]
   if (lList.length === 0) return [...cList]
 
   const result: Subject[] = [...cList]
-  const seenIds = new Set(cList.map((s) => s.id))
-  const seenNames = new Set(cList.map((s) => s.name.trim().toLowerCase()))
+  const seenIds = new Set(cList.filter((s) => s?.id).map((s) => s.id))
+  const seenNames = new Set(cList.filter((s) => s?.name).map((s) => String(s.name).trim().toLowerCase()))
 
   for (const ls of lList) {
-    if (!seenIds.has(ls.id) && !seenNames.has(ls.name.trim().toLowerCase())) {
+    const lsNameKey = ls?.name ? String(ls.name).trim().toLowerCase() : ''
+    if (ls?.id && !seenIds.has(ls.id) && (!lsNameKey || !seenNames.has(lsNameKey))) {
       result.push(ls)
       seenIds.add(ls.id)
-      seenNames.add(ls.name.trim().toLowerCase())
+      if (lsNameKey) seenNames.add(lsNameKey)
     }
   }
 
@@ -90,13 +91,13 @@ function mergeSubjects(classSubjects: Subject[] | null, localSubjects: Subject[]
 }
 
 function extractUniqueSubjects(existingSubjects: Subject[], tasks: Task[]): Subject[] {
-  const merged = [...existingSubjects]
-  const seenIds = new Set(existingSubjects.map((s) => s.id))
-  const seenNames = new Set(existingSubjects.map((s) => s.name.trim().toLowerCase()))
+  const merged = Array.isArray(existingSubjects) ? [...existingSubjects] : []
+  const seenIds = new Set(merged.filter((s) => s?.id).map((s) => s.id))
+  const seenNames = new Set(merged.filter((s) => s?.name).map((s) => String(s.name).trim().toLowerCase()))
 
   for (const t of tasks) {
-    if (t.subject && t.subject.name && t.subject.name.trim().toLowerCase() !== 'general') {
-      const nameKey = t.subject.name.trim().toLowerCase()
+    if (t?.subject?.name && String(t.subject.name).trim().toLowerCase() !== 'general') {
+      const nameKey = String(t.subject.name).trim().toLowerCase()
       if (!seenNames.has(nameKey) && (!t.subject.id || !seenIds.has(t.subject.id))) {
         merged.push(t.subject)
         if (t.subject.id) seenIds.add(t.subject.id)
@@ -128,8 +129,9 @@ export function mapClassTasksToTaskObjects(
       new Date(ct.updated_at).getTime() - new Date(ct.created_at).getTime() > 30000
     )
 
+    const targetSubjName = (ct.subject_name || '').trim().toLowerCase()
     const matchingSubject = subjects.find(
-      (s) => s.name.trim().toLowerCase() === (ct.subject_name || '').trim().toLowerCase()
+      (s) => s?.name && String(s.name).trim().toLowerCase() === targetSubjName
     ) || null
 
     const resolvedSubject = matchingSubject || {
@@ -221,8 +223,9 @@ export const personalStorage = {
     const mappedClassTasks = mapClassTasksToTaskObjects(classTasks, subjects, classStatuses, classStates)
 
     const localTasksWithSub = tasks.map((t) => {
+      const taskSubjName = t?.subject?.name ? String(t.subject.name).trim().toLowerCase() : ''
       const matched = (t.subject_id && subjects.find((s) => s.id === t.subject_id)) ||
-        (t.subject?.name && subjects.find((s) => s.name.trim().toLowerCase() === t.subject!.name.trim().toLowerCase())) ||
+        (taskSubjName && subjects.find((s) => s?.name && String(s.name).trim().toLowerCase() === taskSubjName)) ||
         t.subject ||
         null
       return {
@@ -275,7 +278,6 @@ export const personalStorage = {
         this.getClassSubjectsCache(),
         this.getClassSchedulesCache(),
       ])
-      this.syncPersonalTasksFromRemote().catch(() => {})
     } catch (err) {
       logger.error('[personalStorage] Error en preloadAll:', err)
     }
@@ -469,8 +471,9 @@ export const personalStorage = {
     )
 
     const localTasksWithSub = tasks.map((t) => {
+      const taskSubjName = t?.subject?.name ? String(t.subject.name).trim().toLowerCase() : ''
       const matched = (t.subject_id && subjects.find((s) => s.id === t.subject_id)) ||
-        (t.subject?.name && subjects.find((s) => s.name.trim().toLowerCase() === t.subject!.name.trim().toLowerCase())) ||
+        (taskSubjName && subjects.find((s) => s?.name && String(s.name).trim().toLowerCase() === taskSubjName)) ||
         t.subject ||
         null
       return {
@@ -524,14 +527,15 @@ export const personalStorage = {
       updated_at: new Date().toISOString(),
     }
 
-    if (normalizedTask.subject && normalizedTask.subject.name && normalizedTask.subject.name.trim().toLowerCase() !== 'general') {
+    const taskSubjName = normalizedTask.subject?.name ? String(normalizedTask.subject.name).trim() : ''
+    if (taskSubjName && taskSubjName.toLowerCase() !== 'general') {
       const localSubs = await this.getLocalSubjects()
       const exists = localSubs.some(
         (s) =>
           s.id === normalizedTask.subject?.id ||
-          s.name.trim().toLowerCase() === normalizedTask.subject?.name.trim().toLowerCase()
+          (s?.name && String(s.name).trim().toLowerCase() === taskSubjName.toLowerCase())
       )
-      if (!exists) {
+      if (!exists && normalizedTask.subject) {
         await this.saveSubject(normalizedTask.subject)
       }
     }
@@ -545,36 +549,6 @@ export const personalStorage = {
     }
     const sorted = sortTasksByDueDate(updated)
     await this.setTasks(sorted, options)
-
-    // Sincronización en segundo plano con Supabase si el usuario está autenticado
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const user = session?.user || (await supabase.auth.getUser()).data?.user
-      if (user && !normalizedTask.is_class_task) {
-        const encDesc = normalizedTask.subject_id
-          ? `[subj_id:${normalizedTask.subject_id}]${normalizedTask.description || ''}`
-          : (normalizedTask.description || null)
-
-        const nowIso = new Date().toISOString()
-        supabase.from('tasks').upsert({
-          id: normalizedTask.id,
-          user_id: user.id,
-          title: normalizedTask.title,
-          description: encDesc,
-          due_date: normalizedTask.due_date || null,
-          subject_id: null,
-          status: normalizedTask.status || 'pending',
-          type: normalizedTask.type || 'individual',
-          attachments: normalizedTask.attachments || [],
-          created_at: normalizedTask.created_at || nowIso,
-          updated_at: normalizedTask.updated_at || nowIso,
-        }).then(({ error }) => {
-          if (error) logger.warn('[personalStorage] Error sincronizando tarea en Supabase:', error.message)
-        })
-      }
-    }).catch((err) => {
-      logger.warn('[personalStorage] Error obteniendo sesión para saveTask:', err)
-    })
-
     return sorted
   },
 
@@ -621,150 +595,10 @@ export const personalStorage = {
     const list = await this.getTasks()
     const updated = list.filter((t) => t.id !== taskId)
     await this.setTasks(updated)
-
-    // Eliminar de Supabase en segundo plano si el usuario está autenticado
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const user = session?.user || (await supabase.auth.getUser()).data?.user
-      if (user) {
-        supabase.from('tasks').delete().eq('id', taskId).eq('user_id', user.id).then(({ error }) => {
-          if (error) logger.warn('[personalStorage] Error eliminando tarea en Supabase:', error.message)
-        })
-      }
-    }).catch((err) => {
-      logger.warn('[personalStorage] Error obteniendo sesión para removeTask:', err)
-    })
-
     return updated
   },
 
   async syncPersonalTasksFromRemote(): Promise<Task[]> {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const user = session?.user || (await supabase.auth.getUser()).data?.user
-      if (!user) return this.getTasksWithSubjects()
-
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-
-      if (error) {
-        logger.warn('[personalStorage] Error al obtener tareas personales de Supabase:', error.message)
-        return this.getTasksWithSubjects()
-      }
-
-      if (Array.isArray(data)) {
-        const localTasks = await this.getTasks()
-        const remoteIds = new Set(data.map((d: any) => d.id))
-        
-        // 1. Subir a Supabase cualquier tarea local que aún no esté en la nube
-        const unuploaded = localTasks.filter((lt) => !lt.is_class_task && !remoteIds.has(lt.id))
-        if (unuploaded.length > 0) {
-          const nowIso = new Date().toISOString()
-          const payloads = unuploaded.map((ut) => {
-            const encDesc = ut.subject_id
-              ? `[subj_id:${ut.subject_id}]${ut.description || ''}`
-              : (ut.description || null)
-
-            return {
-              id: ut.id,
-              user_id: user.id,
-              title: ut.title,
-              description: encDesc,
-              due_date: ut.due_date || null,
-              subject_id: null,
-              status: ut.status || 'pending',
-              type: ut.type || 'individual',
-              attachments: ut.attachments || [],
-              created_at: ut.created_at || nowIso,
-              updated_at: ut.updated_at || nowIso,
-            }
-          })
-          const { error: upsertErr } = await supabase.from('tasks').upsert(payloads)
-          if (upsertErr) {
-            logger.warn('[personalStorage] Error al subir tareas locales a Supabase:', upsertErr.message)
-          }
-        }
-
-        const remoteMap = new Map<string, Task>()
-        data.forEach((rt: any) => {
-          let cleanDesc = rt.description || null
-          let recoveredSubjId = rt.subject_id || null
-
-          if (cleanDesc && cleanDesc.startsWith('[subj_id:')) {
-            const endIdx = cleanDesc.indexOf(']')
-            if (endIdx > 9) {
-              recoveredSubjId = cleanDesc.substring(9, endIdx)
-              cleanDesc = cleanDesc.substring(endIdx + 1) || null
-            }
-          }
-
-          remoteMap.set(rt.id, {
-            id: rt.id,
-            title: rt.title,
-            description: cleanDesc,
-            due_date: rt.due_date || null,
-            subject_id: recoveredSubjId,
-            status: (rt.status as TaskStatus) || 'pending',
-            type: rt.type || 'individual',
-            attachments: rt.attachments || [],
-            created_at: rt.created_at,
-            updated_at: rt.updated_at,
-            is_class_task: false,
-          })
-        })
-
-        // Fusionar manteniendo tareas locales más recientes si se editaron offline
-        const mergedList = [...localTasks]
-        const newerLocalPayloads: any[] = []
-
-        remoteMap.forEach((rTask, rId) => {
-          const idx = mergedList.findIndex((lt) => lt.id === rId)
-          if (idx >= 0) {
-            const local = mergedList[idx]
-            if (
-              local &&
-              local.updated_at &&
-              rTask.updated_at &&
-              new Date(local.updated_at).getTime() > new Date(rTask.updated_at).getTime()
-            ) {
-              // La versión local es más reciente: conservarla y programar subida a Supabase
-              const encDesc = local.subject_id
-                ? `[subj_id:${local.subject_id}]${local.description || ''}`
-                : (local.description || null)
-
-              newerLocalPayloads.push({
-                id: local.id,
-                user_id: user.id,
-                title: local.title,
-                description: encDesc,
-                due_date: local.due_date || null,
-                subject_id: null,
-                status: local.status || 'pending',
-                type: local.type || 'individual',
-                attachments: local.attachments || [],
-                created_at: local.created_at || local.updated_at,
-                updated_at: local.updated_at,
-              })
-            } else {
-              mergedList[idx] = rTask
-            }
-          } else {
-            mergedList.push(rTask)
-          }
-        })
-
-        if (newerLocalPayloads.length > 0) {
-          supabase.from('tasks').upsert(newerLocalPayloads).then(({ error: newerErr }) => {
-            if (newerErr) logger.warn('[personalStorage] Error actualizando tareas locales más recientes en Supabase:', newerErr.message)
-          })
-        }
-
-        await this.setTasks(mergedList, { notify: true })
-      }
-    } catch (err) {
-      logger.warn('[personalStorage] Error inesperado en syncPersonalTasksFromRemote:', err)
-    }
     return this.getTasksWithSubjects()
   },
 
@@ -973,6 +807,10 @@ export const personalStorage = {
   // ==========================================
   async getProfile(): Promise<PersonalProfile> {
     if (_profileCache !== null) {
+      if (!_profileCache.avatar_seed) {
+        _profileCache.avatar_seed = generateId('gaze')
+        await this.setProfile(_profileCache)
+      }
       return { ..._profileCache }
     }
     try {
@@ -980,6 +818,10 @@ export const personalStorage = {
       if (data) {
         const parsed = JSON.parse(data)
         if (parsed && typeof parsed === 'object') {
+          if (!parsed.avatar_seed) {
+            parsed.avatar_seed = generateId('gaze')
+            await this.setProfile(parsed)
+          }
           _profileCache = parsed
           return { ...parsed }
         }
@@ -990,6 +832,7 @@ export const personalStorage = {
     const defaultProfile: PersonalProfile = {
       id: DEFAULT_USER_ID,
       full_name: DEFAULT_STUDENT_NAME,
+      avatar_seed: generateId('gaze'),
       created_at: new Date().toISOString(),
     }
     await this.setProfile(defaultProfile)

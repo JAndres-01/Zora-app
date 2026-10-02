@@ -20,6 +20,7 @@ export interface UseModalAnimationOptions {
 
 export interface UseModalAnimationReturn {
   modalVisible: boolean
+  isClosing: boolean
   fadeAnim: Animated.Value
   slideAnim: Animated.Value
   panY: Animated.Value
@@ -36,10 +37,11 @@ export function useModalAnimation({
   visible,
   onClose,
   onClosed,
-  dismissThreshold = 50,
-  dismissVelocity = 0.3,
+  dismissThreshold = 200,
+  dismissVelocity = 1.2,
 }: UseModalAnimationOptions): UseModalAnimationReturn {
   const [modalVisible, setModalVisible] = useState(visible)
+  const [isClosing, setIsClosing] = useState(false)
   const isClosingRef = useRef(false)
   const prevVisibleRef = useRef(visible)
   const wasClosedSilentlyRef = useRef(false)
@@ -67,6 +69,7 @@ export function useModalAnimation({
     (callbackOrOptions?: (() => void) | { silent?: boolean } | unknown, options?: { silent?: boolean }) => {
       if (isClosingRef.current) return
       isClosingRef.current = true
+      setIsClosing(true)
 
       const callback = typeof callbackOrOptions === 'function' ? (callbackOrOptions as () => void) : undefined
       const isSilent = Boolean(
@@ -86,28 +89,29 @@ export function useModalAnimation({
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 220,
+          duration: 140,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: SCREEN_HEIGHT,
-          duration: 300,
+          duration: 180,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(panY, {
           toValue: 0,
-          duration: 180,
+          duration: 140,
           useNativeDriver: true,
         }),
       ]).start(() => {
         setModalVisible(false)
+        setIsClosing(false)
         isClosingRef.current = false
         onCloseRef.current()
         onClosedRef.current?.()
         if (typeof callback === 'function') {
-          setTimeout(callback, 50)
+          callback()
         }
       })
     },
@@ -122,6 +126,7 @@ export function useModalAnimation({
     if (visible && !wasVisible) {
       // Apertura genuina: false -> true
       isClosingRef.current = false
+      setIsClosing(false)
       wasClosedSilentlyRef.current = false
       playModalOpenSound()
       fadeAnim.setValue(0)
@@ -146,6 +151,7 @@ export function useModalAnimation({
       // Cierre reactivo desde el padre (cambio de prop visible: true -> false)
       if (!isClosingRef.current && modalVisible) {
         isClosingRef.current = true
+        setIsClosing(true)
         if (!wasClosedSilentlyRef.current) {
           playModalCloseSound()
         }
@@ -154,23 +160,24 @@ export function useModalAnimation({
         Animated.parallel([
           Animated.timing(fadeAnim, {
             toValue: 0,
-            duration: 220,
+            duration: 140,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),
           Animated.timing(slideAnim, {
             toValue: SCREEN_HEIGHT,
-            duration: 300,
+            duration: 180,
             easing: APPLE_EASING,
             useNativeDriver: true,
           }),
           Animated.timing(panY, {
             toValue: 0,
-            duration: 180,
+            duration: 140,
             useNativeDriver: true,
           }),
         ]).start(() => {
           setModalVisible(false)
+          setIsClosing(false)
           isClosingRef.current = false
           onClosedRef.current?.()
         })
@@ -183,12 +190,8 @@ export function useModalAnimation({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
-      },
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
-      },
+      onMoveShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: () => {
         panY.stopAnimation()
         panY.setValue(0)
@@ -204,9 +207,12 @@ export function useModalAnimation({
       },
       onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        const threshold = dismissThresholdRef.current ?? 50
-        const velocity = dismissVelocityRef.current ?? 0.3
-        if (gestureState.dy > threshold || gestureState.vy > velocity) {
+        const threshold = dismissThresholdRef.current ?? 200
+        const velocity = dismissVelocityRef.current ?? 1.2
+        const isFlick = gestureState.dy > 100 && gestureState.vy > velocity
+        const isDraggedFarEnough = gestureState.dy > threshold
+
+        if (isDraggedFarEnough || isFlick) {
           handleSmoothClose()
         } else {
           Animated.spring(panY, {
@@ -230,6 +236,7 @@ export function useModalAnimation({
 
   return {
     modalVisible,
+    isClosing,
     fadeAnim,
     slideAnim,
     panY,

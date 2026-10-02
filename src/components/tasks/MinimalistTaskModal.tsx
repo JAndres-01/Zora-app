@@ -39,7 +39,7 @@ import {
 import { personalStorage } from '@/lib/personalStorage'
 import { MinimalistPdfViewerModal } from '@/components/common/MinimalistPdfViewerModal'
 import { MinimalistImageViewerModal } from '@/components/common/MinimalistImageViewerModal'
-import { APPLE_EASING, SPRING_PANEL_CONFIG, LAYOUT_EASE } from '@/constants/animations'
+import { APPLE_EASING, SPRING_PANEL_CONFIG } from '@/constants/animations'
 import { isWhiteColor } from '@/constants/theme'
 import { useClassAuth } from '@/context/ClassAuthContext'
 import { DAYS_SHORT } from '@/constants/dates'
@@ -167,12 +167,16 @@ export function MinimalistTaskModal({
   // Animaciones del Modal, Teclado y Gesto PanResponder
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const sheetScaleAnim = useRef(new Animated.Value(1)).current
+  const checkScaleAnim = useRef(new Animated.Value(1)).current
   const panY = useRef(new Animated.Value(0)).current
   const [modalVisible, setModalVisible] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+  const isClosingRef = useRef(false)
+  const isSavingRef = useRef(false)
 
   // Push/pop de sub-página estilo Recordatorios (deslizamiento desde la derecha)
   const openSubPage = (page: 'subject' | 'date' | 'type' | 'attach' | 'camera' | 'photos') => {
-    LAYOUT_EASE(130)
     Keyboard.dismiss()
     setSubPage(page)
     pageSlideX.setValue(SCREEN_W)
@@ -218,16 +222,25 @@ export function MinimalistTaskModal({
 
   const prevModeRef = useRef<TaskModalMode>('none')
   const prevTaskIdRef = useRef<string | null>(null)
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Apertura y Cierre controlados
   useEffect(() => {
-    let focusTimer: ReturnType<typeof setTimeout> | undefined
     const isTransitioningToOpen = mode !== 'none' && (prevModeRef.current === 'none' || (task?.id && task.id !== prevTaskIdRef.current))
     const isTransitioningToClosed = mode === 'none' && prevModeRef.current !== 'none'
     prevModeRef.current = mode
     prevTaskIdRef.current = task?.id || null
 
+    if (focusTimerRef.current) {
+      clearTimeout(focusTimerRef.current)
+      focusTimerRef.current = null
+    }
+
     if (isTransitioningToOpen) {
+      isSavingRef.current = false
+      isClosingRef.current = false
+      setIsClosing(false)
+      setSaveLoading(false)
       setModalVisible(true)
       playModalOpenSound()
       const isCompleted = task?.status === 'completed'
@@ -240,11 +253,16 @@ export function MinimalistTaskModal({
         setTaskType('individual')
         setDueDate('')
         setAttachments(initialAttachments ? [...initialAttachments] : [])
+        setPublishToClass(false)
         setSubPage(null)
         pageSlideX.setValue(SCREEN_W)
 
-        focusTimer = setTimeout(() => {
-          titleInputRef.current?.focus()
+        focusTimerRef.current = setTimeout(() => {
+          if (!isClosingRef.current) {
+            try {
+              titleInputRef.current?.focus()
+            } catch {}
+          }
         }, 320)
       } else if (mode === 'edit' && task) {
         setTitle(task.title || '')
@@ -258,9 +276,16 @@ export function MinimalistTaskModal({
         setSubPage(null)
       }
 
+      fadeAnim.stopAnimation()
+      slideAnim.stopAnimation()
+      panY.stopAnimation()
+      sheetScaleAnim.stopAnimation()
+      checkScaleAnim.stopAnimation()
       fadeAnim.setValue(0)
       slideAnim.setValue(SCREEN_HEIGHT)
       panY.setValue(0)
+      sheetScaleAnim.setValue(0.96)
+      checkScaleAnim.setValue(1)
 
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -271,100 +296,173 @@ export function MinimalistTaskModal({
         }),
         Animated.timing(slideAnim, {
           toValue: 0,
-          duration: 460,
+          duration: 420,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetScaleAnim, {
+          toValue: 1,
+          duration: 420,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
       ]).start()
-    } else if (isTransitioningToClosed && modalVisible) {
+    } else if (isTransitioningToClosed && modalVisible && !isClosingRef.current) {
+      isClosingRef.current = true
+      setIsClosing(true)
       playModalCloseSound()
-      Keyboard.dismiss()
+      try {
+        titleInputRef.current?.blur()
+        Keyboard.dismiss()
+      } catch {}
+
+      fadeAnim.stopAnimation()
+      slideAnim.stopAnimation()
+      panY.stopAnimation()
+      sheetScaleAnim.stopAnimation()
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 180,
+          duration: 140,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: SCREEN_HEIGHT,
-          duration: 220,
+          duration: 180,
+          easing: APPLE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetScaleAnim, {
+          toValue: 0.96,
+          duration: 180,
           easing: APPLE_EASING,
           useNativeDriver: true,
         }),
       ]).start(() => {
         setModalVisible(false)
+        setIsClosing(false)
+        isClosingRef.current = false
         setSubPage(null)
       })
     }
 
     return () => {
-      if (focusTimer) clearTimeout(focusTimer)
+      if (focusTimerRef.current) {
+        clearTimeout(focusTimerRef.current)
+        focusTimerRef.current = null
+      }
     }
   }, [mode, task?.id])
 
-  const handleSmoothClose = (options?: { velocity?: number; silent?: boolean }) => {
+  useEffect(() => {
+    if (mode === 'create' && modalVisible) {
+      if (initialTitle !== undefined && initialTitle !== '') setTitle(initialTitle)
+      if (initialDescription !== undefined && initialDescription !== '') setDescription(initialDescription)
+      if (Array.isArray(initialAttachments) && initialAttachments.length > 0) {
+        setAttachments([...initialAttachments])
+      }
+    }
+  }, [initialAttachments, initialTitle, initialDescription, mode, modalVisible])
+
+  const handleSmoothClose = (options?: { velocity?: number; silent?: boolean; isSave?: boolean }) => {
+    if (isClosingRef.current) return
+    isClosingRef.current = true
+    setIsClosing(true)
+
+    if (focusTimerRef.current) {
+      clearTimeout(focusTimerRef.current)
+      focusTimerRef.current = null
+    }
+
+    try {
+      titleInputRef.current?.blur()
+      Keyboard.dismiss()
+    } catch {}
+
     if (!options?.silent) {
       playModalCloseSound()
     }
-    triggerHaptic('light')
-    Keyboard.dismiss()
-
-    // Salida por arrastre: la hoja "vuela" hacia abajo con la inercia del dedo (decay),
-    // como hace iOS — sin reiniciar un timing fijo que la frene bruscamente.
-    if (options?.velocity && options.velocity > 0) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          easing: APPLE_EASING,
-          useNativeDriver: true,
-        }),
-        // PanResponder vy viene en px/ms; decay espera px/s.
-        Animated.decay(panY, {
-          velocity: options.velocity * 1000,
-          deceleration: 0.995,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setModalVisible(false)
-        setSubPage(null)
-        onClose()
-      })
-      return
+    if (!options?.isSave) {
+      triggerHaptic('light')
     }
 
-    // Salida por tap (X/atrás): slide limpio un poco más largo, backdrop con fade parejo.
+    fadeAnim.stopAnimation()
+    slideAnim.stopAnimation()
+    panY.stopAnimation()
+    sheetScaleAnim.stopAnimation()
+
+    const isSave = Boolean(options?.isSave)
+    const duration = isSave ? 260 : 180
+    const fadeDuration = isSave ? 200 : 140
+    const targetScale = isSave ? 0.93 : 0.96
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 220,
+        duration: fadeDuration,
         easing: APPLE_EASING,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 300,
+        duration,
         easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetScaleAnim, {
+        toValue: targetScale,
+        duration,
+        easing: APPLE_EASING,
+        useNativeDriver: true,
+      }),
+      Animated.timing(panY, {
+        toValue: 0,
+        duration: 140,
         useNativeDriver: true,
       }),
     ]).start(() => {
       setModalVisible(false)
+      setIsClosing(false)
+      isClosingRef.current = false
       setSubPage(null)
       onClose()
     })
   }
 
+  const currentViewRef = useRef(currentView)
+  useEffect(() => {
+    currentViewRef.current = currentView
+  }, [currentView])
+
+  const detailScrollOffsetRef = useRef(0)
+
   // Gesto PanResponder para arrastrar hacia abajo y cerrar
+  // En modo 'detail', captura el gesto de arrastre hacia abajo desde cualquier parte de la superficie
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => currentViewRef.current === 'detail',
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+        if (currentViewRef.current === 'detail') {
+          return (
+            detailScrollOffsetRef.current <= 0 &&
+            gestureState.dy > 3 &&
+            Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+          )
+        }
+        return false
       },
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+        if (currentViewRef.current === 'detail') {
+          return (
+            detailScrollOffsetRef.current <= 0 &&
+            gestureState.dy > 3 &&
+            Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+          )
+        }
+        return false
       },
       onPanResponderGrant: () => {
         panY.stopAnimation()
@@ -374,12 +472,60 @@ export function MinimalistTaskModal({
         if (gestureState.dy > 0) {
           panY.setValue(gestureState.dy)
         } else {
-          panY.setValue(0)
+          panY.setValue(gestureState.dy * 0.15)
         }
       },
       onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 50 || gestureState.vy > 0.3) {
+        const isFlick = gestureState.dy > 40 && gestureState.vy > 0.6
+        const isDraggedFarEnough = gestureState.dy > 90
+        if (isDraggedFarEnough || isFlick) {
+          handleSmoothClose({ silent: true, velocity: gestureState.vy })
+        } else {
+          Animated.spring(panY, {
+            toValue: 0,
+            damping: 25,
+            stiffness: 400,
+            useNativeDriver: true,
+          }).start()
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(panY, {
+          toValue: 0,
+          damping: 25,
+          stiffness: 400,
+          useNativeDriver: true,
+        }).start()
+      },
+    })
+  ).current
+
+  // Gesto PanResponder específico para la barra superior en modo formulario
+  const headerPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
+      onMoveShouldSetPanResponderCapture: (_, gestureState) =>
+        gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
+      onPanResponderGrant: () => {
+        panY.stopAnimation()
+        panY.setValue(0)
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          panY.setValue(gestureState.dy)
+        } else {
+          panY.setValue(gestureState.dy * 0.15)
+        }
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderRelease: (_, gestureState) => {
+        const isFlick = gestureState.dy > 60 && gestureState.vy > 0.8
+        const isDraggedFarEnough = gestureState.dy > 130
+        if (isDraggedFarEnough || isFlick) {
           handleSmoothClose({ silent: true, velocity: gestureState.vy })
         } else {
           Animated.spring(panY, {
@@ -402,15 +548,33 @@ export function MinimalistTaskModal({
   ).current
 
   const handleSave = async () => {
+    if (isSavingRef.current || isClosingRef.current) return
+
     if (!title.trim()) {
       playWarningSound()
       Alert.alert('Título requerido', 'Por favor escribe el nombre de la tarea.')
       return
     }
 
+    // Micro-animación táctil de confirmación en la palomita
+    Animated.sequence([
+      Animated.timing(checkScaleAnim, {
+        toValue: 0.82,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.spring(checkScaleAnim, {
+        toValue: 1.16,
+        friction: 4,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start()
+
     try {
-      Keyboard.dismiss()
+      isSavingRef.current = true
       setSaveLoading(true)
+      Keyboard.dismiss()
       const selectedSubj = subjects.find((s) => s.id === selectedSubjectId)
 
       const payload = {
@@ -429,6 +593,11 @@ export function MinimalistTaskModal({
         const rawId = generateId('class').replace('class_', '')
         const publishedId = `class_${rawId}`
         const nowIso = new Date().toISOString()
+        const selectedSubjObj = selectedSubj || {
+          id: 'virtual_general',
+          name: 'General',
+          color: '#71717A',
+        }
 
         savedTaskObj = {
           id: publishedId,
@@ -436,6 +605,7 @@ export function MinimalistTaskModal({
           class_task_id: rawId,
           is_pending_sync: false,
           ...payload,
+          subject: selectedSubjObj,
           status: 'pending',
           created_at: nowIso,
           updated_at: nowIso,
@@ -445,13 +615,13 @@ export function MinimalistTaskModal({
         playSaveSound()
         triggerHaptic('success')
         onTaskSaved?.(savedTaskObj, isNew)
-        handleSmoothClose({ silent: true })
+        handleSmoothClose({ silent: true, isSave: true })
 
         publishClassTask({
           id: publishedId,
           title: title.trim(),
           description: description.trim() || null,
-          subject_name: selectedSubj?.name || 'General',
+          subject_name: selectedSubjObj.name,
           subject_code: selectedSubj?.code || null,
           type: taskType,
           due_date: dueDate || null,
@@ -498,8 +668,9 @@ export function MinimalistTaskModal({
       playSaveSound()
       triggerHaptic('success')
       onTaskSaved?.(savedTaskObj, isNew)
-      handleSmoothClose({ silent: true })
+      handleSmoothClose({ silent: true, isSave: true })
     } catch (err) {
+      isSavingRef.current = false
       logger.error('Error al guardar tarea:', err)
       Alert.alert('Error', 'No se pudo guardar la tarea.')
     } finally {
@@ -620,14 +791,14 @@ export function MinimalistTaskModal({
     {
       id: 'none',
       title: 'General (Sin materia)',
-      image: Platform.OS === 'ios' ? 'tray' : undefined,
+      image: Platform.select({ ios: 'tray', android: 'ic_menu_agenda' }),
       imageColor: '#8E8E93',
       state: selectedSubjectId === null ? 'on' : 'off',
     },
     ...subjects.map((s) => ({
       id: s.id,
       title: s.name,
-      image: Platform.OS === 'ios' ? 'circle.fill' : undefined,
+      image: Platform.select({ ios: 'circle.fill', android: 'ic_menu_myplaces' }),
       imageColor: s.color || '#FFFFFF',
       state: selectedSubjectId === s.id ? 'on' : 'off',
     }) satisfies MenuAction),
@@ -645,26 +816,47 @@ export function MinimalistTaskModal({
 
   // Opciones de los context menus nativos (Tipo / Adjuntar)
   const isWeb = Platform.OS === 'web'
-  const typeMenuActions: MenuAction[] = TASK_TYPE_OPTIONS.map((t) => ({
-    id: t,
-    title: formatTaskTypeLabel(t),
-    state: taskType === t ? 'on' : 'off',
-  }))
+  const typeMenuActions: MenuAction[] = TASK_TYPE_OPTIONS.map((t) => {
+    let iosIcon = 'person'
+    let androidIcon = 'ic_menu_myplaces'
+    if (t === 'grupal') {
+      iosIcon = 'person.2'
+      androidIcon = 'ic_menu_share'
+    } else if (t === 'proyecto') {
+      iosIcon = 'folder'
+      androidIcon = 'ic_menu_agenda'
+    } else if (t === 'examen') {
+      iosIcon = 'doc.text'
+      androidIcon = 'ic_menu_edit'
+    }
+
+    return {
+      id: t,
+      title: formatTaskTypeLabel(t),
+      image: Platform.select({ ios: iosIcon, android: androidIcon }),
+      imageColor: '#FFFFFF',
+      state: taskType === t ? 'on' : 'off',
+    }
+  })
+
   const attachMenuActions: MenuAction[] = [
     {
       id: 'camera',
       title: 'Cámara',
-      image: Platform.OS === 'ios' ? 'camera' : undefined,
+      image: Platform.select({ ios: 'camera', android: 'ic_menu_camera' }),
+      imageColor: '#FFFFFF',
     },
     {
       id: 'photos',
       title: 'Fotos',
-      image: Platform.OS === 'ios' ? 'photo.on.rectangle' : undefined,
+      image: Platform.select({ ios: 'photo.on.rectangle', android: 'ic_menu_gallery' }),
+      imageColor: '#FFFFFF',
     },
     {
       id: 'files',
       title: 'Archivos',
-      image: Platform.OS === 'ios' ? 'paperclip' : undefined,
+      image: Platform.select({ ios: 'paperclip', android: 'ic_menu_upload' }),
+      imageColor: '#FFFFFF',
     },
   ]
 
@@ -672,12 +864,12 @@ export function MinimalistTaskModal({
 
   return (
     <Modal visible={modalVisible} transparent={true} animationType="none" onRequestClose={() => handleSmoothClose()}>
-      <View style={styles.modalRoot}>
+      <View style={styles.modalRoot} pointerEvents={isClosing ? 'none' : 'auto'}>
         {/* Backdrop Frosted con Fade (estilo hoja de iOS: blur + dim ligero) */}
-        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} pointerEvents={isClosing ? 'none' : 'auto'}>
           {Platform.OS === 'ios' && <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />}
           <View style={styles.backdropDim} />
-          <Pressable style={styles.backdropTouch} onPress={() => handleSmoothClose()} />
+          <Pressable style={styles.backdropTouch} onPress={() => handleSmoothClose()} disabled={isClosing} />
         </Animated.View>
 
         {/* Hoja Inferior Deslizante con PanResponder */}
@@ -688,24 +880,29 @@ export function MinimalistTaskModal({
               paddingBottom: Math.max(insets.bottom, 16) + 8,
               transform: [
                 { translateY: Animated.add(slideAnim, panY) },
+                { scale: sheetScaleAnim },
               ],
             },
           ]}
+          collapsable={false}
+          {...panResponder.panHandlers}
         >
           {/* MODO DETALLE MODULARIZADO */}
           {currentView === 'detail' && (
             <TaskDetailView
               task={task}
-              panHandlers={panResponder.panHandlers}
               onOpenImage={setSelectedLightboxImage}
               onOpenPdf={setViewingPdf}
+              onScrollOffsetChange={(y) => {
+                detailScrollOffsetRef.current = y
+              }}
             />
           )}
 
           {/* MODO FORMULARIO (CREAR / EDITAR) */}
           {currentView === 'form' && (
             <>
-              <View style={styles.sheetHeader} collapsable={false} {...panResponder.panHandlers}>
+              <View style={styles.sheetHeader} collapsable={false} {...headerPanResponder.panHandlers}>
                 <View style={styles.dragHandle} />
                 <View style={styles.headerRow}>
                   <View style={styles.headerSide}>
@@ -720,7 +917,12 @@ export function MinimalistTaskModal({
                       {mode === 'edit' ? 'Editar tarea' : 'Nueva tarea'}
                     </Text>
                   </View>
-                  <View style={styles.headerSide}>
+                  <Animated.View
+                    style={[
+                      styles.headerSide,
+                      { transform: [{ scale: checkScaleAnim }] },
+                    ]}
+                  >
                     <NativeGlassIconButton
                       onPress={handleSave}
                       icon="checkmark"
@@ -728,7 +930,7 @@ export function MinimalistTaskModal({
                       disabled={saveLoading}
                       variant="prominent"
                     />
-                  </View>
+                  </Animated.View>
                 </View>
               </View>
 
@@ -738,6 +940,7 @@ export function MinimalistTaskModal({
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
+                bounces={false}
               >
                 {/* Campos de Título y Notas en tarjeta liquid glass */}
                 <View style={styles.glassInputCard}>
@@ -778,15 +981,13 @@ export function MinimalistTaskModal({
                         )
                       }}
                     >
-                      <View style={styles.groupRow}>
-                        <GroupRowContent
-                          iconBox={subjectRowIcon}
-                          label="Materia"
-                          value={selectedSubject?.name || 'No asignada'}
-                          valueActive={Boolean(selectedSubject)}
-                          trailing={<ChevronDown size={13} color="#636366" />}
-                        />
-                      </View>
+                      <GroupRow
+                        iconBox={subjectRowIcon}
+                        label="Materia"
+                        value={selectedSubject?.name || 'No asignada'}
+                        valueActive={true}
+                        trailing={<ChevronDown size={14} color="#8E8E93" strokeWidth={2} />}
+                      />
                     </MenuView>
                   ) : (
                     <GroupRow
@@ -795,8 +996,8 @@ export function MinimalistTaskModal({
                       iconBox={subjectRowIcon}
                       label="Materia"
                       value={selectedSubject?.name || 'No asignada'}
-                      valueActive={Boolean(selectedSubject)}
-                      trailing={<ChevronRight size={14} color="#636366" />}
+                      valueActive={true}
+                      trailing={<ChevronRight size={14} color="#8E8E93" strokeWidth={2} />}
                     />
                   )}
 
@@ -809,8 +1010,8 @@ export function MinimalistTaskModal({
                     iconBox={<Calendar size={19} color="#FFFFFF" strokeWidth={2} />}
                     label="Fecha de entrega"
                     value={formatDueDateLabel(dueDate)}
-                    valueActive={Boolean(dueDate)}
-                    trailing={<ChevronRight size={15} color="#8E8E93" />}
+                    valueActive={true}
+                    trailing={<ChevronRight size={14} color="#8E8E93" strokeWidth={2} />}
                   />
 
                   <View style={styles.groupHairline} />
@@ -828,15 +1029,13 @@ export function MinimalistTaskModal({
                         setTaskType(type)
                       }}
                     >
-                      <View style={styles.groupRow}>
-                        <GroupRowContent
-                          iconBox={<Layers size={19} color="#FFFFFF" strokeWidth={2} />}
-                          label="Tipo de tarea"
-                          value={formatTaskTypeLabel(taskType)}
-                          valueActive={taskType !== 'individual'}
-                          trailing={<ChevronDown size={14} color="#8E8E93" />}
-                        />
-                      </View>
+                      <GroupRow
+                        iconBox={<Layers size={19} color="#FFFFFF" strokeWidth={2} />}
+                        label="Tipo de tarea"
+                        value={formatTaskTypeLabel(taskType)}
+                        valueActive={true}
+                        trailing={<ChevronDown size={14} color="#8E8E93" strokeWidth={2} />}
+                      />
                     </MenuView>
                   ) : (
                     <GroupRow
@@ -848,8 +1047,8 @@ export function MinimalistTaskModal({
                       iconBox={<Layers size={19} color="#FFFFFF" strokeWidth={2} />}
                       label="Tipo de tarea"
                       value={formatTaskTypeLabel(taskType)}
-                      valueActive={taskType !== 'individual'}
-                      trailing={<ChevronRight size={15} color="#8E8E93" />}
+                      valueActive={true}
+                      trailing={<ChevronRight size={14} color="#8E8E93" strokeWidth={2} />}
                     />
                   )}
 
@@ -860,7 +1059,6 @@ export function MinimalistTaskModal({
                       <GroupRow
                         onPress={() => {
                           triggerHaptic('selection')
-                          LAYOUT_EASE(130)
                           setPublishToClass(!publishToClass)
                         }}
                         accessibilityLabel="Publicar en la clase"
@@ -901,18 +1099,17 @@ export function MinimalistTaskModal({
                         }
                       }}
                     >
-                      <View style={styles.groupRow}>
-                        <GroupRowContent
-                          iconBox={<Paperclip size={19} color="#FFFFFF" strokeWidth={2} />}
-                          label="Añadir adjuntos"
-                          value={
-                            attachments.length > 0
-                              ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
-                              : undefined
-                          }
-                          trailing={<ChevronDown size={14} color="#8E8E93" />}
-                        />
-                      </View>
+                      <GroupRow
+                        iconBox={<Paperclip size={19} color="#FFFFFF" strokeWidth={2} />}
+                        label="Añadir adjuntos"
+                        value={
+                          attachments.length > 0
+                            ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
+                            : undefined
+                        }
+                        valueActive={true}
+                        trailing={<ChevronDown size={14} color="#8E8E93" strokeWidth={2} />}
+                      />
                     </MenuView>
                   ) : (
                     <GroupRow
@@ -928,7 +1125,8 @@ export function MinimalistTaskModal({
                           ? `${attachments.length} adjunto${attachments.length > 1 ? 's' : ''}`
                           : undefined
                       }
-                      trailing={<ChevronRight size={15} color="#8E8E93" />}
+                      valueActive={true}
+                      trailing={<ChevronRight size={14} color="#8E8E93" strokeWidth={2} />}
                     />
                   )}
                 </GroupCard>
@@ -995,7 +1193,6 @@ export function MinimalistTaskModal({
                             subjects={subjects}
                             selectedSubjectId={selectedSubjectId}
                             onSelectSubject={(id) => {
-                              LAYOUT_EASE(130)
                               setSelectedSubjectId(id)
                               closeSubPage()
                             }}
@@ -1006,7 +1203,6 @@ export function MinimalistTaskModal({
                           <TaskTypePicker
                             selectedType={taskType}
                             onSelectType={(t) => {
-                              LAYOUT_EASE(130)
                               setTaskType(t)
                               closeSubPage()
                             }}
@@ -1020,7 +1216,6 @@ export function MinimalistTaskModal({
                               { key: 'files', label: 'Archivos' },
                             ]}
                             onSelect={(key) => {
-                              LAYOUT_EASE(130)
                               closeSubPage()
                               if (key === 'camera') openSubPage('camera')
                               else if (key === 'photos') openSubPage('photos')
@@ -1032,7 +1227,6 @@ export function MinimalistTaskModal({
                             dueDate={dueDate}
                             onSelectDueDate={setDueDate}
                             onSelectClass={(sched, subj) => {
-                              LAYOUT_EASE(130)
                               handleSelectClass(sched, subj)
                             }}
                             schedules={schedules}
@@ -1119,7 +1313,7 @@ function GroupRowContent({
 }) {
   return (
     <>
-      {iconBox}
+      <View style={styles.groupRowIconBox}>{iconBox}</View>
       <Text style={styles.groupRowLabel} numberOfLines={1}>
         {label}
       </Text>
@@ -1136,7 +1330,7 @@ function GroupRowContent({
   )
 }
 
-/** Fila agrupada presionable (sub-páginas / toggles) */
+/** Fila agrupada presionable (sub-páginas / toggles / menus) con feedback táctil inmediato */
 function GroupRow({
   onPress,
   iconBox,
@@ -1154,24 +1348,70 @@ function GroupRow({
   trailing?: ReactNode
   accessibilityLabel?: string
 }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current
+  const [isPressed, setIsPressed] = useState(false)
+
+  const handlePressIn = () => {
+    setIsPressed(true)
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      speed: 60,
+      bounciness: 0,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    setIsPressed(false)
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 4,
+    }).start()
+  }
+
+  if (!onPress) {
+    return (
+      <View style={styles.groupRow} pointerEvents="none">
+        <GroupRowContent
+          iconBox={iconBox}
+          label={label}
+          value={value}
+          valueActive={valueActive}
+          trailing={trailing}
+        />
+      </View>
+    )
+  }
+
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.groupRow,
-        pressed && onPress && styles.groupRowPressed,
+    <Animated.View
+      style={[
+        isPressed && styles.groupRowPressed,
+        { transform: [{ scale: scaleAnim }] },
       ]}
     >
-      <GroupRowContent
-        iconBox={iconBox}
-        label={label}
-        value={value}
-        valueActive={valueActive}
-        trailing={trailing}
-      />
-    </Pressable>
+      <Pressable
+        onPress={() => {
+          triggerHaptic('light')
+          onPress()
+        }}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        style={styles.groupRow}
+      >
+        <GroupRowContent
+          iconBox={iconBox}
+          label={label}
+          value={value}
+          valueActive={valueActive}
+          trailing={trailing}
+        />
+      </Pressable>
+    </Animated.View>
   )
 }
 
@@ -1291,13 +1531,21 @@ const styles = StyleSheet.create({
   groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     minHeight: 50,
     paddingHorizontal: 14,
     paddingVertical: 6,
+    borderRadius: 14,
+  },
+  groupRowIconBox: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   groupRowPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
   },
   groupRowLabel: {
     color: '#F4F4F5',
@@ -1308,15 +1556,19 @@ const styles = StyleSheet.create({
   groupRowValue: {
     flex: 1,
     textAlign: 'right',
-    color: '#8E8E93',
+    color: '#A1A1AA',
     fontSize: 14,
+    fontWeight: '400',
+    marginRight: 4,
   },
   groupRowValueActive: {
-    color: '#A1A1A6',
-    fontWeight: '500',
+    color: '#A1A1AA',
+    fontWeight: '400',
   },
   groupRowTrailing: {
     marginLeft: 'auto',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   groupHairline: {
     height: StyleSheet.hairlineWidth,

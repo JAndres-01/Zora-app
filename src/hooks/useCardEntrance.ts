@@ -40,14 +40,15 @@ export function useCardEntrance(
 
       cardEntranceAnims.forEach((anim) => anim.setValue(0))
 
-      const staggerAnims = cardEntranceAnims.map((anim) =>
+      const staggerAnims = cardEntranceAnims.map((anim, index) =>
         Animated.spring(anim, {
           toValue: 1,
+          delay: index * staggerDelay,
           ...SPRING_ENTRANCE_CONFIG,
         })
       )
 
-      Animated.stagger(staggerDelay, staggerAnims).start()
+      Animated.parallel(staggerAnims).start()
     }, [cardEntranceAnims, screenKey, staggerDelay])
   )
 
@@ -57,20 +58,20 @@ export function useCardEntrance(
 export function getCardEntranceStyle(anim: Animated.Value) {
   return {
     opacity: anim.interpolate({
-      inputRange: [0, 0.4, 1],
-      outputRange: [0, 0.7, 1],
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 0.85, 1],
     }),
     transform: [
       {
         translateY: anim.interpolate({
           inputRange: [0, 1],
-          outputRange: [-36, 0],
+          outputRange: [6, 0],
         }),
       },
       {
         scale: anim.interpolate({
           inputRange: [0, 1],
-          outputRange: [0.96, 1],
+          outputRange: [0.99, 1],
         }),
       },
     ],

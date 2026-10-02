@@ -58,4 +58,35 @@ describe('MinimalistTaskModal Component', () => {
     expect(getByText('Entrega de práctica 2')).toBeTruthy()
     expect(getByText('Entregar en PDF')).toBeTruthy()
   })
+
+  test('permite guardar una tarea y llama onTaskSaved correctamente', async () => {
+    const mockOnTaskSaved = jest.fn()
+    const mockOnClose = jest.fn()
+
+    const { getByPlaceholderText, getByLabelText } = await render(
+      <MinimalistTaskModal
+        mode="create"
+        task={null}
+        userId="user-test"
+        subjects={mockSubjects}
+        onClose={mockOnClose}
+        onTaskSaved={mockOnTaskSaved}
+      />
+    )
+
+    const titleInput = getByPlaceholderText('¿Qué tienes que hacer?')
+    await act(async () => {
+      fireEvent.changeText(titleInput, 'Tarea de prueba local')
+    })
+
+    const saveBtn = getByLabelText('Guardar tarea')
+    await act(async () => {
+      fireEvent.press(saveBtn)
+    })
+
+    expect(mockOnTaskSaved).toHaveBeenCalledTimes(1)
+    const saved = mockOnTaskSaved.mock.calls[0][0]
+    expect(saved.title).toBe('Tarea de prueba local')
+    expect(saved.status).toBe('pending')
+  })
 })

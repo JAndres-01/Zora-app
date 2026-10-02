@@ -67,6 +67,8 @@ export const MinimalistTaskRow = memo(
     const rotateAnim = useRef(new Animated.Value(0)).current
     const isDeleting = useRef(false)
     const [isDeletingState, setIsDeletingState] = useState(false)
+    const isExiting = useRef(false)
+    const [isExitingState, setIsExitingState] = useState(false)
 
     // statusFilter fresco para decidir si la fila sale de la lista al hacer toggle
     // (el PanResponder captura las props de la primera render, así que usamos un ref)
@@ -84,7 +86,7 @@ export const MinimalistTaskRow = memo(
 
     const handleLayout = useCallback((e: LayoutChangeEvent) => {
       const h = e.nativeEvent.layout.height
-      if (h > 0 && !isDeleting.current) {
+      if (h > 0 && !isDeleting.current && !isExiting.current) {
         measuredHeight.current = h
         maxHeightAnim.setValue(h)
       }
@@ -92,7 +94,7 @@ export const MinimalistTaskRow = memo(
 
     // Limpieza y reinicio solo si cambia el ID de la tarea
     useEffect(() => {
-      if (isDeleting.current) return
+      if (isDeleting.current || isExiting.current) return
 
       if (toggleTimerRef.current) {
         clearTimeout(toggleTimerRef.current)
@@ -103,6 +105,8 @@ export const MinimalistTaskRow = memo(
 
       isDeleting.current = false
       setIsDeletingState(false)
+      isExiting.current = false
+      setIsExitingState(false)
       deleteAnim.stopAnimation()
       deleteAnim.setValue(0)
       shakeAnim.stopAnimation()
@@ -142,7 +146,7 @@ export const MinimalistTaskRow = memo(
         isMountedRef.current = true
         return
       }
-      if (isDeleting.current) return
+      if (isDeleting.current || isExiting.current) return
       Animated.timing(rowFadeAnim, {
         toValue: isVisuallyDone ? 0.6 : 1,
         duration: 180,
@@ -151,7 +155,7 @@ export const MinimalistTaskRow = memo(
     }, [isDone, isVisuallyDone])
 
     useEffect(() => {
-      if (isDeleting.current) return
+      if (isDeleting.current || isExiting.current) return
       if (isHighlighted) {
         triggerHaptic('medium')
 
@@ -224,17 +228,17 @@ export const MinimalistTaskRow = memo(
         onStartShouldSetPanResponder: () => false,
         onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          if (isDeleting.current) return false
+          if (isDeleting.current || isExiting.current) return false
           const { dx, dy } = gestureState
           return Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5
         },
         onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-          if (isDeleting.current) return false
+          if (isDeleting.current || isExiting.current) return false
           const { dx, dy } = gestureState
           return Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5
         },
         onPanResponderGrant: () => {
-          if (isDeleting.current) return
+          if (isDeleting.current || isExiting.current) return
           isSwiping.current = true
           if (toggleTimerRef.current) {
             clearTimeout(toggleTimerRef.current)
@@ -248,7 +252,7 @@ export const MinimalistTaskRow = memo(
           isGreenTriggered.current = false
         },
         onPanResponderMove: (_, gestureState) => {
-          if (isDeleting.current) return
+          if (isDeleting.current || isExiting.current) return
           let dx = gestureState.dx
           if (isOpen.current) {
             dx = dx - actionsWidth
@@ -278,7 +282,7 @@ export const MinimalistTaskRow = memo(
           }
         },
         onPanResponderRelease: (_, gestureState) => {
-          if (isDeleting.current) return
+          if (isDeleting.current || isExiting.current) return
           isSwiping.current = false
           onSwipeActiveChange?.(true)
           let dx = gestureState.dx
@@ -294,55 +298,87 @@ export const MinimalistTaskRow = memo(
             isGreenTriggered.current = false
             isOpen.current = false
 
-            // Resorte de alta tensión con overshoot para rebote orgánico
-            Animated.parallel([
-              Animated.spring(translateX, {
-                toValue: 0,
-                stiffness: 480,
-                damping: 24,
-                mass: 0.7,
-                overshootClamping: false,
-                useNativeDriver: true,
-              }),
-              Animated.timing(rightSwipeDistance, {
-                toValue: 0,
-                duration: 100,
-                easing: APPLE_EASING,
-                useNativeDriver: true,
-              }),
-              Animated.spring(scaleAnim, {
-                toValue: 1,
-                stiffness: 500,
-                damping: 22,
-                useNativeDriver: true,
-              }),
-            ]).start()
-
-            // Ejecutar el cambio de estado en el momento justo del rebote de látigo.
-            // Si la fila sale de la lista actual (Pendientes→ha completado, Completadas→desmarcada),
-            // primero se desvanece con Animated API (fiable en Fabric) y solo después se avisa al
-            // padre para que la retire: el fade NO depende de la fase delete de LayoutAnimation,
-            // que se pierde en iOS/Fabric al encadenar acciones seguidas.
+            // Si la fila sale de la lista (Pendientes→completada, Completadas→desmarcada),
+            // animamos su propio colapso de altura y fade con Animated API independiente.
+            // Esto elimina saltos visuales y cortes bruscos al encadenar múltiples tareas.
             const leavesList = statusFilterRef.current !== 'all'
-            if (toggleTimerRef.current) {
-              clearTimeout(toggleTimerRef.current)
-            }
-            toggleTimerRef.current = setTimeout(() => {
-              translateX.setValue(0)
-              rightSwipeDistance.setValue(0)
-              if (leavesList) {
+
+            if (leavesList) {
+              isExiting.current = true
+              setIsExitingState(true)
+
+              if (toggleTimerRef.current) {
+                clearTimeout(toggleTimerRef.current)
+                toggleTimerRef.current = null
+              }
+
+              Animated.parallel([
+                Animated.timing(translateX, {
+                  toValue: 0,
+                  duration: 90,
+                  easing: APPLE_EASING,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(rightSwipeDistance, {
+                  toValue: 0,
+                  duration: 90,
+                  easing: APPLE_EASING,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(scaleAnim, {
+                  toValue: 0.96,
+                  duration: 180,
+                  easing: APPLE_EASING,
+                  useNativeDriver: true,
+                }),
                 Animated.timing(rowFadeAnim, {
                   toValue: 0,
-                  duration: 150,
+                  duration: 180,
+                  easing: APPLE_EASING,
                   useNativeDriver: true,
-                }).start(() => {
-                  rowFadeAnim.setValue(0)
-                  onToggleStatus(task.id, task.status)
-                })
-              } else {
+                }),
+                Animated.sequence([
+                  Animated.delay(40),
+                  Animated.timing(maxHeightAnim, {
+                    toValue: 0,
+                    duration: 190,
+                    easing: APPLE_EASING,
+                    useNativeDriver: false,
+                  }),
+                ]),
+              ]).start(() => {
+                translateX.setValue(0)
+                rightSwipeDistance.setValue(0)
+                rowFadeAnim.setValue(0)
                 onToggleStatus(task.id, task.status)
-              }
-            }, 105)
+              })
+            } else {
+              // Resorte con overshoot para rebote orgánico si se queda en la lista
+              Animated.parallel([
+                Animated.spring(translateX, {
+                  toValue: 0,
+                  stiffness: 480,
+                  damping: 24,
+                  mass: 0.7,
+                  overshootClamping: false,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(rightSwipeDistance, {
+                  toValue: 0,
+                  duration: 100,
+                  easing: APPLE_EASING,
+                  useNativeDriver: true,
+                }),
+                Animated.spring(scaleAnim, {
+                  toValue: 1,
+                  stiffness: 500,
+                  damping: 22,
+                  useNativeDriver: true,
+                }),
+              ]).start()
+
+              onToggleStatus(task.id, task.status)
+            }
           } else if (dx <= -36 && canModify) {
             // Desplegar y anclar botones de acción
             triggerHaptic('selection')
@@ -380,7 +416,7 @@ export const MinimalistTaskRow = memo(
           }
         },
         onPanResponderTerminate: () => {
-          if (isDeleting.current) return
+          if (isDeleting.current || isExiting.current) return
           isSwiping.current = false
           onSwipeActiveChange?.(true)
           isOpen.current = false
@@ -410,7 +446,7 @@ export const MinimalistTaskRow = memo(
     ).current
 
     const handlePressIn = () => {
-      if (isOpen.current || isSwiping.current || isDeleting.current) return
+      if (isOpen.current || isSwiping.current || isDeleting.current || isExiting.current) return
       Animated.spring(scaleAnim, {
         toValue: 0.985,
         stiffness: 600,
@@ -420,7 +456,7 @@ export const MinimalistTaskRow = memo(
     }
 
     const handlePressOut = () => {
-      if (isDeleting.current) return
+      if (isDeleting.current || isExiting.current) return
       Animated.spring(scaleAnim, {
         toValue: 1,
         stiffness: 500,
@@ -430,7 +466,7 @@ export const MinimalistTaskRow = memo(
     }
 
     const handleCardPress = () => {
-      if (isDeleting.current) return
+      if (isDeleting.current || isExiting.current) return
       if (isOpen.current) {
         triggerHaptic('light')
         isOpen.current = false
@@ -447,7 +483,7 @@ export const MinimalistTaskRow = memo(
     }
 
     const handleEditPress = () => {
-      if (isDeleting.current || isVisuallyDone) return
+      if (isDeleting.current || isExiting.current || isVisuallyDone) return
       triggerHaptic('light')
       isOpen.current = false
       Animated.timing(translateX, {
@@ -461,7 +497,7 @@ export const MinimalistTaskRow = memo(
     }
 
     const handleDeletePress = () => {
-      if (isDeleting.current) return
+      if (isDeleting.current || isExiting.current) return
       isDeleting.current = true
       setIsDeletingState(true)
       isOpen.current = false
@@ -569,15 +605,16 @@ export const MinimalistTaskRow = memo(
       [task.due_date, isVisuallyDone]
     )
     const attachCount = Array.isArray(task.attachments) ? task.attachments.length : 0
+    const isExitingView = isDeletingState || isExitingState
 
     return (
       <Animated.View
         onLayout={handleLayout}
         style={[
-          isDeletingState ? styles.collapseWrapper : styles.normalWrapper,
-          isDeletingState && { maxHeight: maxHeightAnim },
+          isExitingView ? styles.collapseWrapper : styles.normalWrapper,
+          isExitingView && { maxHeight: maxHeightAnim },
           isHighlighted && styles.highlightedZIndex,
-          { pointerEvents: isDeletingState ? 'none' : 'auto' },
+          { pointerEvents: isExitingView ? 'none' : 'auto' },
         ]}
       >
         <Animated.View
@@ -784,11 +821,11 @@ export const MinimalistTaskRow = memo(
 
           {/* 2. Capa Frontal Deslizable (La Tarjeta de la Tarea) */}
           <Animated.View
-            {...(isDeletingState ? {} : panResponder.panHandlers)}
+            {...(isExitingView ? {} : panResponder.panHandlers)}
             style={[
               styles.glowWrapper,
               {
-                pointerEvents: isDeletingState ? 'none' : 'auto',
+                pointerEvents: isExitingView ? 'none' : 'auto',
                 transform: [
                   { translateX: Animated.add(translateX, shakeAnim) },
                   {
@@ -924,7 +961,7 @@ export const MinimalistTaskRow = memo(
       prev.isHighlighted === next.isHighlighted &&
       prev.isLast === next.isLast &&
       prev.isAdmin === next.isAdmin &&
-      prev.statusFilter === next.statusFilter
+      (prev.statusFilter !== 'all') === (next.statusFilter !== 'all')
     )
   })
 
